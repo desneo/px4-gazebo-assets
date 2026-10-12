@@ -1,0 +1,14 @@
+{
+  "gimbal_host": "127.0.0.1",
+  "udp_port": 8765,
+  "rtsp_port": 8554,
+  "rtsp_mount": "/gimbal",
+  "display_scale": 0.5,
+  "decoder": "nvenc",
+  "window_title": "Gimbal Ground Station",
+  "client_timeout": 5.0,
+  "retry_interval": 0.2,
+  "retry_max": 5,
+  "reconnect": true,
+  "font_path": "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc"
+}

@@ -1,0 +1,4 @@
+models/gimbals/three_axis_pod/controller/build/
+__pycache__/
+*.pyc
+runs/

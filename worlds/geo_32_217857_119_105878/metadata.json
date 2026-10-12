@@ -1,0 +1,6770 @@
+{
+  "center_wgs84": {
+    "latitude_deg": 32.21785737811048,
+    "longitude_deg": 119.1058778440883
+  },
+  "requested_radius_m": 5000,
+  "terrain_bounds_enu_m": [
+    -5000,
+    -5000,
+    5000,
+    5000
+  ],
+  "intended_max_height_agl_m": 200,
+  "hard_geofence": false,
+  "projection": "WGS84 local ENU tangent plane; ellipsoid-intersection raster sampling",
+  "origin_elevation_source_m": 4.019968996242738,
+  "vertical_datum": "Source DEM heights used as approximate WGS84 altitude; no geoid conversion",
+  "terrain_grid_spacing_m": 31.25,
+  "imagery_output_m_per_pixel": 1.220703125,
+  "imagery_native_resolution": "Variable by source; output sampling does not imply native accuracy",
+  "dem_source": "Mapzen Terrain Tiles (Terrarium), zoom 12, approx. 32 m pixel spacing at center",
+  "dem_attribution": "Mapzen; underlying sources: https://github.com/tilezen/joerd/blob/master/docs/attribution.md",
+  "imagery_attribution": "Source: Esri, Vantor, Earthstar Geographics, and the GIS User Community",
+  "imagery_terms": "https://goto.arcgisonline.com/maps/World_Imagery",
+  "retrieved_at_utc": "2026-10-12T08:52:51.442807+00:00",
+  "dem_inputs": [
+    {
+      "url": "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/12/3402/1659.png",
+      "sha256": "2e0c851900f8f4791f9a514a9e7115a394056b70dee58e0fcb31e79d8e48cdf3"
+    },
+    {
+      "url": "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/12/3403/1659.png",
+      "sha256": "db0d680f423958d52f9981ad1ca4d6e2d1c7e599af9e10046dec01132baaaa19"
+    },
+    {
+      "url": "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/12/3402/1660.png",
+      "sha256": "974ae6abb49be569e52ea786e1b89f3ab551fd7e734e6b0ec23c41aa7d59cd97"
+    },
+    {
+      "url": "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/12/3403/1660.png",
+      "sha256": "9ef814e969b3dac62278622965dd929ba8561d05c05f28c99509becb04f135d0"
+    },
+    {
+      "url": "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/12/3402/1661.png",
+      "sha256": "40d8763b8a8dbb2a6978c5901afdd1b5deb324036e37c3fd3d23b3b5dfef680e"
+    },
+    {
+      "url": "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/12/3403/1661.png",
+      "sha256": "de0e81a1b045d3403e6ad29304ab9761acb1f09b20f8178578d2c0bd24543f95"
+    }
+  ],
+  "tiles": [
+    {
+      "name": "tile_00_00",
+      "center_enu_m": [
+        -4750,
+        -4750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_00_00.dae",
+      "imagery_source": "imagery_0_0",
+      "terrain_z_min_m": -8.442959,
+      "terrain_z_max_m": 1.379579
+    },
+    {
+      "name": "tile_01_00",
+      "center_enu_m": [
+        -4250,
+        -4750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_01_00.dae",
+      "imagery_source": "imagery_0_0",
+      "terrain_z_min_m": -7.064605,
+      "terrain_z_max_m": 1.393793
+    },
+    {
+      "name": "tile_02_00",
+      "center_enu_m": [
+        -3750,
+        -4750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_02_00.dae",
+      "imagery_source": "imagery_0_0",
+      "terrain_z_min_m": -7.064605,
+      "terrain_z_max_m": 3.677524
+    },
+    {
+      "name": "tile_03_00",
+      "center_enu_m": [
+        -3250,
+        -4750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_03_00.dae",
+      "imagery_source": "imagery_0_0",
+      "terrain_z_min_m": -6.059513,
+      "terrain_z_max_m": 2.424394
+    },
+    {
+      "name": "tile_04_00",
+      "center_enu_m": [
+        -2750,
+        -4750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_04_00.dae",
+      "imagery_source": "imagery_0_0",
+      "terrain_z_min_m": -6.059513,
+      "terrain_z_max_m": -0.119739
+    },
+    {
+      "name": "tile_05_00",
+      "center_enu_m": [
+        -2250,
+        -4750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_05_00.dae",
+      "imagery_source": "imagery_1_0",
+      "terrain_z_min_m": -6.084343,
+      "terrain_z_max_m": 0.51275
+    },
+    {
+      "name": "tile_06_00",
+      "center_enu_m": [
+        -1750,
+        -4750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_06_00.dae",
+      "imagery_source": "imagery_1_0",
+      "terrain_z_min_m": -4.963472,
+      "terrain_z_max_m": 1.279889
+    },
+    {
+      "name": "tile_07_00",
+      "center_enu_m": [
+        -1250,
+        -4750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_07_00.dae",
+      "imagery_source": "imagery_1_0",
+      "terrain_z_min_m": -7.03665,
+      "terrain_z_max_m": 4.416791
+    },
+    {
+      "name": "tile_08_00",
+      "center_enu_m": [
+        -750,
+        -4750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_08_00.dae",
+      "imagery_source": "imagery_1_0",
+      "terrain_z_min_m": -6.817368,
+      "terrain_z_max_m": 2.702207
+    },
+    {
+      "name": "tile_09_00",
+      "center_enu_m": [
+        -250,
+        -4750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_09_00.dae",
+      "imagery_source": "imagery_1_0",
+      "terrain_z_min_m": -4.644603,
+      "terrain_z_max_m": 1.274547
+    },
+    {
+      "name": "tile_10_00",
+      "center_enu_m": [
+        250,
+        -4750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_10_00.dae",
+      "imagery_source": "imagery_2_0",
+      "terrain_z_min_m": -5.294421,
+      "terrain_z_max_m": 1.459221
+    },
+    {
+      "name": "tile_11_00",
+      "center_enu_m": [
+        750,
+        -4750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_11_00.dae",
+      "imagery_source": "imagery_2_0",
+      "terrain_z_min_m": -7.759367,
+      "terrain_z_max_m": 0.782655
+    },
+    {
+      "name": "tile_12_00",
+      "center_enu_m": [
+        1250,
+        -4750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_12_00.dae",
+      "imagery_source": "imagery_2_0",
+      "terrain_z_min_m": -5.613745,
+      "terrain_z_max_m": 3.436797
+    },
+    {
+      "name": "tile_13_00",
+      "center_enu_m": [
+        1750,
+        -4750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_13_00.dae",
+      "imagery_source": "imagery_2_0",
+      "terrain_z_min_m": -5.613745,
+      "terrain_z_max_m": 1.327325
+    },
+    {
+      "name": "tile_14_00",
+      "center_enu_m": [
+        2250,
+        -4750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_14_00.dae",
+      "imagery_source": "imagery_2_0",
+      "terrain_z_min_m": -4.762091,
+      "terrain_z_max_m": 7.76411
+    },
+    {
+      "name": "tile_15_00",
+      "center_enu_m": [
+        2750,
+        -4750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_15_00.dae",
+      "imagery_source": "imagery_3_0",
+      "terrain_z_min_m": -5.275066,
+      "terrain_z_max_m": 5.887691
+    },
+    {
+      "name": "tile_16_00",
+      "center_enu_m": [
+        3250,
+        -4750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_16_00.dae",
+      "imagery_source": "imagery_3_0",
+      "terrain_z_min_m": -5.258709,
+      "terrain_z_max_m": 1.978493
+    },
+    {
+      "name": "tile_17_00",
+      "center_enu_m": [
+        3750,
+        -4750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_17_00.dae",
+      "imagery_source": "imagery_3_0",
+      "terrain_z_min_m": -6.125744,
+      "terrain_z_max_m": 0.116481
+    },
+    {
+      "name": "tile_18_00",
+      "center_enu_m": [
+        4250,
+        -4750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_18_00.dae",
+      "imagery_source": "imagery_3_0",
+      "terrain_z_min_m": -5.906008,
+      "terrain_z_max_m": 0.16606
+    },
+    {
+      "name": "tile_19_00",
+      "center_enu_m": [
+        4750,
+        -4750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_19_00.dae",
+      "imagery_source": "imagery_3_0",
+      "terrain_z_min_m": -5.822843,
+      "terrain_z_max_m": -0.562614
+    },
+    {
+      "name": "tile_00_01",
+      "center_enu_m": [
+        -4750,
+        -4250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_00_01.dae",
+      "imagery_source": "imagery_0_0",
+      "terrain_z_min_m": -6.31736,
+      "terrain_z_max_m": 0.142711
+    },
+    {
+      "name": "tile_01_01",
+      "center_enu_m": [
+        -4250,
+        -4250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_01_01.dae",
+      "imagery_source": "imagery_0_0",
+      "terrain_z_min_m": -7.476718,
+      "terrain_z_max_m": 0.17353
+    },
+    {
+      "name": "tile_02_01",
+      "center_enu_m": [
+        -3750,
+        -4250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_02_01.dae",
+      "imagery_source": "imagery_0_0",
+      "terrain_z_min_m": -7.476718,
+      "terrain_z_max_m": 0.138784
+    },
+    {
+      "name": "tile_03_01",
+      "center_enu_m": [
+        -3250,
+        -4250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_03_01.dae",
+      "imagery_source": "imagery_0_0",
+      "terrain_z_min_m": -5.359318,
+      "terrain_z_max_m": 1.793718
+    },
+    {
+      "name": "tile_04_01",
+      "center_enu_m": [
+        -2750,
+        -4250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_04_01.dae",
+      "imagery_source": "imagery_0_0",
+      "terrain_z_min_m": -4.898121,
+      "terrain_z_max_m": 1.606482
+    },
+    {
+      "name": "tile_05_01",
+      "center_enu_m": [
+        -2250,
+        -4250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_05_01.dae",
+      "imagery_source": "imagery_1_0",
+      "terrain_z_min_m": -5.282749,
+      "terrain_z_max_m": 2.122435
+    },
+    {
+      "name": "tile_06_01",
+      "center_enu_m": [
+        -1750,
+        -4250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_06_01.dae",
+      "imagery_source": "imagery_1_0",
+      "terrain_z_min_m": -7.752761,
+      "terrain_z_max_m": 3.395254
+    },
+    {
+      "name": "tile_07_01",
+      "center_enu_m": [
+        -1250,
+        -4250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_07_01.dae",
+      "imagery_source": "imagery_1_0",
+      "terrain_z_min_m": -5.509,
+      "terrain_z_max_m": 3.370657
+    },
+    {
+      "name": "tile_08_01",
+      "center_enu_m": [
+        -750,
+        -4250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_08_01.dae",
+      "imagery_source": "imagery_1_0",
+      "terrain_z_min_m": -5.182761,
+      "terrain_z_max_m": 1.254821
+    },
+    {
+      "name": "tile_09_01",
+      "center_enu_m": [
+        -250,
+        -4250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_09_01.dae",
+      "imagery_source": "imagery_1_0",
+      "terrain_z_min_m": -4.2923,
+      "terrain_z_max_m": 2.035965
+    },
+    {
+      "name": "tile_10_01",
+      "center_enu_m": [
+        250,
+        -4250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_10_01.dae",
+      "imagery_source": "imagery_2_0",
+      "terrain_z_min_m": -6.428485,
+      "terrain_z_max_m": 1.312538
+    },
+    {
+      "name": "tile_11_01",
+      "center_enu_m": [
+        750,
+        -4250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_11_01.dae",
+      "imagery_source": "imagery_2_0",
+      "terrain_z_min_m": -5.585131,
+      "terrain_z_max_m": -0.340867
+    },
+    {
+      "name": "tile_12_01",
+      "center_enu_m": [
+        1250,
+        -4250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_12_01.dae",
+      "imagery_source": "imagery_2_0",
+      "terrain_z_min_m": -5.538198,
+      "terrain_z_max_m": 1.536261
+    },
+    {
+      "name": "tile_13_01",
+      "center_enu_m": [
+        1750,
+        -4250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_13_01.dae",
+      "imagery_source": "imagery_2_0",
+      "terrain_z_min_m": -4.796807,
+      "terrain_z_max_m": 0.493643
+    },
+    {
+      "name": "tile_14_01",
+      "center_enu_m": [
+        2250,
+        -4250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_14_01.dae",
+      "imagery_source": "imagery_2_0",
+      "terrain_z_min_m": -4.806673,
+      "terrain_z_max_m": 2.115241
+    },
+    {
+      "name": "tile_15_01",
+      "center_enu_m": [
+        2750,
+        -4250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_15_01.dae",
+      "imagery_source": "imagery_3_0",
+      "terrain_z_min_m": -5.275066,
+      "terrain_z_max_m": 1.431452
+    },
+    {
+      "name": "tile_16_01",
+      "center_enu_m": [
+        3250,
+        -4250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_16_01.dae",
+      "imagery_source": "imagery_3_0",
+      "terrain_z_min_m": -6.947748,
+      "terrain_z_max_m": 2.75098
+    },
+    {
+      "name": "tile_17_01",
+      "center_enu_m": [
+        3750,
+        -4250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_17_01.dae",
+      "imagery_source": "imagery_3_0",
+      "terrain_z_min_m": -6.014888,
+      "terrain_z_max_m": 0.364036
+    },
+    {
+      "name": "tile_18_01",
+      "center_enu_m": [
+        4250,
+        -4250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_18_01.dae",
+      "imagery_source": "imagery_3_0",
+      "terrain_z_min_m": -6.694878,
+      "terrain_z_max_m": 0.861185
+    },
+    {
+      "name": "tile_19_01",
+      "center_enu_m": [
+        4750,
+        -4250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_19_01.dae",
+      "imagery_source": "imagery_3_0",
+      "terrain_z_min_m": -6.245407,
+      "terrain_z_max_m": -1.526109
+    },
+    {
+      "name": "tile_00_02",
+      "center_enu_m": [
+        -4750,
+        -3750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_00_02.dae",
+      "imagery_source": "imagery_0_0",
+      "terrain_z_min_m": -8.475679,
+      "terrain_z_max_m": 0.407951
+    },
+    {
+      "name": "tile_01_02",
+      "center_enu_m": [
+        -4250,
+        -3750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_01_02.dae",
+      "imagery_source": "imagery_0_0",
+      "terrain_z_min_m": -7.240054,
+      "terrain_z_max_m": 0.506096
+    },
+    {
+      "name": "tile_02_02",
+      "center_enu_m": [
+        -3750,
+        -3750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_02_02.dae",
+      "imagery_source": "imagery_0_0",
+      "terrain_z_min_m": -6.902528,
+      "terrain_z_max_m": 0.13304
+    },
+    {
+      "name": "tile_03_02",
+      "center_enu_m": [
+        -3250,
+        -3750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_03_02.dae",
+      "imagery_source": "imagery_0_0",
+      "terrain_z_min_m": -6.739917,
+      "terrain_z_max_m": 2.482876
+    },
+    {
+      "name": "tile_04_02",
+      "center_enu_m": [
+        -2750,
+        -3750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_04_02.dae",
+      "imagery_source": "imagery_0_0",
+      "terrain_z_min_m": -5.992773,
+      "terrain_z_max_m": 0.258696
+    },
+    {
+      "name": "tile_05_02",
+      "center_enu_m": [
+        -2250,
+        -3750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_05_02.dae",
+      "imagery_source": "imagery_1_0",
+      "terrain_z_min_m": -5.520198,
+      "terrain_z_max_m": 2.182342
+    },
+    {
+      "name": "tile_06_02",
+      "center_enu_m": [
+        -1750,
+        -3750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_06_02.dae",
+      "imagery_source": "imagery_1_0",
+      "terrain_z_min_m": -4.851929,
+      "terrain_z_max_m": 3.395254
+    },
+    {
+      "name": "tile_07_02",
+      "center_enu_m": [
+        -1250,
+        -3750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_07_02.dae",
+      "imagery_source": "imagery_1_0",
+      "terrain_z_min_m": -5.29759,
+      "terrain_z_max_m": 5.719481
+    },
+    {
+      "name": "tile_08_02",
+      "center_enu_m": [
+        -750,
+        -3750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_08_02.dae",
+      "imagery_source": "imagery_1_0",
+      "terrain_z_min_m": -5.737906,
+      "terrain_z_max_m": 2.879354
+    },
+    {
+      "name": "tile_09_02",
+      "center_enu_m": [
+        -250,
+        -3750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_09_02.dae",
+      "imagery_source": "imagery_1_0",
+      "terrain_z_min_m": -5.349337,
+      "terrain_z_max_m": 1.611166
+    },
+    {
+      "name": "tile_10_02",
+      "center_enu_m": [
+        250,
+        -3750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_10_02.dae",
+      "imagery_source": "imagery_2_0",
+      "terrain_z_min_m": -4.961704,
+      "terrain_z_max_m": 1.368866
+    },
+    {
+      "name": "tile_11_02",
+      "center_enu_m": [
+        750,
+        -3750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_11_02.dae",
+      "imagery_source": "imagery_2_0",
+      "terrain_z_min_m": -5.522168,
+      "terrain_z_max_m": 1.698694
+    },
+    {
+      "name": "tile_12_02",
+      "center_enu_m": [
+        1250,
+        -3750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_12_02.dae",
+      "imagery_source": "imagery_2_0",
+      "terrain_z_min_m": -6.638506,
+      "terrain_z_max_m": 2.035928
+    },
+    {
+      "name": "tile_13_02",
+      "center_enu_m": [
+        1750,
+        -3750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_13_02.dae",
+      "imagery_source": "imagery_2_0",
+      "terrain_z_min_m": -5.268925,
+      "terrain_z_max_m": 1.574117
+    },
+    {
+      "name": "tile_14_02",
+      "center_enu_m": [
+        2250,
+        -3750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_14_02.dae",
+      "imagery_source": "imagery_2_0",
+      "terrain_z_min_m": -4.918823,
+      "terrain_z_max_m": 1.462686
+    },
+    {
+      "name": "tile_15_02",
+      "center_enu_m": [
+        2750,
+        -3750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_15_02.dae",
+      "imagery_source": "imagery_3_0",
+      "terrain_z_min_m": -3.944932,
+      "terrain_z_max_m": 1.273409
+    },
+    {
+      "name": "tile_16_02",
+      "center_enu_m": [
+        3250,
+        -3750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_16_02.dae",
+      "imagery_source": "imagery_3_0",
+      "terrain_z_min_m": -6.884559,
+      "terrain_z_max_m": 1.084285
+    },
+    {
+      "name": "tile_17_02",
+      "center_enu_m": [
+        3750,
+        -3750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_17_02.dae",
+      "imagery_source": "imagery_3_0",
+      "terrain_z_min_m": -6.014888,
+      "terrain_z_max_m": 0.848213
+    },
+    {
+      "name": "tile_18_02",
+      "center_enu_m": [
+        4250,
+        -3750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_18_02.dae",
+      "imagery_source": "imagery_3_0",
+      "terrain_z_min_m": -5.573681,
+      "terrain_z_max_m": 0.430538
+    },
+    {
+      "name": "tile_19_02",
+      "center_enu_m": [
+        4750,
+        -3750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_19_02.dae",
+      "imagery_source": "imagery_3_0",
+      "terrain_z_min_m": -6.303641,
+      "terrain_z_max_m": 0.340268
+    },
+    {
+      "name": "tile_00_03",
+      "center_enu_m": [
+        -4750,
+        -3250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_00_03.dae",
+      "imagery_source": "imagery_0_0",
+      "terrain_z_min_m": -5.736819,
+      "terrain_z_max_m": 1.192954
+    },
+    {
+      "name": "tile_01_03",
+      "center_enu_m": [
+        -4250,
+        -3250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_01_03.dae",
+      "imagery_source": "imagery_0_0",
+      "terrain_z_min_m": -6.951676,
+      "terrain_z_max_m": 0.506096
+    },
+    {
+      "name": "tile_02_03",
+      "center_enu_m": [
+        -3750,
+        -3250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_02_03.dae",
+      "imagery_source": "imagery_0_0",
+      "terrain_z_min_m": -6.754899,
+      "terrain_z_max_m": 1.041043
+    },
+    {
+      "name": "tile_03_03",
+      "center_enu_m": [
+        -3250,
+        -3250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_03_03.dae",
+      "imagery_source": "imagery_0_0",
+      "terrain_z_min_m": -5.662702,
+      "terrain_z_max_m": 3.283399
+    },
+    {
+      "name": "tile_04_03",
+      "center_enu_m": [
+        -2750,
+        -3250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_04_03.dae",
+      "imagery_source": "imagery_0_0",
+      "terrain_z_min_m": -5.88961,
+      "terrain_z_max_m": 1.572065
+    },
+    {
+      "name": "tile_05_03",
+      "center_enu_m": [
+        -2250,
+        -3250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_05_03.dae",
+      "imagery_source": "imagery_1_0",
+      "terrain_z_min_m": -5.301335,
+      "terrain_z_max_m": -0.001572
+    },
+    {
+      "name": "tile_06_03",
+      "center_enu_m": [
+        -1750,
+        -3250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_06_03.dae",
+      "imagery_source": "imagery_1_0",
+      "terrain_z_min_m": -5.995818,
+      "terrain_z_max_m": 0.85096
+    },
+    {
+      "name": "tile_07_03",
+      "center_enu_m": [
+        -1250,
+        -3250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_07_03.dae",
+      "imagery_source": "imagery_1_0",
+      "terrain_z_min_m": -5.995818,
+      "terrain_z_max_m": 1.927588
+    },
+    {
+      "name": "tile_08_03",
+      "center_enu_m": [
+        -750,
+        -3250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_08_03.dae",
+      "imagery_source": "imagery_1_0",
+      "terrain_z_min_m": -6.36777,
+      "terrain_z_max_m": 2.104277
+    },
+    {
+      "name": "tile_09_03",
+      "center_enu_m": [
+        -250,
+        -3250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_09_03.dae",
+      "imagery_source": "imagery_1_0",
+      "terrain_z_min_m": -4.831993,
+      "terrain_z_max_m": 5.375044
+    },
+    {
+      "name": "tile_10_03",
+      "center_enu_m": [
+        250,
+        -3250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_10_03.dae",
+      "imagery_source": "imagery_2_0",
+      "terrain_z_min_m": -4.352743,
+      "terrain_z_max_m": 2.151202
+    },
+    {
+      "name": "tile_11_03",
+      "center_enu_m": [
+        750,
+        -3250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_11_03.dae",
+      "imagery_source": "imagery_2_0",
+      "terrain_z_min_m": -3.974655,
+      "terrain_z_max_m": 2.088686
+    },
+    {
+      "name": "tile_12_03",
+      "center_enu_m": [
+        1250,
+        -3250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_12_03.dae",
+      "imagery_source": "imagery_2_0",
+      "terrain_z_min_m": -5.439904,
+      "terrain_z_max_m": 2.519298
+    },
+    {
+      "name": "tile_13_03",
+      "center_enu_m": [
+        1750,
+        -3250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_13_03.dae",
+      "imagery_source": "imagery_2_0",
+      "terrain_z_min_m": -3.957906,
+      "terrain_z_max_m": 2.396645
+    },
+    {
+      "name": "tile_14_03",
+      "center_enu_m": [
+        2250,
+        -3250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_14_03.dae",
+      "imagery_source": "imagery_2_0",
+      "terrain_z_min_m": -5.190504,
+      "terrain_z_max_m": 1.779604
+    },
+    {
+      "name": "tile_15_03",
+      "center_enu_m": [
+        2750,
+        -3250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_15_03.dae",
+      "imagery_source": "imagery_3_0",
+      "terrain_z_min_m": -4.359547,
+      "terrain_z_max_m": 1.583396
+    },
+    {
+      "name": "tile_16_03",
+      "center_enu_m": [
+        3250,
+        -3250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_16_03.dae",
+      "imagery_source": "imagery_3_0",
+      "terrain_z_min_m": -5.501695,
+      "terrain_z_max_m": 1.299462
+    },
+    {
+      "name": "tile_17_03",
+      "center_enu_m": [
+        3750,
+        -3250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_17_03.dae",
+      "imagery_source": "imagery_3_0",
+      "terrain_z_min_m": -6.837783,
+      "terrain_z_max_m": 1.188102
+    },
+    {
+      "name": "tile_18_03",
+      "center_enu_m": [
+        4250,
+        -3250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_18_03.dae",
+      "imagery_source": "imagery_3_0",
+      "terrain_z_min_m": -6.837783,
+      "terrain_z_max_m": 2.779189
+    },
+    {
+      "name": "tile_19_03",
+      "center_enu_m": [
+        4750,
+        -3250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_19_03.dae",
+      "imagery_source": "imagery_3_0",
+      "terrain_z_min_m": -7.604712,
+      "terrain_z_max_m": 0.166624
+    },
+    {
+      "name": "tile_00_04",
+      "center_enu_m": [
+        -4750,
+        -2750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_00_04.dae",
+      "imagery_source": "imagery_0_0",
+      "terrain_z_min_m": -7.291014,
+      "terrain_z_max_m": -0.515805
+    },
+    {
+      "name": "tile_01_04",
+      "center_enu_m": [
+        -4250,
+        -2750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_01_04.dae",
+      "imagery_source": "imagery_0_0",
+      "terrain_z_min_m": -5.918647,
+      "terrain_z_max_m": 0.112358
+    },
+    {
+      "name": "tile_02_04",
+      "center_enu_m": [
+        -3750,
+        -2750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_02_04.dae",
+      "imagery_source": "imagery_0_0",
+      "terrain_z_min_m": -4.927578,
+      "terrain_z_max_m": 0.481837
+    },
+    {
+      "name": "tile_03_04",
+      "center_enu_m": [
+        -3250,
+        -2750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_03_04.dae",
+      "imagery_source": "imagery_0_0",
+      "terrain_z_min_m": -4.574507,
+      "terrain_z_max_m": 1.532598
+    },
+    {
+      "name": "tile_04_04",
+      "center_enu_m": [
+        -2750,
+        -2750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_04_04.dae",
+      "imagery_source": "imagery_0_0",
+      "terrain_z_min_m": -5.879217,
+      "terrain_z_max_m": 0.841818
+    },
+    {
+      "name": "tile_05_04",
+      "center_enu_m": [
+        -2250,
+        -2750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_05_04.dae",
+      "imagery_source": "imagery_1_0",
+      "terrain_z_min_m": -6.559752,
+      "terrain_z_max_m": 1.979487
+    },
+    {
+      "name": "tile_06_04",
+      "center_enu_m": [
+        -1750,
+        -2750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_06_04.dae",
+      "imagery_source": "imagery_1_0",
+      "terrain_z_min_m": -6.559752,
+      "terrain_z_max_m": 1.288362
+    },
+    {
+      "name": "tile_07_04",
+      "center_enu_m": [
+        -1250,
+        -2750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_07_04.dae",
+      "imagery_source": "imagery_1_0",
+      "terrain_z_min_m": -5.990895,
+      "terrain_z_max_m": 0.794022
+    },
+    {
+      "name": "tile_08_04",
+      "center_enu_m": [
+        -750,
+        -2750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_08_04.dae",
+      "imagery_source": "imagery_1_0",
+      "terrain_z_min_m": -5.087391,
+      "terrain_z_max_m": 2.273359
+    },
+    {
+      "name": "tile_09_04",
+      "center_enu_m": [
+        -250,
+        -2750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_09_04.dae",
+      "imagery_source": "imagery_1_0",
+      "terrain_z_min_m": -5.629397,
+      "terrain_z_max_m": 1.405441
+    },
+    {
+      "name": "tile_10_04",
+      "center_enu_m": [
+        250,
+        -2750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_10_04.dae",
+      "imagery_source": "imagery_2_0",
+      "terrain_z_min_m": -6.526946,
+      "terrain_z_max_m": 2.30777
+    },
+    {
+      "name": "tile_11_04",
+      "center_enu_m": [
+        750,
+        -2750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_11_04.dae",
+      "imagery_source": "imagery_2_0",
+      "terrain_z_min_m": -4.572824,
+      "terrain_z_max_m": 2.332752
+    },
+    {
+      "name": "tile_12_04",
+      "center_enu_m": [
+        1250,
+        -2750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_12_04.dae",
+      "imagery_source": "imagery_2_0",
+      "terrain_z_min_m": -4.386638,
+      "terrain_z_max_m": 3.958076
+    },
+    {
+      "name": "tile_13_04",
+      "center_enu_m": [
+        1750,
+        -2750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_13_04.dae",
+      "imagery_source": "imagery_2_0",
+      "terrain_z_min_m": -5.434374,
+      "terrain_z_max_m": 3.958076
+    },
+    {
+      "name": "tile_14_04",
+      "center_enu_m": [
+        2250,
+        -2750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_14_04.dae",
+      "imagery_source": "imagery_2_0",
+      "terrain_z_min_m": -4.765286,
+      "terrain_z_max_m": 1.998884
+    },
+    {
+      "name": "tile_15_04",
+      "center_enu_m": [
+        2750,
+        -2750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_15_04.dae",
+      "imagery_source": "imagery_3_0",
+      "terrain_z_min_m": -5.926329,
+      "terrain_z_max_m": 1.222434
+    },
+    {
+      "name": "tile_16_04",
+      "center_enu_m": [
+        3250,
+        -2750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_16_04.dae",
+      "imagery_source": "imagery_3_0",
+      "terrain_z_min_m": -4.994019,
+      "terrain_z_max_m": 2.61769
+    },
+    {
+      "name": "tile_17_04",
+      "center_enu_m": [
+        3750,
+        -2750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_17_04.dae",
+      "imagery_source": "imagery_3_0",
+      "terrain_z_min_m": -4.745409,
+      "terrain_z_max_m": 2.61769
+    },
+    {
+      "name": "tile_18_04",
+      "center_enu_m": [
+        4250,
+        -2750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_18_04.dae",
+      "imagery_source": "imagery_3_0",
+      "terrain_z_min_m": -5.796308,
+      "terrain_z_max_m": -0.558876
+    },
+    {
+      "name": "tile_19_04",
+      "center_enu_m": [
+        4750,
+        -2750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_19_04.dae",
+      "imagery_source": "imagery_3_0",
+      "terrain_z_min_m": -6.295182,
+      "terrain_z_max_m": -0.409896
+    },
+    {
+      "name": "tile_00_05",
+      "center_enu_m": [
+        -4750,
+        -2250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_00_05.dae",
+      "imagery_source": "imagery_0_1",
+      "terrain_z_min_m": -7.754086,
+      "terrain_z_max_m": 0.879241
+    },
+    {
+      "name": "tile_01_05",
+      "center_enu_m": [
+        -4250,
+        -2250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_01_05.dae",
+      "imagery_source": "imagery_0_1",
+      "terrain_z_min_m": -5.802835,
+      "terrain_z_max_m": 0.482169
+    },
+    {
+      "name": "tile_02_05",
+      "center_enu_m": [
+        -3750,
+        -2250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_02_05.dae",
+      "imagery_source": "imagery_0_1",
+      "terrain_z_min_m": -5.637969,
+      "terrain_z_max_m": 1.224027
+    },
+    {
+      "name": "tile_03_05",
+      "center_enu_m": [
+        -3250,
+        -2250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_03_05.dae",
+      "imagery_source": "imagery_0_1",
+      "terrain_z_min_m": -4.2174,
+      "terrain_z_max_m": 4.457952
+    },
+    {
+      "name": "tile_04_05",
+      "center_enu_m": [
+        -2750,
+        -2250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_04_05.dae",
+      "imagery_source": "imagery_0_1",
+      "terrain_z_min_m": -4.844224,
+      "terrain_z_max_m": 1.870234
+    },
+    {
+      "name": "tile_05_05",
+      "center_enu_m": [
+        -2250,
+        -2250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_05_05.dae",
+      "imagery_source": "imagery_1_1",
+      "terrain_z_min_m": -4.85235,
+      "terrain_z_max_m": 1.08972
+    },
+    {
+      "name": "tile_06_05",
+      "center_enu_m": [
+        -1750,
+        -2250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_06_05.dae",
+      "imagery_source": "imagery_1_1",
+      "terrain_z_min_m": -5.614362,
+      "terrain_z_max_m": 2.047664
+    },
+    {
+      "name": "tile_07_05",
+      "center_enu_m": [
+        -1250,
+        -2250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_07_05.dae",
+      "imagery_source": "imagery_1_1",
+      "terrain_z_min_m": -4.474452,
+      "terrain_z_max_m": 2.047664
+    },
+    {
+      "name": "tile_08_05",
+      "center_enu_m": [
+        -750,
+        -2250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_08_05.dae",
+      "imagery_source": "imagery_1_1",
+      "terrain_z_min_m": -5.036601,
+      "terrain_z_max_m": 3.431953
+    },
+    {
+      "name": "tile_09_05",
+      "center_enu_m": [
+        -250,
+        -2250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_09_05.dae",
+      "imagery_source": "imagery_1_1",
+      "terrain_z_min_m": -5.288804,
+      "terrain_z_max_m": 3.431953
+    },
+    {
+      "name": "tile_10_05",
+      "center_enu_m": [
+        250,
+        -2250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_10_05.dae",
+      "imagery_source": "imagery_2_1",
+      "terrain_z_min_m": -6.214976,
+      "terrain_z_max_m": 0.48894
+    },
+    {
+      "name": "tile_11_05",
+      "center_enu_m": [
+        750,
+        -2250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_11_05.dae",
+      "imagery_source": "imagery_2_1",
+      "terrain_z_min_m": -5.405415,
+      "terrain_z_max_m": 1.40332
+    },
+    {
+      "name": "tile_12_05",
+      "center_enu_m": [
+        1250,
+        -2250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_12_05.dae",
+      "imagery_source": "imagery_2_1",
+      "terrain_z_min_m": -6.435874,
+      "terrain_z_max_m": 0.425831
+    },
+    {
+      "name": "tile_13_05",
+      "center_enu_m": [
+        1750,
+        -2250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_13_05.dae",
+      "imagery_source": "imagery_2_1",
+      "terrain_z_min_m": -5.506743,
+      "terrain_z_max_m": 0.587112
+    },
+    {
+      "name": "tile_14_05",
+      "center_enu_m": [
+        2250,
+        -2250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_14_05.dae",
+      "imagery_source": "imagery_2_1",
+      "terrain_z_min_m": -5.680222,
+      "terrain_z_max_m": 1.157068
+    },
+    {
+      "name": "tile_15_05",
+      "center_enu_m": [
+        2750,
+        -2250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_15_05.dae",
+      "imagery_source": "imagery_3_1",
+      "terrain_z_min_m": -6.975479,
+      "terrain_z_max_m": 1.961515
+    },
+    {
+      "name": "tile_16_05",
+      "center_enu_m": [
+        3250,
+        -2250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_16_05.dae",
+      "imagery_source": "imagery_3_1",
+      "terrain_z_min_m": -5.441943,
+      "terrain_z_max_m": 0.758916
+    },
+    {
+      "name": "tile_17_05",
+      "center_enu_m": [
+        3750,
+        -2250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_17_05.dae",
+      "imagery_source": "imagery_3_1",
+      "terrain_z_min_m": -6.490761,
+      "terrain_z_max_m": 1.421779
+    },
+    {
+      "name": "tile_18_05",
+      "center_enu_m": [
+        4250,
+        -2250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_18_05.dae",
+      "imagery_source": "imagery_3_1",
+      "terrain_z_min_m": -5.875033,
+      "terrain_z_max_m": 0.653361
+    },
+    {
+      "name": "tile_19_05",
+      "center_enu_m": [
+        4750,
+        -2250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_19_05.dae",
+      "imagery_source": "imagery_3_1",
+      "terrain_z_min_m": -6.313542,
+      "terrain_z_max_m": 0.961424
+    },
+    {
+      "name": "tile_00_06",
+      "center_enu_m": [
+        -4750,
+        -1750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_00_06.dae",
+      "imagery_source": "imagery_0_1",
+      "terrain_z_min_m": -6.315905,
+      "terrain_z_max_m": 0.757231
+    },
+    {
+      "name": "tile_01_06",
+      "center_enu_m": [
+        -4250,
+        -1750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_01_06.dae",
+      "imagery_source": "imagery_0_1",
+      "terrain_z_min_m": -6.139106,
+      "terrain_z_max_m": 1.843784
+    },
+    {
+      "name": "tile_02_06",
+      "center_enu_m": [
+        -3750,
+        -1750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_02_06.dae",
+      "imagery_source": "imagery_0_1",
+      "terrain_z_min_m": -5.363909,
+      "terrain_z_max_m": 0.58525
+    },
+    {
+      "name": "tile_03_06",
+      "center_enu_m": [
+        -3250,
+        -1750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_03_06.dae",
+      "imagery_source": "imagery_0_1",
+      "terrain_z_min_m": -4.928347,
+      "terrain_z_max_m": 2.550662
+    },
+    {
+      "name": "tile_04_06",
+      "center_enu_m": [
+        -2750,
+        -1750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_04_06.dae",
+      "imagery_source": "imagery_0_1",
+      "terrain_z_min_m": -4.271799,
+      "terrain_z_max_m": 3.01864
+    },
+    {
+      "name": "tile_05_06",
+      "center_enu_m": [
+        -2250,
+        -1750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_05_06.dae",
+      "imagery_source": "imagery_1_1",
+      "terrain_z_min_m": -4.641145,
+      "terrain_z_max_m": 1.389389
+    },
+    {
+      "name": "tile_06_06",
+      "center_enu_m": [
+        -1750,
+        -1750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_06_06.dae",
+      "imagery_source": "imagery_1_1",
+      "terrain_z_min_m": -4.443458,
+      "terrain_z_max_m": 1.545286
+    },
+    {
+      "name": "tile_07_06",
+      "center_enu_m": [
+        -1250,
+        -1750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_07_06.dae",
+      "imagery_source": "imagery_1_1",
+      "terrain_z_min_m": -4.792374,
+      "terrain_z_max_m": 2.34787
+    },
+    {
+      "name": "tile_08_06",
+      "center_enu_m": [
+        -750,
+        -1750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_08_06.dae",
+      "imagery_source": "imagery_1_1",
+      "terrain_z_min_m": -4.224069,
+      "terrain_z_max_m": 0.200721
+    },
+    {
+      "name": "tile_09_06",
+      "center_enu_m": [
+        -250,
+        -1750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_09_06.dae",
+      "imagery_source": "imagery_1_1",
+      "terrain_z_min_m": -4.348393,
+      "terrain_z_max_m": 1.432453
+    },
+    {
+      "name": "tile_10_06",
+      "center_enu_m": [
+        250,
+        -1750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_10_06.dae",
+      "imagery_source": "imagery_2_1",
+      "terrain_z_min_m": -4.336007,
+      "terrain_z_max_m": 1.216545
+    },
+    {
+      "name": "tile_11_06",
+      "center_enu_m": [
+        750,
+        -1750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_11_06.dae",
+      "imagery_source": "imagery_2_1",
+      "terrain_z_min_m": -5.269757,
+      "terrain_z_max_m": 1.682538
+    },
+    {
+      "name": "tile_12_06",
+      "center_enu_m": [
+        1250,
+        -1750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_12_06.dae",
+      "imagery_source": "imagery_2_1",
+      "terrain_z_min_m": -5.599931,
+      "terrain_z_max_m": 0.789532
+    },
+    {
+      "name": "tile_13_06",
+      "center_enu_m": [
+        1750,
+        -1750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_13_06.dae",
+      "imagery_source": "imagery_2_1",
+      "terrain_z_min_m": -8.814341,
+      "terrain_z_max_m": 0.912224
+    },
+    {
+      "name": "tile_14_06",
+      "center_enu_m": [
+        2250,
+        -1750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_14_06.dae",
+      "imagery_source": "imagery_2_1",
+      "terrain_z_min_m": -4.824242,
+      "terrain_z_max_m": 2.311389
+    },
+    {
+      "name": "tile_15_06",
+      "center_enu_m": [
+        2750,
+        -1750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_15_06.dae",
+      "imagery_source": "imagery_3_1",
+      "terrain_z_min_m": -5.647847,
+      "terrain_z_max_m": 1.714166
+    },
+    {
+      "name": "tile_16_06",
+      "center_enu_m": [
+        3250,
+        -1750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_16_06.dae",
+      "imagery_source": "imagery_3_1",
+      "terrain_z_min_m": -5.70332,
+      "terrain_z_max_m": 0.965125
+    },
+    {
+      "name": "tile_17_06",
+      "center_enu_m": [
+        3750,
+        -1750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_17_06.dae",
+      "imagery_source": "imagery_3_1",
+      "terrain_z_min_m": -4.911688,
+      "terrain_z_max_m": 2.175146
+    },
+    {
+      "name": "tile_18_06",
+      "center_enu_m": [
+        4250,
+        -1750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_18_06.dae",
+      "imagery_source": "imagery_3_1",
+      "terrain_z_min_m": -4.725042,
+      "terrain_z_max_m": 0.457784
+    },
+    {
+      "name": "tile_19_06",
+      "center_enu_m": [
+        4750,
+        -1750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_19_06.dae",
+      "imagery_source": "imagery_3_1",
+      "terrain_z_min_m": -5.198874,
+      "terrain_z_max_m": -0.057358
+    },
+    {
+      "name": "tile_00_07",
+      "center_enu_m": [
+        -4750,
+        -1250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_00_07.dae",
+      "imagery_source": "imagery_0_1",
+      "terrain_z_min_m": -6.192031,
+      "terrain_z_max_m": -1.782981
+    },
+    {
+      "name": "tile_01_07",
+      "center_enu_m": [
+        -4250,
+        -1250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_01_07.dae",
+      "imagery_source": "imagery_0_1",
+      "terrain_z_min_m": -5.801603,
+      "terrain_z_max_m": 0.374709
+    },
+    {
+      "name": "tile_02_07",
+      "center_enu_m": [
+        -3750,
+        -1250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_02_07.dae",
+      "imagery_source": "imagery_0_1",
+      "terrain_z_min_m": -5.69245,
+      "terrain_z_max_m": 0.88845
+    },
+    {
+      "name": "tile_03_07",
+      "center_enu_m": [
+        -3250,
+        -1250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_03_07.dae",
+      "imagery_source": "imagery_0_1",
+      "terrain_z_min_m": -5.69245,
+      "terrain_z_max_m": 2.755658
+    },
+    {
+      "name": "tile_04_07",
+      "center_enu_m": [
+        -2750,
+        -1250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_04_07.dae",
+      "imagery_source": "imagery_0_1",
+      "terrain_z_min_m": -4.363901,
+      "terrain_z_max_m": 3.01864
+    },
+    {
+      "name": "tile_05_07",
+      "center_enu_m": [
+        -2250,
+        -1250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_05_07.dae",
+      "imagery_source": "imagery_1_1",
+      "terrain_z_min_m": -5.547082,
+      "terrain_z_max_m": 1.521754
+    },
+    {
+      "name": "tile_06_07",
+      "center_enu_m": [
+        -1750,
+        -1250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_06_07.dae",
+      "imagery_source": "imagery_1_1",
+      "terrain_z_min_m": -5.025398,
+      "terrain_z_max_m": 2.107638
+    },
+    {
+      "name": "tile_07_07",
+      "center_enu_m": [
+        -1250,
+        -1250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_07_07.dae",
+      "imagery_source": "imagery_1_1",
+      "terrain_z_min_m": -4.315449,
+      "terrain_z_max_m": 2.538873
+    },
+    {
+      "name": "tile_08_07",
+      "center_enu_m": [
+        -750,
+        -1250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_08_07.dae",
+      "imagery_source": "imagery_1_1",
+      "terrain_z_min_m": -3.876507,
+      "terrain_z_max_m": 1.841447
+    },
+    {
+      "name": "tile_09_07",
+      "center_enu_m": [
+        -250,
+        -1250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_09_07.dae",
+      "imagery_source": "imagery_1_1",
+      "terrain_z_min_m": -3.96883,
+      "terrain_z_max_m": 2.490942
+    },
+    {
+      "name": "tile_10_07",
+      "center_enu_m": [
+        250,
+        -1250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_10_07.dae",
+      "imagery_source": "imagery_2_1",
+      "terrain_z_min_m": -4.028679,
+      "terrain_z_max_m": 3.867695
+    },
+    {
+      "name": "tile_11_07",
+      "center_enu_m": [
+        750,
+        -1250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_11_07.dae",
+      "imagery_source": "imagery_2_1",
+      "terrain_z_min_m": -4.148088,
+      "terrain_z_max_m": 1.798922
+    },
+    {
+      "name": "tile_12_07",
+      "center_enu_m": [
+        1250,
+        -1250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_12_07.dae",
+      "imagery_source": "imagery_2_1",
+      "terrain_z_min_m": -4.98308,
+      "terrain_z_max_m": 1.772767
+    },
+    {
+      "name": "tile_13_07",
+      "center_enu_m": [
+        1750,
+        -1250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_13_07.dae",
+      "imagery_source": "imagery_2_1",
+      "terrain_z_min_m": -4.338366,
+      "terrain_z_max_m": 2.507811
+    },
+    {
+      "name": "tile_14_07",
+      "center_enu_m": [
+        2250,
+        -1250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_14_07.dae",
+      "imagery_source": "imagery_2_1",
+      "terrain_z_min_m": -4.586384,
+      "terrain_z_max_m": 2.476435
+    },
+    {
+      "name": "tile_15_07",
+      "center_enu_m": [
+        2750,
+        -1250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_15_07.dae",
+      "imagery_source": "imagery_3_1",
+      "terrain_z_min_m": -3.865535,
+      "terrain_z_max_m": 3.262986
+    },
+    {
+      "name": "tile_16_07",
+      "center_enu_m": [
+        3250,
+        -1250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_16_07.dae",
+      "imagery_source": "imagery_3_1",
+      "terrain_z_min_m": -4.273494,
+      "terrain_z_max_m": 2.064504
+    },
+    {
+      "name": "tile_17_07",
+      "center_enu_m": [
+        3750,
+        -1250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_17_07.dae",
+      "imagery_source": "imagery_3_1",
+      "terrain_z_min_m": -6.746962,
+      "terrain_z_max_m": 1.480155
+    },
+    {
+      "name": "tile_18_07",
+      "center_enu_m": [
+        4250,
+        -1250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_18_07.dae",
+      "imagery_source": "imagery_3_1",
+      "terrain_z_min_m": -5.462713,
+      "terrain_z_max_m": 2.133765
+    },
+    {
+      "name": "tile_19_07",
+      "center_enu_m": [
+        4750,
+        -1250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_19_07.dae",
+      "imagery_source": "imagery_3_1",
+      "terrain_z_min_m": -6.987766,
+      "terrain_z_max_m": 1.129982
+    },
+    {
+      "name": "tile_00_08",
+      "center_enu_m": [
+        -4750,
+        -750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_00_08.dae",
+      "imagery_source": "imagery_0_1",
+      "terrain_z_min_m": -6.056749,
+      "terrain_z_max_m": -5.626899
+    },
+    {
+      "name": "tile_01_08",
+      "center_enu_m": [
+        -4250,
+        -750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_01_08.dae",
+      "imagery_source": "imagery_0_1",
+      "terrain_z_min_m": -5.810948,
+      "terrain_z_max_m": 0.666687
+    },
+    {
+      "name": "tile_02_08",
+      "center_enu_m": [
+        -3750,
+        -750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_02_08.dae",
+      "imagery_source": "imagery_0_1",
+      "terrain_z_min_m": -5.428692,
+      "terrain_z_max_m": 2.167693
+    },
+    {
+      "name": "tile_03_08",
+      "center_enu_m": [
+        -3250,
+        -750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_03_08.dae",
+      "imagery_source": "imagery_0_1",
+      "terrain_z_min_m": -5.330492,
+      "terrain_z_max_m": 2.097386
+    },
+    {
+      "name": "tile_04_08",
+      "center_enu_m": [
+        -2750,
+        -750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_04_08.dae",
+      "imagery_source": "imagery_0_1",
+      "terrain_z_min_m": -4.701209,
+      "terrain_z_max_m": 1.793134
+    },
+    {
+      "name": "tile_05_08",
+      "center_enu_m": [
+        -2250,
+        -750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_05_08.dae",
+      "imagery_source": "imagery_1_1",
+      "terrain_z_min_m": -4.434532,
+      "terrain_z_max_m": 2.29931
+    },
+    {
+      "name": "tile_06_08",
+      "center_enu_m": [
+        -1750,
+        -750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_06_08.dae",
+      "imagery_source": "imagery_1_1",
+      "terrain_z_min_m": -4.972171,
+      "terrain_z_max_m": 2.662491
+    },
+    {
+      "name": "tile_07_08",
+      "center_enu_m": [
+        -1250,
+        -750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_07_08.dae",
+      "imagery_source": "imagery_1_1",
+      "terrain_z_min_m": -5.133999,
+      "terrain_z_max_m": 0.766419
+    },
+    {
+      "name": "tile_08_08",
+      "center_enu_m": [
+        -750,
+        -750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_08_08.dae",
+      "imagery_source": "imagery_1_1",
+      "terrain_z_min_m": -4.076745,
+      "terrain_z_max_m": 1.921402
+    },
+    {
+      "name": "tile_09_08",
+      "center_enu_m": [
+        -250,
+        -750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_09_08.dae",
+      "imagery_source": "imagery_1_1",
+      "terrain_z_min_m": -4.086135,
+      "terrain_z_max_m": 2.675461
+    },
+    {
+      "name": "tile_10_08",
+      "center_enu_m": [
+        250,
+        -750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_10_08.dae",
+      "imagery_source": "imagery_2_1",
+      "terrain_z_min_m": -3.240439,
+      "terrain_z_max_m": 0.756437
+    },
+    {
+      "name": "tile_11_08",
+      "center_enu_m": [
+        750,
+        -750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_11_08.dae",
+      "imagery_source": "imagery_2_1",
+      "terrain_z_min_m": -4.140316,
+      "terrain_z_max_m": 1.800076
+    },
+    {
+      "name": "tile_12_08",
+      "center_enu_m": [
+        1250,
+        -750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_12_08.dae",
+      "imagery_source": "imagery_2_1",
+      "terrain_z_min_m": -3.168635,
+      "terrain_z_max_m": 1.772767
+    },
+    {
+      "name": "tile_13_08",
+      "center_enu_m": [
+        1750,
+        -750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_13_08.dae",
+      "imagery_source": "imagery_2_1",
+      "terrain_z_min_m": -3.345215,
+      "terrain_z_max_m": 1.644047
+    },
+    {
+      "name": "tile_14_08",
+      "center_enu_m": [
+        2250,
+        -750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_14_08.dae",
+      "imagery_source": "imagery_2_1",
+      "terrain_z_min_m": -4.17998,
+      "terrain_z_max_m": 2.194995
+    },
+    {
+      "name": "tile_15_08",
+      "center_enu_m": [
+        2750,
+        -750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_15_08.dae",
+      "imagery_source": "imagery_3_1",
+      "terrain_z_min_m": -3.913575,
+      "terrain_z_max_m": 2.087296
+    },
+    {
+      "name": "tile_16_08",
+      "center_enu_m": [
+        3250,
+        -750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_16_08.dae",
+      "imagery_source": "imagery_3_1",
+      "terrain_z_min_m": -4.796623,
+      "terrain_z_max_m": 2.107329
+    },
+    {
+      "name": "tile_17_08",
+      "center_enu_m": [
+        3750,
+        -750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_17_08.dae",
+      "imagery_source": "imagery_3_1",
+      "terrain_z_min_m": -3.782221,
+      "terrain_z_max_m": 1.592128
+    },
+    {
+      "name": "tile_18_08",
+      "center_enu_m": [
+        4250,
+        -750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_18_08.dae",
+      "imagery_source": "imagery_3_1",
+      "terrain_z_min_m": -5.354251,
+      "terrain_z_max_m": 2.133765
+    },
+    {
+      "name": "tile_19_08",
+      "center_enu_m": [
+        4750,
+        -750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_19_08.dae",
+      "imagery_source": "imagery_3_1",
+      "terrain_z_min_m": -4.969854,
+      "terrain_z_max_m": 1.769528
+    },
+    {
+      "name": "tile_00_09",
+      "center_enu_m": [
+        -4750,
+        -250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_00_09.dae",
+      "imagery_source": "imagery_0_1",
+      "terrain_z_min_m": -5.997598,
+      "terrain_z_max_m": -5.605912
+    },
+    {
+      "name": "tile_01_09",
+      "center_enu_m": [
+        -4250,
+        -250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_01_09.dae",
+      "imagery_source": "imagery_0_1",
+      "terrain_z_min_m": -6.343516,
+      "terrain_z_max_m": -5.204338
+    },
+    {
+      "name": "tile_02_09",
+      "center_enu_m": [
+        -3750,
+        -250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_02_09.dae",
+      "imagery_source": "imagery_0_1",
+      "terrain_z_min_m": -6.31547,
+      "terrain_z_max_m": 3.436497
+    },
+    {
+      "name": "tile_03_09",
+      "center_enu_m": [
+        -3250,
+        -250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_03_09.dae",
+      "imagery_source": "imagery_0_1",
+      "terrain_z_min_m": -5.623221,
+      "terrain_z_max_m": 3.150637
+    },
+    {
+      "name": "tile_04_09",
+      "center_enu_m": [
+        -2750,
+        -250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_04_09.dae",
+      "imagery_source": "imagery_0_1",
+      "terrain_z_min_m": -4.646856,
+      "terrain_z_max_m": 2.002012
+    },
+    {
+      "name": "tile_05_09",
+      "center_enu_m": [
+        -2250,
+        -250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_05_09.dae",
+      "imagery_source": "imagery_1_1",
+      "terrain_z_min_m": -3.517143,
+      "terrain_z_max_m": 2.57986
+    },
+    {
+      "name": "tile_06_09",
+      "center_enu_m": [
+        -1750,
+        -250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_06_09.dae",
+      "imagery_source": "imagery_1_1",
+      "terrain_z_min_m": -5.308326,
+      "terrain_z_max_m": 1.763808
+    },
+    {
+      "name": "tile_07_09",
+      "center_enu_m": [
+        -1250,
+        -250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_07_09.dae",
+      "imagery_source": "imagery_1_1",
+      "terrain_z_min_m": -5.117252,
+      "terrain_z_max_m": 1.76886
+    },
+    {
+      "name": "tile_08_09",
+      "center_enu_m": [
+        -750,
+        -250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_08_09.dae",
+      "imagery_source": "imagery_1_1",
+      "terrain_z_min_m": -3.922818,
+      "terrain_z_max_m": 0.917302
+    },
+    {
+      "name": "tile_09_09",
+      "center_enu_m": [
+        -250,
+        -250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_09_09.dae",
+      "imagery_source": "imagery_1_1",
+      "terrain_z_min_m": -4.043403,
+      "terrain_z_max_m": 0.979955
+    },
+    {
+      "name": "tile_10_09",
+      "center_enu_m": [
+        250,
+        -250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_10_09.dae",
+      "imagery_source": "imagery_2_1",
+      "terrain_z_min_m": -4.81272,
+      "terrain_z_max_m": 2.673949
+    },
+    {
+      "name": "tile_11_09",
+      "center_enu_m": [
+        750,
+        -250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_11_09.dae",
+      "imagery_source": "imagery_2_1",
+      "terrain_z_min_m": -5.483055,
+      "terrain_z_max_m": 2.065104
+    },
+    {
+      "name": "tile_12_09",
+      "center_enu_m": [
+        1250,
+        -250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_12_09.dae",
+      "imagery_source": "imagery_2_1",
+      "terrain_z_min_m": -4.112149,
+      "terrain_z_max_m": 1.501428
+    },
+    {
+      "name": "tile_13_09",
+      "center_enu_m": [
+        1750,
+        -250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_13_09.dae",
+      "imagery_source": "imagery_2_1",
+      "terrain_z_min_m": -4.256924,
+      "terrain_z_max_m": 2.244755
+    },
+    {
+      "name": "tile_14_09",
+      "center_enu_m": [
+        2250,
+        -250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_14_09.dae",
+      "imagery_source": "imagery_2_1",
+      "terrain_z_min_m": -4.17998,
+      "terrain_z_max_m": 2.59256
+    },
+    {
+      "name": "tile_15_09",
+      "center_enu_m": [
+        2750,
+        -250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_15_09.dae",
+      "imagery_source": "imagery_3_1",
+      "terrain_z_min_m": -4.697691,
+      "terrain_z_max_m": 1.950492
+    },
+    {
+      "name": "tile_16_09",
+      "center_enu_m": [
+        3250,
+        -250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_16_09.dae",
+      "imagery_source": "imagery_3_1",
+      "terrain_z_min_m": -4.523895,
+      "terrain_z_max_m": 2.194191
+    },
+    {
+      "name": "tile_17_09",
+      "center_enu_m": [
+        3750,
+        -250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_17_09.dae",
+      "imagery_source": "imagery_3_1",
+      "terrain_z_min_m": -4.751813,
+      "terrain_z_max_m": 0.816527
+    },
+    {
+      "name": "tile_18_09",
+      "center_enu_m": [
+        4250,
+        -250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_18_09.dae",
+      "imagery_source": "imagery_3_1",
+      "terrain_z_min_m": -4.53632,
+      "terrain_z_max_m": 1.680323
+    },
+    {
+      "name": "tile_19_09",
+      "center_enu_m": [
+        4750,
+        -250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_19_09.dae",
+      "imagery_source": "imagery_3_1",
+      "terrain_z_min_m": -5.409748,
+      "terrain_z_max_m": 1.343196
+    },
+    {
+      "name": "tile_00_10",
+      "center_enu_m": [
+        -4750,
+        250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_00_10.dae",
+      "imagery_source": "imagery_0_2",
+      "terrain_z_min_m": -6.011487,
+      "terrain_z_max_m": -5.605912
+    },
+    {
+      "name": "tile_01_10",
+      "center_enu_m": [
+        -4250,
+        250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_01_10.dae",
+      "imagery_source": "imagery_0_2",
+      "terrain_z_min_m": -5.625586,
+      "terrain_z_max_m": -5.237057
+    },
+    {
+      "name": "tile_02_10",
+      "center_enu_m": [
+        -3750,
+        250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_02_10.dae",
+      "imagery_source": "imagery_0_2",
+      "terrain_z_min_m": -5.509471,
+      "terrain_z_max_m": 1.448798
+    },
+    {
+      "name": "tile_03_10",
+      "center_enu_m": [
+        -3250,
+        250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_03_10.dae",
+      "imagery_source": "imagery_0_2",
+      "terrain_z_min_m": -4.039002,
+      "terrain_z_max_m": 2.084707
+    },
+    {
+      "name": "tile_04_10",
+      "center_enu_m": [
+        -2750,
+        250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_04_10.dae",
+      "imagery_source": "imagery_0_2",
+      "terrain_z_min_m": -4.371309,
+      "terrain_z_max_m": 3.183166
+    },
+    {
+      "name": "tile_05_10",
+      "center_enu_m": [
+        -2250,
+        250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_05_10.dae",
+      "imagery_source": "imagery_1_2",
+      "terrain_z_min_m": -3.412696,
+      "terrain_z_max_m": 1.655691
+    },
+    {
+      "name": "tile_06_10",
+      "center_enu_m": [
+        -1750,
+        250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_06_10.dae",
+      "imagery_source": "imagery_1_2",
+      "terrain_z_min_m": -4.218667,
+      "terrain_z_max_m": 1.779178
+    },
+    {
+      "name": "tile_07_10",
+      "center_enu_m": [
+        -1250,
+        250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_07_10.dae",
+      "imagery_source": "imagery_1_2",
+      "terrain_z_min_m": -5.117252,
+      "terrain_z_max_m": 1.788729
+    },
+    {
+      "name": "tile_08_10",
+      "center_enu_m": [
+        -750,
+        250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_08_10.dae",
+      "imagery_source": "imagery_1_2",
+      "terrain_z_min_m": -5.071979,
+      "terrain_z_max_m": 2.74707
+    },
+    {
+      "name": "tile_09_10",
+      "center_enu_m": [
+        -250,
+        250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_09_10.dae",
+      "imagery_source": "imagery_1_2",
+      "terrain_z_min_m": -3.749233,
+      "terrain_z_max_m": 3.701436
+    },
+    {
+      "name": "tile_10_10",
+      "center_enu_m": [
+        250,
+        250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_10_10.dae",
+      "imagery_source": "imagery_2_2",
+      "terrain_z_min_m": -4.033842,
+      "terrain_z_max_m": 3.701436
+    },
+    {
+      "name": "tile_11_10",
+      "center_enu_m": [
+        750,
+        250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_11_10.dae",
+      "imagery_source": "imagery_2_2",
+      "terrain_z_min_m": -4.090033,
+      "terrain_z_max_m": 2.377398
+    },
+    {
+      "name": "tile_12_10",
+      "center_enu_m": [
+        1250,
+        250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_12_10.dae",
+      "imagery_source": "imagery_2_2",
+      "terrain_z_min_m": -4.470036,
+      "terrain_z_max_m": 3.136225
+    },
+    {
+      "name": "tile_13_10",
+      "center_enu_m": [
+        1750,
+        250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_13_10.dae",
+      "imagery_source": "imagery_2_2",
+      "terrain_z_min_m": -3.064279,
+      "terrain_z_max_m": 3.737604
+    },
+    {
+      "name": "tile_14_10",
+      "center_enu_m": [
+        2250,
+        250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_14_10.dae",
+      "imagery_source": "imagery_2_2",
+      "terrain_z_min_m": -5.431347,
+      "terrain_z_max_m": 2.482056
+    },
+    {
+      "name": "tile_15_10",
+      "center_enu_m": [
+        2750,
+        250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_15_10.dae",
+      "imagery_source": "imagery_3_2",
+      "terrain_z_min_m": -4.225401,
+      "terrain_z_max_m": 0.760759
+    },
+    {
+      "name": "tile_16_10",
+      "center_enu_m": [
+        3250,
+        250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_16_10.dae",
+      "imagery_source": "imagery_3_2",
+      "terrain_z_min_m": -4.523895,
+      "terrain_z_max_m": 1.21075
+    },
+    {
+      "name": "tile_17_10",
+      "center_enu_m": [
+        3750,
+        250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_17_10.dae",
+      "imagery_source": "imagery_3_2",
+      "terrain_z_min_m": -4.086142,
+      "terrain_z_max_m": 2.556159
+    },
+    {
+      "name": "tile_18_10",
+      "center_enu_m": [
+        4250,
+        250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_18_10.dae",
+      "imagery_source": "imagery_3_2",
+      "terrain_z_min_m": -3.732966,
+      "terrain_z_max_m": 1.542606
+    },
+    {
+      "name": "tile_19_10",
+      "center_enu_m": [
+        4750,
+        250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_19_10.dae",
+      "imagery_source": "imagery_3_2",
+      "terrain_z_min_m": -4.400531,
+      "terrain_z_max_m": 0.966698
+    },
+    {
+      "name": "tile_00_11",
+      "center_enu_m": [
+        -4750,
+        750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_00_11.dae",
+      "imagery_source": "imagery_0_2",
+      "terrain_z_min_m": -6.187601,
+      "terrain_z_max_m": 2.725429
+    },
+    {
+      "name": "tile_01_11",
+      "center_enu_m": [
+        -4250,
+        750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_01_11.dae",
+      "imagery_source": "imagery_0_2",
+      "terrain_z_min_m": -5.683372,
+      "terrain_z_max_m": -5.292005
+    },
+    {
+      "name": "tile_02_11",
+      "center_enu_m": [
+        -3750,
+        750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_02_11.dae",
+      "imagery_source": "imagery_0_2",
+      "terrain_z_min_m": -5.351755,
+      "terrain_z_max_m": -1.307125
+    },
+    {
+      "name": "tile_03_11",
+      "center_enu_m": [
+        -3250,
+        750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_03_11.dae",
+      "imagery_source": "imagery_0_2",
+      "terrain_z_min_m": -5.087511,
+      "terrain_z_max_m": 2.94773
+    },
+    {
+      "name": "tile_04_11",
+      "center_enu_m": [
+        -2750,
+        750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_04_11.dae",
+      "imagery_source": "imagery_0_2",
+      "terrain_z_min_m": -3.530148,
+      "terrain_z_max_m": 1.38851
+    },
+    {
+      "name": "tile_05_11",
+      "center_enu_m": [
+        -2250,
+        750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_05_11.dae",
+      "imagery_source": "imagery_1_2",
+      "terrain_z_min_m": -3.418106,
+      "terrain_z_max_m": 0.542862
+    },
+    {
+      "name": "tile_06_11",
+      "center_enu_m": [
+        -1750,
+        750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_06_11.dae",
+      "imagery_source": "imagery_1_2",
+      "terrain_z_min_m": -3.218598,
+      "terrain_z_max_m": 2.428908
+    },
+    {
+      "name": "tile_07_11",
+      "center_enu_m": [
+        -1250,
+        750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_07_11.dae",
+      "imagery_source": "imagery_1_2",
+      "terrain_z_min_m": -3.237831,
+      "terrain_z_max_m": 1.72816
+    },
+    {
+      "name": "tile_08_11",
+      "center_enu_m": [
+        -750,
+        750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_08_11.dae",
+      "imagery_source": "imagery_1_2",
+      "terrain_z_min_m": -4.094332,
+      "terrain_z_max_m": 2.906119
+    },
+    {
+      "name": "tile_09_11",
+      "center_enu_m": [
+        -250,
+        750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_09_11.dae",
+      "imagery_source": "imagery_1_2",
+      "terrain_z_min_m": -3.949001,
+      "terrain_z_max_m": 1.794203
+    },
+    {
+      "name": "tile_10_11",
+      "center_enu_m": [
+        250,
+        750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_10_11.dae",
+      "imagery_source": "imagery_2_2",
+      "terrain_z_min_m": -4.804577,
+      "terrain_z_max_m": 1.941642
+    },
+    {
+      "name": "tile_11_11",
+      "center_enu_m": [
+        750,
+        750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_11_11.dae",
+      "imagery_source": "imagery_2_2",
+      "terrain_z_min_m": -2.785491,
+      "terrain_z_max_m": 2.880296
+    },
+    {
+      "name": "tile_12_11",
+      "center_enu_m": [
+        1250,
+        750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_12_11.dae",
+      "imagery_source": "imagery_2_2",
+      "terrain_z_min_m": -4.506083,
+      "terrain_z_max_m": 2.820723
+    },
+    {
+      "name": "tile_13_11",
+      "center_enu_m": [
+        1750,
+        750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_13_11.dae",
+      "imagery_source": "imagery_2_2",
+      "terrain_z_min_m": -3.338452,
+      "terrain_z_max_m": 2.723771
+    },
+    {
+      "name": "tile_14_11",
+      "center_enu_m": [
+        2250,
+        750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_14_11.dae",
+      "imagery_source": "imagery_2_2",
+      "terrain_z_min_m": -5.3957,
+      "terrain_z_max_m": 1.618726
+    },
+    {
+      "name": "tile_15_11",
+      "center_enu_m": [
+        2750,
+        750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_15_11.dae",
+      "imagery_source": "imagery_3_2",
+      "terrain_z_min_m": -5.01409,
+      "terrain_z_max_m": 1.264875
+    },
+    {
+      "name": "tile_16_11",
+      "center_enu_m": [
+        3250,
+        750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_16_11.dae",
+      "imagery_source": "imagery_3_2",
+      "terrain_z_min_m": -4.823091,
+      "terrain_z_max_m": 2.066026
+    },
+    {
+      "name": "tile_17_11",
+      "center_enu_m": [
+        3750,
+        750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_17_11.dae",
+      "imagery_source": "imagery_3_2",
+      "terrain_z_min_m": -5.015976,
+      "terrain_z_max_m": 1.545998
+    },
+    {
+      "name": "tile_18_11",
+      "center_enu_m": [
+        4250,
+        750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_18_11.dae",
+      "imagery_source": "imagery_3_2",
+      "terrain_z_min_m": -5.015976,
+      "terrain_z_max_m": 1.967255
+    },
+    {
+      "name": "tile_19_11",
+      "center_enu_m": [
+        4750,
+        750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_19_11.dae",
+      "imagery_source": "imagery_3_2",
+      "terrain_z_min_m": -5.716765,
+      "terrain_z_max_m": 2.231732
+    },
+    {
+      "name": "tile_00_12",
+      "center_enu_m": [
+        -4750,
+        1250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_00_12.dae",
+      "imagery_source": "imagery_0_2",
+      "terrain_z_min_m": -9.613751,
+      "terrain_z_max_m": 1.14279
+    },
+    {
+      "name": "tile_01_12",
+      "center_enu_m": [
+        -4250,
+        1250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_01_12.dae",
+      "imagery_source": "imagery_0_2",
+      "terrain_z_min_m": -5.828412,
+      "terrain_z_max_m": -4.313239
+    },
+    {
+      "name": "tile_02_12",
+      "center_enu_m": [
+        -3750,
+        1250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_02_12.dae",
+      "imagery_source": "imagery_0_2",
+      "terrain_z_min_m": -5.441355,
+      "terrain_z_max_m": -5.04835
+    },
+    {
+      "name": "tile_03_12",
+      "center_enu_m": [
+        -3250,
+        1250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_03_12.dae",
+      "imagery_source": "imagery_0_2",
+      "terrain_z_min_m": -5.434338,
+      "terrain_z_max_m": 1.029431
+    },
+    {
+      "name": "tile_04_12",
+      "center_enu_m": [
+        -2750,
+        1250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_04_12.dae",
+      "imagery_source": "imagery_0_2",
+      "terrain_z_min_m": -5.387736,
+      "terrain_z_max_m": 3.193596
+    },
+    {
+      "name": "tile_05_12",
+      "center_enu_m": [
+        -2250,
+        1250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_05_12.dae",
+      "imagery_source": "imagery_1_2",
+      "terrain_z_min_m": -3.572706,
+      "terrain_z_max_m": 2.8243
+    },
+    {
+      "name": "tile_06_12",
+      "center_enu_m": [
+        -1750,
+        1250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_06_12.dae",
+      "imagery_source": "imagery_1_2",
+      "terrain_z_min_m": -3.184254,
+      "terrain_z_max_m": 2.226604
+    },
+    {
+      "name": "tile_07_12",
+      "center_enu_m": [
+        -1250,
+        1250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_07_12.dae",
+      "imagery_source": "imagery_1_2",
+      "terrain_z_min_m": -3.184254,
+      "terrain_z_max_m": 1.726976
+    },
+    {
+      "name": "tile_08_12",
+      "center_enu_m": [
+        -750,
+        1250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_08_12.dae",
+      "imagery_source": "imagery_1_2",
+      "terrain_z_min_m": -3.801806,
+      "terrain_z_max_m": 1.582663
+    },
+    {
+      "name": "tile_09_12",
+      "center_enu_m": [
+        -250,
+        1250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_09_12.dae",
+      "imagery_source": "imagery_1_2",
+      "terrain_z_min_m": -3.801806,
+      "terrain_z_max_m": 1.862451
+    },
+    {
+      "name": "tile_10_12",
+      "center_enu_m": [
+        250,
+        1250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_10_12.dae",
+      "imagery_source": "imagery_2_2",
+      "terrain_z_min_m": -4.86167,
+      "terrain_z_max_m": 1.679067
+    },
+    {
+      "name": "tile_11_12",
+      "center_enu_m": [
+        750,
+        1250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_11_12.dae",
+      "imagery_source": "imagery_2_2",
+      "terrain_z_min_m": -3.792364,
+      "terrain_z_max_m": 1.830178
+    },
+    {
+      "name": "tile_12_12",
+      "center_enu_m": [
+        1250,
+        1250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_12_12.dae",
+      "imagery_source": "imagery_2_2",
+      "terrain_z_min_m": -4.854005,
+      "terrain_z_max_m": 1.734024
+    },
+    {
+      "name": "tile_13_12",
+      "center_enu_m": [
+        1750,
+        1250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_13_12.dae",
+      "imagery_source": "imagery_2_2",
+      "terrain_z_min_m": -4.854005,
+      "terrain_z_max_m": 1.63405
+    },
+    {
+      "name": "tile_14_12",
+      "center_enu_m": [
+        2250,
+        1250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_14_12.dae",
+      "imagery_source": "imagery_2_2",
+      "terrain_z_min_m": -4.562747,
+      "terrain_z_max_m": 1.353716
+    },
+    {
+      "name": "tile_15_12",
+      "center_enu_m": [
+        2750,
+        1250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_15_12.dae",
+      "imagery_source": "imagery_3_2",
+      "terrain_z_min_m": -4.103403,
+      "terrain_z_max_m": 1.906226
+    },
+    {
+      "name": "tile_16_12",
+      "center_enu_m": [
+        3250,
+        1250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_16_12.dae",
+      "imagery_source": "imagery_3_2",
+      "terrain_z_min_m": -4.734266,
+      "terrain_z_max_m": 2.618695
+    },
+    {
+      "name": "tile_17_12",
+      "center_enu_m": [
+        3750,
+        1250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_17_12.dae",
+      "imagery_source": "imagery_3_2",
+      "terrain_z_min_m": -4.227011,
+      "terrain_z_max_m": 1.726399
+    },
+    {
+      "name": "tile_18_12",
+      "center_enu_m": [
+        4250,
+        1250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_18_12.dae",
+      "imagery_source": "imagery_3_2",
+      "terrain_z_min_m": -4.6293,
+      "terrain_z_max_m": 0.549121
+    },
+    {
+      "name": "tile_19_12",
+      "center_enu_m": [
+        4750,
+        1250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_19_12.dae",
+      "imagery_source": "imagery_3_2",
+      "terrain_z_min_m": -6.003594,
+      "terrain_z_max_m": 1.236751
+    },
+    {
+      "name": "tile_00_13",
+      "center_enu_m": [
+        -4750,
+        1750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_00_13.dae",
+      "imagery_source": "imagery_0_2",
+      "terrain_z_min_m": -7.382595,
+      "terrain_z_max_m": 1.659756
+    },
+    {
+      "name": "tile_01_13",
+      "center_enu_m": [
+        -4250,
+        1750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_01_13.dae",
+      "imagery_source": "imagery_0_2",
+      "terrain_z_min_m": -7.382595,
+      "terrain_z_max_m": 1.331361
+    },
+    {
+      "name": "tile_02_13",
+      "center_enu_m": [
+        -3750,
+        1750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_02_13.dae",
+      "imagery_source": "imagery_0_2",
+      "terrain_z_min_m": -5.6381,
+      "terrain_z_max_m": -5.156432
+    },
+    {
+      "name": "tile_03_13",
+      "center_enu_m": [
+        -3250,
+        1750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_03_13.dae",
+      "imagery_source": "imagery_0_2",
+      "terrain_z_min_m": -5.300521,
+      "terrain_z_max_m": -4.905519
+    },
+    {
+      "name": "tile_04_13",
+      "center_enu_m": [
+        -2750,
+        1750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_04_13.dae",
+      "imagery_source": "imagery_0_2",
+      "terrain_z_min_m": -5.107009,
+      "terrain_z_max_m": 2.604834
+    },
+    {
+      "name": "tile_05_13",
+      "center_enu_m": [
+        -2250,
+        1750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_05_13.dae",
+      "imagery_source": "imagery_1_2",
+      "terrain_z_min_m": -4.665933,
+      "terrain_z_max_m": 6.221694
+    },
+    {
+      "name": "tile_06_13",
+      "center_enu_m": [
+        -1750,
+        1750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_06_13.dae",
+      "imagery_source": "imagery_1_2",
+      "terrain_z_min_m": -5.303412,
+      "terrain_z_max_m": 1.462963
+    },
+    {
+      "name": "tile_07_13",
+      "center_enu_m": [
+        -1250,
+        1750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_07_13.dae",
+      "imagery_source": "imagery_1_2",
+      "terrain_z_min_m": -4.177339,
+      "terrain_z_max_m": 1.586872
+    },
+    {
+      "name": "tile_08_13",
+      "center_enu_m": [
+        -750,
+        1750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_08_13.dae",
+      "imagery_source": "imagery_1_2",
+      "terrain_z_min_m": -4.296499,
+      "terrain_z_max_m": 2.327975
+    },
+    {
+      "name": "tile_09_13",
+      "center_enu_m": [
+        -250,
+        1750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_09_13.dae",
+      "imagery_source": "imagery_1_2",
+      "terrain_z_min_m": -4.592262,
+      "terrain_z_max_m": 2.327975
+    },
+    {
+      "name": "tile_10_13",
+      "center_enu_m": [
+        250,
+        1750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_10_13.dae",
+      "imagery_source": "imagery_2_2",
+      "terrain_z_min_m": -3.290885,
+      "terrain_z_max_m": 1.172519
+    },
+    {
+      "name": "tile_11_13",
+      "center_enu_m": [
+        750,
+        1750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_11_13.dae",
+      "imagery_source": "imagery_2_2",
+      "terrain_z_min_m": -4.95907,
+      "terrain_z_max_m": 2.629744
+    },
+    {
+      "name": "tile_12_13",
+      "center_enu_m": [
+        1250,
+        1750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_12_13.dae",
+      "imagery_source": "imagery_2_2",
+      "terrain_z_min_m": -4.149254,
+      "terrain_z_max_m": 1.561307
+    },
+    {
+      "name": "tile_13_13",
+      "center_enu_m": [
+        1750,
+        1750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_13_13.dae",
+      "imagery_source": "imagery_2_2",
+      "terrain_z_min_m": -4.127598,
+      "terrain_z_max_m": 2.556348
+    },
+    {
+      "name": "tile_14_13",
+      "center_enu_m": [
+        2250,
+        1750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_14_13.dae",
+      "imagery_source": "imagery_2_2",
+      "terrain_z_min_m": -5.670177,
+      "terrain_z_max_m": 2.340405
+    },
+    {
+      "name": "tile_15_13",
+      "center_enu_m": [
+        2750,
+        1750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_15_13.dae",
+      "imagery_source": "imagery_3_2",
+      "terrain_z_min_m": -5.242978,
+      "terrain_z_max_m": 1.159924
+    },
+    {
+      "name": "tile_16_13",
+      "center_enu_m": [
+        3250,
+        1750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_16_13.dae",
+      "imagery_source": "imagery_3_2",
+      "terrain_z_min_m": -5.827671,
+      "terrain_z_max_m": 1.793471
+    },
+    {
+      "name": "tile_17_13",
+      "center_enu_m": [
+        3750,
+        1750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_17_13.dae",
+      "imagery_source": "imagery_3_2",
+      "terrain_z_min_m": -4.187396,
+      "terrain_z_max_m": 2.527368
+    },
+    {
+      "name": "tile_18_13",
+      "center_enu_m": [
+        4250,
+        1750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_18_13.dae",
+      "imagery_source": "imagery_3_2",
+      "terrain_z_min_m": -5.839943,
+      "terrain_z_max_m": 4.369422
+    },
+    {
+      "name": "tile_19_13",
+      "center_enu_m": [
+        4750,
+        1750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_19_13.dae",
+      "imagery_source": "imagery_3_2",
+      "terrain_z_min_m": -5.565184,
+      "terrain_z_max_m": 1.510912
+    },
+    {
+      "name": "tile_00_14",
+      "center_enu_m": [
+        -4750,
+        2250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_00_14.dae",
+      "imagery_source": "imagery_0_2",
+      "terrain_z_min_m": -4.887413,
+      "terrain_z_max_m": 2.635362
+    },
+    {
+      "name": "tile_01_14",
+      "center_enu_m": [
+        -4250,
+        2250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_01_14.dae",
+      "imagery_source": "imagery_0_2",
+      "terrain_z_min_m": -7.534991,
+      "terrain_z_max_m": 0.899324
+    },
+    {
+      "name": "tile_02_14",
+      "center_enu_m": [
+        -3750,
+        2250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_02_14.dae",
+      "imagery_source": "imagery_0_2",
+      "terrain_z_min_m": -7.534991,
+      "terrain_z_max_m": 0.249676
+    },
+    {
+      "name": "tile_03_14",
+      "center_enu_m": [
+        -3250,
+        2250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_03_14.dae",
+      "imagery_source": "imagery_0_2",
+      "terrain_z_min_m": -5.568597,
+      "terrain_z_max_m": -5.039616
+    },
+    {
+      "name": "tile_04_14",
+      "center_enu_m": [
+        -2750,
+        2250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_04_14.dae",
+      "imagery_source": "imagery_0_2",
+      "terrain_z_min_m": -5.212775,
+      "terrain_z_max_m": -4.607696
+    },
+    {
+      "name": "tile_05_14",
+      "center_enu_m": [
+        -2250,
+        2250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_05_14.dae",
+      "imagery_source": "imagery_1_2",
+      "terrain_z_min_m": -5.009169,
+      "terrain_z_max_m": 1.340855
+    },
+    {
+      "name": "tile_06_14",
+      "center_enu_m": [
+        -1750,
+        2250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_06_14.dae",
+      "imagery_source": "imagery_1_2",
+      "terrain_z_min_m": -5.62885,
+      "terrain_z_max_m": 2.953624
+    },
+    {
+      "name": "tile_07_14",
+      "center_enu_m": [
+        -1250,
+        2250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_07_14.dae",
+      "imagery_source": "imagery_1_2",
+      "terrain_z_min_m": -4.764449,
+      "terrain_z_max_m": 1.804408
+    },
+    {
+      "name": "tile_08_14",
+      "center_enu_m": [
+        -750,
+        2250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_08_14.dae",
+      "imagery_source": "imagery_1_2",
+      "terrain_z_min_m": -4.777546,
+      "terrain_z_max_m": 1.533831
+    },
+    {
+      "name": "tile_09_14",
+      "center_enu_m": [
+        -250,
+        2250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_09_14.dae",
+      "imagery_source": "imagery_1_2",
+      "terrain_z_min_m": -3.869891,
+      "terrain_z_max_m": 2.339271
+    },
+    {
+      "name": "tile_10_14",
+      "center_enu_m": [
+        250,
+        2250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_10_14.dae",
+      "imagery_source": "imagery_2_2",
+      "terrain_z_min_m": -5.47631,
+      "terrain_z_max_m": 1.613656
+    },
+    {
+      "name": "tile_11_14",
+      "center_enu_m": [
+        750,
+        2250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_11_14.dae",
+      "imagery_source": "imagery_2_2",
+      "terrain_z_min_m": -3.571781,
+      "terrain_z_max_m": 2.584933
+    },
+    {
+      "name": "tile_12_14",
+      "center_enu_m": [
+        1250,
+        2250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_12_14.dae",
+      "imagery_source": "imagery_2_2",
+      "terrain_z_min_m": -5.16432,
+      "terrain_z_max_m": 3.191102
+    },
+    {
+      "name": "tile_13_14",
+      "center_enu_m": [
+        1750,
+        2250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_13_14.dae",
+      "imagery_source": "imagery_2_2",
+      "terrain_z_min_m": -5.16432,
+      "terrain_z_max_m": 2.942804
+    },
+    {
+      "name": "tile_14_14",
+      "center_enu_m": [
+        2250,
+        2250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_14_14.dae",
+      "imagery_source": "imagery_2_2",
+      "terrain_z_min_m": -4.709533,
+      "terrain_z_max_m": 4.013096
+    },
+    {
+      "name": "tile_15_14",
+      "center_enu_m": [
+        2750,
+        2250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_15_14.dae",
+      "imagery_source": "imagery_3_2",
+      "terrain_z_min_m": -5.735904,
+      "terrain_z_max_m": 1.636926
+    },
+    {
+      "name": "tile_16_14",
+      "center_enu_m": [
+        3250,
+        2250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_16_14.dae",
+      "imagery_source": "imagery_3_2",
+      "terrain_z_min_m": -5.86294,
+      "terrain_z_max_m": 6.559038
+    },
+    {
+      "name": "tile_17_14",
+      "center_enu_m": [
+        3750,
+        2250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_17_14.dae",
+      "imagery_source": "imagery_3_2",
+      "terrain_z_min_m": -5.927677,
+      "terrain_z_max_m": 3.931313
+    },
+    {
+      "name": "tile_18_14",
+      "center_enu_m": [
+        4250,
+        2250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_18_14.dae",
+      "imagery_source": "imagery_3_2",
+      "terrain_z_min_m": -6.17345,
+      "terrain_z_max_m": 3.270595
+    },
+    {
+      "name": "tile_19_14",
+      "center_enu_m": [
+        4750,
+        2250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_19_14.dae",
+      "imagery_source": "imagery_3_2",
+      "terrain_z_min_m": -6.518657,
+      "terrain_z_max_m": 0.459019
+    },
+    {
+      "name": "tile_00_15",
+      "center_enu_m": [
+        -4750,
+        2750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_00_15.dae",
+      "imagery_source": "imagery_0_3",
+      "terrain_z_min_m": -7.801716,
+      "terrain_z_max_m": 1.0888
+    },
+    {
+      "name": "tile_01_15",
+      "center_enu_m": [
+        -4250,
+        2750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_01_15.dae",
+      "imagery_source": "imagery_0_3",
+      "terrain_z_min_m": -6.062729,
+      "terrain_z_max_m": 1.480936
+    },
+    {
+      "name": "tile_02_15",
+      "center_enu_m": [
+        -3750,
+        2750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_02_15.dae",
+      "imagery_source": "imagery_0_3",
+      "terrain_z_min_m": -6.772333,
+      "terrain_z_max_m": 1.179449
+    },
+    {
+      "name": "tile_03_15",
+      "center_enu_m": [
+        -3250,
+        2750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_03_15.dae",
+      "imagery_source": "imagery_0_3",
+      "terrain_z_min_m": -5.672101,
+      "terrain_z_max_m": -1.638992
+    },
+    {
+      "name": "tile_04_15",
+      "center_enu_m": [
+        -2750,
+        2750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_04_15.dae",
+      "imagery_source": "imagery_0_3",
+      "terrain_z_min_m": -5.402124,
+      "terrain_z_max_m": -5.001819
+    },
+    {
+      "name": "tile_05_15",
+      "center_enu_m": [
+        -2250,
+        2750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_05_15.dae",
+      "imagery_source": "imagery_1_3",
+      "terrain_z_min_m": -5.268653,
+      "terrain_z_max_m": -4.814672
+    },
+    {
+      "name": "tile_06_15",
+      "center_enu_m": [
+        -1750,
+        2750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_06_15.dae",
+      "imagery_source": "imagery_1_3",
+      "terrain_z_min_m": -5.041787,
+      "terrain_z_max_m": -4.644073
+    },
+    {
+      "name": "tile_07_15",
+      "center_enu_m": [
+        -1250,
+        2750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_07_15.dae",
+      "imagery_source": "imagery_1_3",
+      "terrain_z_min_m": -4.904447,
+      "terrain_z_max_m": -4.603391
+    },
+    {
+      "name": "tile_08_15",
+      "center_enu_m": [
+        -750,
+        2750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_08_15.dae",
+      "imagery_source": "imagery_1_3",
+      "terrain_z_min_m": -4.80658,
+      "terrain_z_max_m": -3.741301
+    },
+    {
+      "name": "tile_09_15",
+      "center_enu_m": [
+        -250,
+        2750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_09_15.dae",
+      "imagery_source": "imagery_1_3",
+      "terrain_z_min_m": -4.82136,
+      "terrain_z_max_m": 0.017573
+    },
+    {
+      "name": "tile_10_15",
+      "center_enu_m": [
+        250,
+        2750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_10_15.dae",
+      "imagery_source": "imagery_2_3",
+      "terrain_z_min_m": -4.825717,
+      "terrain_z_max_m": 1.555127
+    },
+    {
+      "name": "tile_11_15",
+      "center_enu_m": [
+        750,
+        2750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_11_15.dae",
+      "imagery_source": "imagery_2_3",
+      "terrain_z_min_m": -5.073743,
+      "terrain_z_max_m": 2.445284
+    },
+    {
+      "name": "tile_12_15",
+      "center_enu_m": [
+        1250,
+        2750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_12_15.dae",
+      "imagery_source": "imagery_2_3",
+      "terrain_z_min_m": -4.934768,
+      "terrain_z_max_m": 2.208988
+    },
+    {
+      "name": "tile_13_15",
+      "center_enu_m": [
+        1750,
+        2750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_13_15.dae",
+      "imagery_source": "imagery_2_3",
+      "terrain_z_min_m": -5.114365,
+      "terrain_z_max_m": 2.208988
+    },
+    {
+      "name": "tile_14_15",
+      "center_enu_m": [
+        2250,
+        2750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_14_15.dae",
+      "imagery_source": "imagery_2_3",
+      "terrain_z_min_m": -5.301028,
+      "terrain_z_max_m": 1.033935
+    },
+    {
+      "name": "tile_15_15",
+      "center_enu_m": [
+        2750,
+        2750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_15_15.dae",
+      "imagery_source": "imagery_3_3",
+      "terrain_z_min_m": -5.685141,
+      "terrain_z_max_m": -1.711317
+    },
+    {
+      "name": "tile_16_15",
+      "center_enu_m": [
+        3250,
+        2750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_16_15.dae",
+      "imagery_source": "imagery_3_3",
+      "terrain_z_min_m": -5.68746,
+      "terrain_z_max_m": -2.949599
+    },
+    {
+      "name": "tile_17_15",
+      "center_enu_m": [
+        3750,
+        2750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_17_15.dae",
+      "imagery_source": "imagery_3_3",
+      "terrain_z_min_m": -5.981175,
+      "terrain_z_max_m": -4.620175
+    },
+    {
+      "name": "tile_18_15",
+      "center_enu_m": [
+        4250,
+        2750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_18_15.dae",
+      "imagery_source": "imagery_3_3",
+      "terrain_z_min_m": -6.314173,
+      "terrain_z_max_m": -4.893467
+    },
+    {
+      "name": "tile_19_15",
+      "center_enu_m": [
+        4750,
+        2750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_19_15.dae",
+      "imagery_source": "imagery_3_3",
+      "terrain_z_min_m": -6.686097,
+      "terrain_z_max_m": -6.13585
+    },
+    {
+      "name": "tile_00_16",
+      "center_enu_m": [
+        -4750,
+        3250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_00_16.dae",
+      "imagery_source": "imagery_0_3",
+      "terrain_z_min_m": -7.801716,
+      "terrain_z_max_m": 4.795711
+    },
+    {
+      "name": "tile_01_16",
+      "center_enu_m": [
+        -4250,
+        3250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_01_16.dae",
+      "imagery_source": "imagery_0_3",
+      "terrain_z_min_m": -9.833646,
+      "terrain_z_max_m": 0.107705
+    },
+    {
+      "name": "tile_02_16",
+      "center_enu_m": [
+        -3750,
+        3250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_02_16.dae",
+      "imagery_source": "imagery_0_3",
+      "terrain_z_min_m": -7.755977,
+      "terrain_z_max_m": 0.937029
+    },
+    {
+      "name": "tile_03_16",
+      "center_enu_m": [
+        -3250,
+        3250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_03_16.dae",
+      "imagery_source": "imagery_0_3",
+      "terrain_z_min_m": -6.842868,
+      "terrain_z_max_m": 0.194813
+    },
+    {
+      "name": "tile_04_16",
+      "center_enu_m": [
+        -2750,
+        3250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_04_16.dae",
+      "imagery_source": "imagery_0_3",
+      "terrain_z_min_m": -5.73734,
+      "terrain_z_max_m": 1.909807
+    },
+    {
+      "name": "tile_05_16",
+      "center_enu_m": [
+        -2250,
+        3250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_05_16.dae",
+      "imagery_source": "imagery_1_3",
+      "terrain_z_min_m": -6.183365,
+      "terrain_z_max_m": 1.246938
+    },
+    {
+      "name": "tile_06_16",
+      "center_enu_m": [
+        -1750,
+        3250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_06_16.dae",
+      "imagery_source": "imagery_1_3",
+      "terrain_z_min_m": -5.433005,
+      "terrain_z_max_m": -3.659566
+    },
+    {
+      "name": "tile_07_16",
+      "center_enu_m": [
+        -1250,
+        3250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_07_16.dae",
+      "imagery_source": "imagery_1_3",
+      "terrain_z_min_m": -5.20154,
+      "terrain_z_max_m": -4.80655
+    },
+    {
+      "name": "tile_08_16",
+      "center_enu_m": [
+        -750,
+        3250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_08_16.dae",
+      "imagery_source": "imagery_1_3",
+      "terrain_z_min_m": -5.875361,
+      "terrain_z_max_m": -3.990079
+    },
+    {
+      "name": "tile_09_16",
+      "center_enu_m": [
+        -250,
+        3250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_09_16.dae",
+      "imagery_source": "imagery_1_3",
+      "terrain_z_min_m": -6.00553,
+      "terrain_z_max_m": -3.23958
+    },
+    {
+      "name": "tile_10_16",
+      "center_enu_m": [
+        250,
+        3250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_10_16.dae",
+      "imagery_source": "imagery_2_3",
+      "terrain_z_min_m": -5.960978,
+      "terrain_z_max_m": -3.953206
+    },
+    {
+      "name": "tile_11_16",
+      "center_enu_m": [
+        750,
+        3250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_11_16.dae",
+      "imagery_source": "imagery_2_3",
+      "terrain_z_min_m": -5.141305,
+      "terrain_z_max_m": -4.725432
+    },
+    {
+      "name": "tile_12_16",
+      "center_enu_m": [
+        1250,
+        3250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_12_16.dae",
+      "imagery_source": "imagery_2_3",
+      "terrain_z_min_m": -6.255272,
+      "terrain_z_max_m": -4.846081
+    },
+    {
+      "name": "tile_13_16",
+      "center_enu_m": [
+        1750,
+        3250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_13_16.dae",
+      "imagery_source": "imagery_2_3",
+      "terrain_z_min_m": -5.735645,
+      "terrain_z_max_m": -4.934727
+    },
+    {
+      "name": "tile_14_16",
+      "center_enu_m": [
+        2250,
+        3250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_14_16.dae",
+      "imagery_source": "imagery_2_3",
+      "terrain_z_min_m": -5.468818,
+      "terrain_z_max_m": -5.045917
+    },
+    {
+      "name": "tile_15_16",
+      "center_enu_m": [
+        2750,
+        3250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_15_16.dae",
+      "imagery_source": "imagery_3_3",
+      "terrain_z_min_m": -5.680666,
+      "terrain_z_max_m": -5.222238
+    },
+    {
+      "name": "tile_16_16",
+      "center_enu_m": [
+        3250,
+        3250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_16_16.dae",
+      "imagery_source": "imagery_3_3",
+      "terrain_z_min_m": -6.002488,
+      "terrain_z_max_m": -5.432907
+    },
+    {
+      "name": "tile_17_16",
+      "center_enu_m": [
+        3750,
+        3250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_17_16.dae",
+      "imagery_source": "imagery_3_3",
+      "terrain_z_min_m": -6.464832,
+      "terrain_z_max_m": -5.68746
+    },
+    {
+      "name": "tile_18_16",
+      "center_enu_m": [
+        4250,
+        3250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_18_16.dae",
+      "imagery_source": "imagery_3_3",
+      "terrain_z_min_m": -6.740874,
+      "terrain_z_max_m": -5.442242
+    },
+    {
+      "name": "tile_19_16",
+      "center_enu_m": [
+        4750,
+        3250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_19_16.dae",
+      "imagery_source": "imagery_3_3",
+      "terrain_z_min_m": -7.103148,
+      "terrain_z_max_m": -6.314173
+    },
+    {
+      "name": "tile_00_17",
+      "center_enu_m": [
+        -4750,
+        3750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_00_17.dae",
+      "imagery_source": "imagery_0_3",
+      "terrain_z_min_m": -6.939298,
+      "terrain_z_max_m": 1.993017
+    },
+    {
+      "name": "tile_01_17",
+      "center_enu_m": [
+        -4250,
+        3750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_01_17.dae",
+      "imagery_source": "imagery_0_3",
+      "terrain_z_min_m": -9.007902,
+      "terrain_z_max_m": 4.556185
+    },
+    {
+      "name": "tile_02_17",
+      "center_enu_m": [
+        -3750,
+        3750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_02_17.dae",
+      "imagery_source": "imagery_0_3",
+      "terrain_z_min_m": -4.881313,
+      "terrain_z_max_m": 8.163796
+    },
+    {
+      "name": "tile_03_17",
+      "center_enu_m": [
+        -3250,
+        3750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_03_17.dae",
+      "imagery_source": "imagery_0_3",
+      "terrain_z_min_m": -4.158368,
+      "terrain_z_max_m": 8.182188
+    },
+    {
+      "name": "tile_04_17",
+      "center_enu_m": [
+        -2750,
+        3750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_04_17.dae",
+      "imagery_source": "imagery_0_3",
+      "terrain_z_min_m": -3.53658,
+      "terrain_z_max_m": 4.90713
+    },
+    {
+      "name": "tile_05_17",
+      "center_enu_m": [
+        -2250,
+        3750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_05_17.dae",
+      "imagery_source": "imagery_1_3",
+      "terrain_z_min_m": -4.815487,
+      "terrain_z_max_m": 6.7053
+    },
+    {
+      "name": "tile_06_17",
+      "center_enu_m": [
+        -1750,
+        3750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_06_17.dae",
+      "imagery_source": "imagery_1_3",
+      "terrain_z_min_m": -5.501502,
+      "terrain_z_max_m": 1.790668
+    },
+    {
+      "name": "tile_07_17",
+      "center_enu_m": [
+        -1250,
+        3750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_07_17.dae",
+      "imagery_source": "imagery_1_3",
+      "terrain_z_min_m": -5.286343,
+      "terrain_z_max_m": 2.982962
+    },
+    {
+      "name": "tile_08_17",
+      "center_enu_m": [
+        -750,
+        3750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_08_17.dae",
+      "imagery_source": "imagery_1_3",
+      "terrain_z_min_m": -7.819813,
+      "terrain_z_max_m": 30.241922
+    },
+    {
+      "name": "tile_09_17",
+      "center_enu_m": [
+        -250,
+        3750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_09_17.dae",
+      "imagery_source": "imagery_1_3",
+      "terrain_z_min_m": -4.407536,
+      "terrain_z_max_m": 29.823639
+    },
+    {
+      "name": "tile_10_17",
+      "center_enu_m": [
+        250,
+        3750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_10_17.dae",
+      "imagery_source": "imagery_2_3",
+      "terrain_z_min_m": -8.324201,
+      "terrain_z_max_m": 31.806634
+    },
+    {
+      "name": "tile_11_17",
+      "center_enu_m": [
+        750,
+        3750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_11_17.dae",
+      "imagery_source": "imagery_2_3",
+      "terrain_z_min_m": -6.699618,
+      "terrain_z_max_m": 6.007774
+    },
+    {
+      "name": "tile_12_17",
+      "center_enu_m": [
+        1250,
+        3750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_12_17.dae",
+      "imagery_source": "imagery_2_3",
+      "terrain_z_min_m": -6.657088,
+      "terrain_z_max_m": 6.649495
+    },
+    {
+      "name": "tile_13_17",
+      "center_enu_m": [
+        1750,
+        3750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_13_17.dae",
+      "imagery_source": "imagery_2_3",
+      "terrain_z_min_m": -6.418106,
+      "terrain_z_max_m": 5.376603
+    },
+    {
+      "name": "tile_14_17",
+      "center_enu_m": [
+        2250,
+        3750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_14_17.dae",
+      "imagery_source": "imagery_2_3",
+      "terrain_z_min_m": -6.43519,
+      "terrain_z_max_m": 10.573358
+    },
+    {
+      "name": "tile_15_17",
+      "center_enu_m": [
+        2750,
+        3750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_15_17.dae",
+      "imagery_source": "imagery_3_3",
+      "terrain_z_min_m": -6.983686,
+      "terrain_z_max_m": 6.207349
+    },
+    {
+      "name": "tile_16_17",
+      "center_enu_m": [
+        3250,
+        3750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_16_17.dae",
+      "imagery_source": "imagery_3_3",
+      "terrain_z_min_m": -10.794537,
+      "terrain_z_max_m": 3.675654
+    },
+    {
+      "name": "tile_17_17",
+      "center_enu_m": [
+        3750,
+        3750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_17_17.dae",
+      "imagery_source": "imagery_3_3",
+      "terrain_z_min_m": -8.902155,
+      "terrain_z_max_m": 1.876776
+    },
+    {
+      "name": "tile_18_17",
+      "center_enu_m": [
+        4250,
+        3750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_18_17.dae",
+      "imagery_source": "imagery_3_3",
+      "terrain_z_min_m": -9.612428,
+      "terrain_z_max_m": 1.302685
+    },
+    {
+      "name": "tile_19_17",
+      "center_enu_m": [
+        4750,
+        3750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_19_17.dae",
+      "imagery_source": "imagery_3_3",
+      "terrain_z_min_m": -12.623221,
+      "terrain_z_max_m": 11.352172
+    },
+    {
+      "name": "tile_00_18",
+      "center_enu_m": [
+        -4750,
+        4250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_00_18.dae",
+      "imagery_source": "imagery_0_3",
+      "terrain_z_min_m": -4.623525,
+      "terrain_z_max_m": 27.187653
+    },
+    {
+      "name": "tile_01_18",
+      "center_enu_m": [
+        -4250,
+        4250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_01_18.dae",
+      "imagery_source": "imagery_0_3",
+      "terrain_z_min_m": -4.600123,
+      "terrain_z_max_m": 26.648587
+    },
+    {
+      "name": "tile_02_18",
+      "center_enu_m": [
+        -3750,
+        4250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_02_18.dae",
+      "imagery_source": "imagery_0_3",
+      "terrain_z_min_m": -3.405712,
+      "terrain_z_max_m": 24.176947
+    },
+    {
+      "name": "tile_03_18",
+      "center_enu_m": [
+        -3250,
+        4250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_03_18.dae",
+      "imagery_source": "imagery_0_3",
+      "terrain_z_min_m": -0.796493,
+      "terrain_z_max_m": 25.205808
+    },
+    {
+      "name": "tile_04_18",
+      "center_enu_m": [
+        -2750,
+        4250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_04_18.dae",
+      "imagery_source": "imagery_0_3",
+      "terrain_z_min_m": -2.893398,
+      "terrain_z_max_m": 18.640139
+    },
+    {
+      "name": "tile_05_18",
+      "center_enu_m": [
+        -2250,
+        4250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_05_18.dae",
+      "imagery_source": "imagery_1_3",
+      "terrain_z_min_m": -3.839529,
+      "terrain_z_max_m": 6.02675
+    },
+    {
+      "name": "tile_06_18",
+      "center_enu_m": [
+        -1750,
+        4250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_06_18.dae",
+      "imagery_source": "imagery_1_3",
+      "terrain_z_min_m": -5.792492,
+      "terrain_z_max_m": 2.372604
+    },
+    {
+      "name": "tile_07_18",
+      "center_enu_m": [
+        -1250,
+        4250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_07_18.dae",
+      "imagery_source": "imagery_1_3",
+      "terrain_z_min_m": -4.556084,
+      "terrain_z_max_m": 3.295938
+    },
+    {
+      "name": "tile_08_18",
+      "center_enu_m": [
+        -750,
+        4250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_08_18.dae",
+      "imagery_source": "imagery_1_3",
+      "terrain_z_min_m": -5.197485,
+      "terrain_z_max_m": 4.01862
+    },
+    {
+      "name": "tile_09_18",
+      "center_enu_m": [
+        -250,
+        4250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_09_18.dae",
+      "imagery_source": "imagery_1_3",
+      "terrain_z_min_m": -5.308108,
+      "terrain_z_max_m": 2.359625
+    },
+    {
+      "name": "tile_10_18",
+      "center_enu_m": [
+        250,
+        4250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_10_18.dae",
+      "imagery_source": "imagery_2_3",
+      "terrain_z_min_m": -5.32369,
+      "terrain_z_max_m": 2.358243
+    },
+    {
+      "name": "tile_11_18",
+      "center_enu_m": [
+        750,
+        4250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_11_18.dae",
+      "imagery_source": "imagery_2_3",
+      "terrain_z_min_m": -4.358882,
+      "terrain_z_max_m": 2.55467
+    },
+    {
+      "name": "tile_12_18",
+      "center_enu_m": [
+        1250,
+        4250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_12_18.dae",
+      "imagery_source": "imagery_2_3",
+      "terrain_z_min_m": -5.397097,
+      "terrain_z_max_m": 5.013635
+    },
+    {
+      "name": "tile_13_18",
+      "center_enu_m": [
+        1750,
+        4250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_13_18.dae",
+      "imagery_source": "imagery_2_3",
+      "terrain_z_min_m": -4.609813,
+      "terrain_z_max_m": 4.701978
+    },
+    {
+      "name": "tile_14_18",
+      "center_enu_m": [
+        2250,
+        4250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_14_18.dae",
+      "imagery_source": "imagery_2_3",
+      "terrain_z_min_m": -4.608313,
+      "terrain_z_max_m": 5.735999
+    },
+    {
+      "name": "tile_15_18",
+      "center_enu_m": [
+        2750,
+        4250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_15_18.dae",
+      "imagery_source": "imagery_3_3",
+      "terrain_z_min_m": -5.138166,
+      "terrain_z_max_m": 5.20824
+    },
+    {
+      "name": "tile_16_18",
+      "center_enu_m": [
+        3250,
+        4250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_16_18.dae",
+      "imagery_source": "imagery_3_3",
+      "terrain_z_min_m": -5.097502,
+      "terrain_z_max_m": 1.016033
+    },
+    {
+      "name": "tile_17_18",
+      "center_enu_m": [
+        3750,
+        4250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_17_18.dae",
+      "imagery_source": "imagery_3_3",
+      "terrain_z_min_m": -6.289486,
+      "terrain_z_max_m": 0.489838
+    },
+    {
+      "name": "tile_18_18",
+      "center_enu_m": [
+        4250,
+        4250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_18_18.dae",
+      "imagery_source": "imagery_3_3",
+      "terrain_z_min_m": -7.155541,
+      "terrain_z_max_m": 3.045316
+    },
+    {
+      "name": "tile_19_18",
+      "center_enu_m": [
+        4750,
+        4250
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_19_18.dae",
+      "imagery_source": "imagery_3_3",
+      "terrain_z_min_m": -7.155541,
+      "terrain_z_max_m": -0.757604
+    },
+    {
+      "name": "tile_00_19",
+      "center_enu_m": [
+        -4750,
+        4750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_00_19.dae",
+      "imagery_source": "imagery_0_3",
+      "terrain_z_min_m": 8.910932,
+      "terrain_z_max_m": 38.018701
+    },
+    {
+      "name": "tile_01_19",
+      "center_enu_m": [
+        -4250,
+        4750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_01_19.dae",
+      "imagery_source": "imagery_0_3",
+      "terrain_z_min_m": 8.204442,
+      "terrain_z_max_m": 39.404022
+    },
+    {
+      "name": "tile_02_19",
+      "center_enu_m": [
+        -3750,
+        4750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_02_19.dae",
+      "imagery_source": "imagery_0_3",
+      "terrain_z_min_m": 7.051896,
+      "terrain_z_max_m": 35.721093
+    },
+    {
+      "name": "tile_03_19",
+      "center_enu_m": [
+        -3250,
+        4750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_03_19.dae",
+      "imagery_source": "imagery_0_3",
+      "terrain_z_min_m": 10.168074,
+      "terrain_z_max_m": 35.453224
+    },
+    {
+      "name": "tile_04_19",
+      "center_enu_m": [
+        -2750,
+        4750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_04_19.dae",
+      "imagery_source": "imagery_0_3",
+      "terrain_z_min_m": 0.524083,
+      "terrain_z_max_m": 34.660961
+    },
+    {
+      "name": "tile_05_19",
+      "center_enu_m": [
+        -2250,
+        4750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_05_19.dae",
+      "imagery_source": "imagery_1_3",
+      "terrain_z_min_m": -3.03648,
+      "terrain_z_max_m": 29.365016
+    },
+    {
+      "name": "tile_06_19",
+      "center_enu_m": [
+        -1750,
+        4750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_06_19.dae",
+      "imagery_source": "imagery_1_3",
+      "terrain_z_min_m": -3.543928,
+      "terrain_z_max_m": 1.680551
+    },
+    {
+      "name": "tile_07_19",
+      "center_enu_m": [
+        -1250,
+        4750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_07_19.dae",
+      "imagery_source": "imagery_1_3",
+      "terrain_z_min_m": -3.584772,
+      "terrain_z_max_m": 2.026484
+    },
+    {
+      "name": "tile_08_19",
+      "center_enu_m": [
+        -750,
+        4750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_08_19.dae",
+      "imagery_source": "imagery_1_3",
+      "terrain_z_min_m": -3.996578,
+      "terrain_z_max_m": 2.35271
+    },
+    {
+      "name": "tile_09_19",
+      "center_enu_m": [
+        -250,
+        4750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_09_19.dae",
+      "imagery_source": "imagery_1_3",
+      "terrain_z_min_m": -4.586751,
+      "terrain_z_max_m": 3.318659
+    },
+    {
+      "name": "tile_10_19",
+      "center_enu_m": [
+        250,
+        4750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_10_19.dae",
+      "imagery_source": "imagery_2_3",
+      "terrain_z_min_m": -5.535431,
+      "terrain_z_max_m": 2.364229
+    },
+    {
+      "name": "tile_11_19",
+      "center_enu_m": [
+        750,
+        4750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_11_19.dae",
+      "imagery_source": "imagery_2_3",
+      "terrain_z_min_m": -3.803459,
+      "terrain_z_max_m": 2.326476
+    },
+    {
+      "name": "tile_12_19",
+      "center_enu_m": [
+        1250,
+        4750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_12_19.dae",
+      "imagery_source": "imagery_2_3",
+      "terrain_z_min_m": -4.361179,
+      "terrain_z_max_m": 3.969389
+    },
+    {
+      "name": "tile_13_19",
+      "center_enu_m": [
+        1750,
+        4750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_13_19.dae",
+      "imagery_source": "imagery_2_3",
+      "terrain_z_min_m": -4.81107,
+      "terrain_z_max_m": 2.745198
+    },
+    {
+      "name": "tile_14_19",
+      "center_enu_m": [
+        2250,
+        4750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_14_19.dae",
+      "imagery_source": "imagery_2_3",
+      "terrain_z_min_m": -5.056203,
+      "terrain_z_max_m": 2.825609
+    },
+    {
+      "name": "tile_15_19",
+      "center_enu_m": [
+        2750,
+        4750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_15_19.dae",
+      "imagery_source": "imagery_3_3",
+      "terrain_z_min_m": -5.056203,
+      "terrain_z_max_m": 1.273473
+    },
+    {
+      "name": "tile_16_19",
+      "center_enu_m": [
+        3250,
+        4750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_16_19.dae",
+      "imagery_source": "imagery_3_3",
+      "terrain_z_min_m": -5.944877,
+      "terrain_z_max_m": 1.875773
+    },
+    {
+      "name": "tile_17_19",
+      "center_enu_m": [
+        3750,
+        4750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_17_19.dae",
+      "imagery_source": "imagery_3_3",
+      "terrain_z_min_m": -4.82572,
+      "terrain_z_max_m": 0.766035
+    },
+    {
+      "name": "tile_18_19",
+      "center_enu_m": [
+        4250,
+        4750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_18_19.dae",
+      "imagery_source": "imagery_3_3",
+      "terrain_z_min_m": -7.02092,
+      "terrain_z_max_m": 2.407032
+    },
+    {
+      "name": "tile_19_19",
+      "center_enu_m": [
+        4750,
+        4750
+      ],
+      "size_m": [
+        500,
+        500
+      ],
+      "mesh_uri": "assets/tile_19_19.dae",
+      "imagery_source": "imagery_3_3",
+      "terrain_z_min_m": -5.563639,
+      "terrain_z_max_m": 0.091821
+    }
+  ],
+  "imagery_texture_border_pixels": 8,
+  "asset_sha256": {
+    "assets/imagery_0_0.jpg": "e52ee7f05dfe73bd1431bbfad5ed2096c793cc1b553f174afb17b75a0c65d841",
+    "assets/imagery_0_1.jpg": "2fc6ed8071e416e1b52ae6e2abfe1263a97d5a1f1e9493a7e089ad3e56b44560",
+    "assets/imagery_0_2.jpg": "fec09fa555f61d20a1d8263bfb024ac1f868dbd393696fd1f218c50243f03ac6",
+    "assets/imagery_0_3.jpg": "ff649e4a35d84261e3ea0caa2d868ce51179f99179713d5d70d43950e69faa30",
+    "assets/imagery_1_0.jpg": "4a746a8ca6827d7600f06475e9c6bcc6a292eccdc289caf244adc030928ce172",
+    "assets/imagery_1_1.jpg": "5b5b970cc81c6eb5a3a11b0ca013d2e58298883aa6234d70eeabe7db0f1383a3",
+    "assets/imagery_1_2.jpg": "79f7d88394aa40593672f0cdb978367973c5ffb4b14af5d7590fe1f48747c6ec",
+    "assets/imagery_1_3.jpg": "2babd708c3ac7dab10367b0382f4118eff6d478072e0fde69f1b152c5b703590",
+    "assets/imagery_2_0.jpg": "2e9900d908635bae3bd3d515f8fa626880e06acfe5a441cd78105c58b73a97d7",
+    "assets/imagery_2_1.jpg": "9b06df6a9013129b1e0a0fdc37c4d05e542de9d053c12ccaecdecc1e1e997a8a",
+    "assets/imagery_2_2.jpg": "2691ad66713a3bbca3bc23469fba26c274bcd061499e4138c34522ad96c68cb9",
+    "assets/imagery_2_3.jpg": "22183e99cb29fc6ba34f805bbe0222f9cc2bfd822c6880f1ed8aac668d8dcb58",
+    "assets/imagery_3_0.jpg": "52b2265951e34a7e6da0fd7d2457a2497a59e74d64d8d5432835a6f255418c98",
+    "assets/imagery_3_1.jpg": "e4396d502578cca757edb2dba4476177720744a97754ec78eeafa8867af6a90b",
+    "assets/imagery_3_2.jpg": "4c399a7d4e029fe056cee7c903f49e8e1fa92bfb67082bcb88f7f501108e589d",
+    "assets/imagery_3_3.jpg": "a711fb9cf993b263d197ec85b49a0e84f9351959dccdc63d1e4e48bb949a47ac",
+    "assets/tile_00_00.dae": "fe930b542688f965c4fef61011b56840e0a5f604c0e1aefdaf52dafbc18aa71f",
+    "assets/tile_00_01.dae": "84c3f075e79c59d305040b74239997f54706c7b6f169ec12be1f577ec1c976e8",
+    "assets/tile_00_02.dae": "3b6f8b0f1427124f809aec92c6cb842e33b713d90c6d775750ea0b94680050be",
+    "assets/tile_00_03.dae": "e10edc69e35bf47eb63ea17e20fd041d0aaf621c96d1b9886feff5574435d335",
+    "assets/tile_00_04.dae": "20825e61dd8cfa65605936287061d80c47a0734acf192dec56b659dcb6a006ce",
+    "assets/tile_00_05.dae": "030262cb53592935b81540bbf64b53478157cee398df33dcd43df6fdf24bd9e0",
+    "assets/tile_00_06.dae": "f7ad99ce9cc35fdcef9222e129cc2aff10674eab44c91faf0d8fac39b2160405",
+    "assets/tile_00_07.dae": "9d3c260bb7d41f8faeb883683ab5e0d3345963edbf817963764016b62fbdae41",
+    "assets/tile_00_08.dae": "7b9ef837d4f20723c60bd73e69ac82273a4e4fc40c3cd0097746c7a3fa41d98a",
+    "assets/tile_00_09.dae": "d2f83e06c0b6428d5f5fde1ffb4a15245af422c66e7cd08386706e9fe19029fc",
+    "assets/tile_00_10.dae": "06a88d36bbf8dee63d99822d009152e5c20801e89cbde7e0b01a18d6187a2d48",
+    "assets/tile_00_11.dae": "dc92e7ac38b27076d3a12a0c6de559a2e1326b0ba745290c62064f9d0aa4117f",
+    "assets/tile_00_12.dae": "a73c1e385e293f77b056e345a71316879a0516255401771718c581e70527373c",
+    "assets/tile_00_13.dae": "32a368a8956652d6a6e1fa4ac57498e77e023d23e15bd4b37f56444fd05e5c30",
+    "assets/tile_00_14.dae": "1639dcff6bb6860917051880ff913970c1b0e892e1d368d42c368dd29fb632c6",
+    "assets/tile_00_15.dae": "c787c24536c926262c25c3cb2586ba2c8f4ae5c83e454b4b1a2ba81d7adf8d48",
+    "assets/tile_00_16.dae": "bb4f25cac86f4475e6230cdf785314b1effbf476217531e5b9cc0c437f0f0619",
+    "assets/tile_00_17.dae": "554f5cef18a8a3d481628c3782b0aa56b548ba661dad0c107bf4da67a8e71a90",
+    "assets/tile_00_18.dae": "ec4d82090b9211d1100a8667392afa05d2fefa9effc618fd4f6e403bb4f82f71",
+    "assets/tile_00_19.dae": "cfc7c9f8f4bdff42431eab15566161e810af3279299a5b407030b9a490b5e570",
+    "assets/tile_01_00.dae": "42c9a9f9e041231cb21ccf44056e0461424364977f8b009064f87aa3ae1875a0",
+    "assets/tile_01_01.dae": "0d6adbef274e871b07b18a209bda3a7f8e47101b8a7590fa29ff3f8e487b32e0",
+    "assets/tile_01_02.dae": "40be8e8d827d3003df1535d19ee2358f02d1622d57d87ba05f7a24d614ab294c",
+    "assets/tile_01_03.dae": "00a7493424cbbfaa02f7400e03a5026df43318cd593f322f1a6ae94380eb1a94",
+    "assets/tile_01_04.dae": "f67b53c681abdd0151fab5e5d92139e1847341808e21893dfe4ba23e135fb9a6",
+    "assets/tile_01_05.dae": "690b19f5a6a3bc26fcabe7f6c1993ee23dd13017794ba0fdbd30e55deabca064",
+    "assets/tile_01_06.dae": "12f6e79faf6b6aca9c71bd96e04487a5084292f201d9fa9b63a863bb594dcf43",
+    "assets/tile_01_07.dae": "dbdd4c843047f3cf4a981408a8db30298a575405ed9c6533f0fd5a14d7a613b6",
+    "assets/tile_01_08.dae": "47c2ae5699ce0d7b4bae3f33868565ccfd0b4ea3781b48b9d85aa1b1a87e36e4",
+    "assets/tile_01_09.dae": "b6f1d132b74df57d40bc562b075652537db61ad969e0e1891ca208a464cc9e27",
+    "assets/tile_01_10.dae": "2f230c206dc0c87f445ed151193e51865fb0b1f6660575a9ccc504ed28890625",
+    "assets/tile_01_11.dae": "7a4dade18210db9ef5474809403bc928c9fb8b629738bd89c15303ade24ce4ec",
+    "assets/tile_01_12.dae": "e05f2553b84473125b8602acbaba4b82681b211b70e30cb8296874f3df68699d",
+    "assets/tile_01_13.dae": "306f835e4e0326f4d41942c36fddab8acd3d77db11eb927a7e23ffaeca0fd83f",
+    "assets/tile_01_14.dae": "64d024f9bbd5e29c38ccdf167d545bcb9085c196425b2425598255ff4ebbf12f",
+    "assets/tile_01_15.dae": "1ffaefd44950395170d0fbf196c0fa1e6e816449d34fdb78b80cd0cd6d4eb9ae",
+    "assets/tile_01_16.dae": "96efded15bd83e297821705b811872632388d1c27fa96ea8f82ec978b71b8382",
+    "assets/tile_01_17.dae": "c80f57d58674652c37ffd957ff9ca1716bcbdda426f2e5a118651871ecd29a26",
+    "assets/tile_01_18.dae": "f5b607521033c61d65faa4b90adca2a970deab87918761060675db756e8762e4",
+    "assets/tile_01_19.dae": "682d4b187ea63299977a411af3ad6b057b86248481ff3e13ef3ac5edd9e50967",
+    "assets/tile_02_00.dae": "d7d294cd13f3a12a1198e407a72947852fef32d39718bd79d665d20dac57e749",
+    "assets/tile_02_01.dae": "87cf38ecfb8f0e6acdc7d225e16eb938d9637a4811b22ab4daa56beaf2f187c0",
+    "assets/tile_02_02.dae": "c6b0aa762f3b36d3e2a2755d641e871d259cd782769aa68ebab864a0ea772249",
+    "assets/tile_02_03.dae": "8a196f1eaf0a8632b2ecc971745ffa43919cbf60d3e877e6a48eca82dc90616d",
+    "assets/tile_02_04.dae": "a6ba40e1a86781e1756638aedaa450be4e98a931c1b6ab998bd5d1ba205fc7eb",
+    "assets/tile_02_05.dae": "5ed4557e51481187de028893273a01b619dc4ec4776f00f2e81bbaf1ba95a858",
+    "assets/tile_02_06.dae": "27f76bd21144f2b599a0fb8694d1d34de8f37e02daee16baafc3289a61ed92c7",
+    "assets/tile_02_07.dae": "1e70df27aa2aee95c49d13eaaef3429ca2dd39fbfa84b6f6fb38ae35d2c3117c",
+    "assets/tile_02_08.dae": "eeef3d0c68148fff60a05e72a92364f00e2f2b50339bb58e9491e4475ea070ae",
+    "assets/tile_02_09.dae": "fdda6d78d603c10466ffa17c50e8b660fb169b3500e0903066020554efe60127",
+    "assets/tile_02_10.dae": "eaef3618c8b8703ca4619e0455e756fe1b6aed94535b434663fdb2fe142dae68",
+    "assets/tile_02_11.dae": "4fbf341a2eb36af82582cc3d4053111c3ec9cee7398587d4e0ddf57a1c1b435e",
+    "assets/tile_02_12.dae": "4dc7fb3d7c8663502509850a49e10f2653a97b63313a0b95422971b5ea4cbd74",
+    "assets/tile_02_13.dae": "858c9dc78826fa2a8f8ba2e035856e7dc30a4f3cd9d8e29f7def43ce3158c452",
+    "assets/tile_02_14.dae": "22c5f2b46000f62bed896d5de8e0b097990d22d877195c878f32616afedf145f",
+    "assets/tile_02_15.dae": "a7583b9062eda8d25d658d37688e9e81399b1b5f30f37d55270b660f809d4b06",
+    "assets/tile_02_16.dae": "d3123640fd165b9e3a46f662211d091f65ce19f2fd878904abfa2c784609d5b9",
+    "assets/tile_02_17.dae": "4065f54715e7b651cdd2a8d72fd62f27e4882bb2e22698d9bc84c7c3c4d1ed4a",
+    "assets/tile_02_18.dae": "10a3223bc040eb3ff01f2809471cdf5fd1f6b7751316ac8a720c599b7c363233",
+    "assets/tile_02_19.dae": "3d9bb476eaa4d110c5ce932d0c1d3dde0429ecda4a4f126ac675b74664c4a8c7",
+    "assets/tile_03_00.dae": "919893527891da0d92c029920c14e5beefa3997678229677f4829e318b679a0c",
+    "assets/tile_03_01.dae": "ba39411bf3ea6eead3036b17d1b096743d4c9efa07b6a58a31df137b48640385",
+    "assets/tile_03_02.dae": "fd5f5ed1e6ae7fb81f5d526577d4270d63100ed590156f6d3e24a533a0859fd0",
+    "assets/tile_03_03.dae": "e014afa9ceac0dfe0cd3a01c87fe75a3f12b60258cd3a56922ae38f531822c5d",
+    "assets/tile_03_04.dae": "7962b43e5752195effa70b7967b3f4599a0028d62f481a195437bdefbc308398",
+    "assets/tile_03_05.dae": "04287a1f3f1bc84e33a46fa2c194e8cad7b69017d077accea57da14d81925217",
+    "assets/tile_03_06.dae": "72b7bd48c7a211097e8995f4f6ad51f6d6bea1e8052757a3491a6d8f6dd98a6e",
+    "assets/tile_03_07.dae": "a195179a8779b868c69b6233ce66bd74d1035913096b23992e2e4ef16cb5ea53",
+    "assets/tile_03_08.dae": "a128eb1644e5d94adb675f0dfe3100d9ac6b465d186039c3e63a1f4150b210eb",
+    "assets/tile_03_09.dae": "ca691b115d604a3645386c67dc140aad5af5156b436c690e2fe47c326f121e5b",
+    "assets/tile_03_10.dae": "4177405557d863452635c9041fa586e9a30e8686ca91918b1d7e4b68a4bf7232",
+    "assets/tile_03_11.dae": "de7c0ccd6e0e2755f7f09324c8dc388fce8497db7c156efcfc6eaacc2ad35a2d",
+    "assets/tile_03_12.dae": "69e0c150313d4ad7d452564a8b3c6bc96865d55511c66077bc9e26915682e5d4",
+    "assets/tile_03_13.dae": "54b9ba4bb2931f2f89ade07f1020f171aaea0d890e72eb54961413adea37f0dd",
+    "assets/tile_03_14.dae": "fc8b5ab2c2d84ce574aab21895d3a32c53cfd942bf632cb55d32af9702b998ec",
+    "assets/tile_03_15.dae": "168848d922963d4489b97488b5424bba232b0c6c06b88186eaa96dfd18f00d66",
+    "assets/tile_03_16.dae": "17e54ef6622786832b21922dadfef54ebe5da92506f7ff5149e56a23255647bd",
+    "assets/tile_03_17.dae": "8060ed4111e0352a5c4ce03093f5d88a855e9c393a793d02df03e17a9129d50a",
+    "assets/tile_03_18.dae": "2232f3d4f189b03557c12375362d43f7bacdc424a873cc92232211b31c64cda5",
+    "assets/tile_03_19.dae": "e2a34d56f038c02ca49cb8b1100b6fe8b1c2f53ddb3b5a184bc004037dc39211",
+    "assets/tile_04_00.dae": "71cc5ea9afe970fec50e4aa8a736e4aa01116fb09787e01ddb2b0ce71a81fca0",
+    "assets/tile_04_01.dae": "42104f80eb1ffb9899e26a831dfbf4da4ef0f703f00d53a4e5fdbbe637835bf3",
+    "assets/tile_04_02.dae": "fd0757881ac6529b872dbdb4590bfebf7efe2a9e4bc8b2312c3bbc7557ea36bb",
+    "assets/tile_04_03.dae": "05a94bef46f16dbb92f208edf6b30ed6d3577f78c037e57ed7754b7ce2dfe338",
+    "assets/tile_04_04.dae": "919922241ab6d185b26518f0d707aa0c6798d0ebea20ab11870cf58f04603ed7",
+    "assets/tile_04_05.dae": "f784119f4cfe63997ab39106c9c40d63e49e456103468695ce2c03c39ed743c6",
+    "assets/tile_04_06.dae": "96fc4c761f064217a9b5d17f875d2208e8d53963d8cc27b5ad0aa1b60e088f96",
+    "assets/tile_04_07.dae": "ae9b0ea8352922f1b70532cf20796d4d583f4c6ed483a40e1223cd4deaaa71ed",
+    "assets/tile_04_08.dae": "a358580bedcd4f9c26f34b38a00828ac9c08955332a26f480108fba9daaa7d2b",
+    "assets/tile_04_09.dae": "15d610641705fdc5c4472da13165b0d372ec5af96813f580288d1c83a68f78c9",
+    "assets/tile_04_10.dae": "3e2c208f95d78357d4ad651a2f08111f36688d70664047c0b2c3c49e997db878",
+    "assets/tile_04_11.dae": "c95c0eee56b3891b6277262e47dd954074dd674163e85896ac1d358a2bd71491",
+    "assets/tile_04_12.dae": "232bfe337cecd7cfece069f2bb7515bdd84035e1bbc892eaaa80c41642bec749",
+    "assets/tile_04_13.dae": "297659ca62bcb76b9c62b0fcaf253a74a97ba3f9390cfd94a0179d7b19927626",
+    "assets/tile_04_14.dae": "3b36657b37578b9aeca36c973af9c4bbc56ec2d1180370bf807d881bc1aa3fcf",
+    "assets/tile_04_15.dae": "40a94cf4dbe371d586b21681e1e04f41b212526964dd6430f3a5ff0e575e796d",
+    "assets/tile_04_16.dae": "76c38ad7d76b07b8be8deaa95df1ef6d65c00981b5e64a85553a127b95e56fe3",
+    "assets/tile_04_17.dae": "11b27564b11802ba4a5094b0b1ecc903178f705fbb56d0fa0cfe9776a4bf7114",
+    "assets/tile_04_18.dae": "8c8fc9732d44555968a79e9d768df5780c74258f537933c4519b1242aa2e92b1",
+    "assets/tile_04_19.dae": "df3e4e57884727f56a79538b0296e1bb07db72c4d7b81339bd6bd93a68444cb0",
+    "assets/tile_05_00.dae": "6a54d9272c10d432988f75a16c04183e150c4e15bb30a67a596d51f9e00c0358",
+    "assets/tile_05_01.dae": "6136ed9f4379f05bce93dbe01f78afb2830a87481006819a9b6f7677ec83feeb",
+    "assets/tile_05_02.dae": "bc84f0dd17a74d87a4a85a658f47e535de214236735fb79ad441a77cb5b7901d",
+    "assets/tile_05_03.dae": "a79d03e683548bc0ba17e9c13acbef92bd28dbecca2cec560695f7a512786ada",
+    "assets/tile_05_04.dae": "cc0633f89157ddf7da3774d5dccbbed05e89a482c1f01b6a5dce3b58321b82e5",
+    "assets/tile_05_05.dae": "6b6f7697e3d1f717752fed6b92364f973af8600daa85b7151d83e1d5da216969",
+    "assets/tile_05_06.dae": "94562afcbb392b79ce71918092780a0a1feb6f65f982078ecc694f1608e0771d",
+    "assets/tile_05_07.dae": "977595917daaa2f97c1b6b80835325f7826c3fdf5872605a7a5c9ff5ad9f2d54",
+    "assets/tile_05_08.dae": "2abc23999748c045f6bdae885b2c5e357e8f503bb4eca178c488d2cdb92b6df3",
+    "assets/tile_05_09.dae": "6593545ec18b8f0fb596133d14baa0f1f812a488e2fcadaf708e429ea68ca42d",
+    "assets/tile_05_10.dae": "7f5963d8d7b73bbd11b4d16f694d1b63a37737099987731945dc2d9640dbde06",
+    "assets/tile_05_11.dae": "0d82a350e3afc7135785dee107c396ef35ecd5371ea72516c441d306cef7a4a7",
+    "assets/tile_05_12.dae": "8f624509e43b1b920745a8d1f2eb10031f3378c4b3b4b1412105cae00b50a8f5",
+    "assets/tile_05_13.dae": "40b53071012fae66d700f5cfadc9c0533bac1d7bc0caf1e827c21d4fa529430f",
+    "assets/tile_05_14.dae": "071601494e01cfb7de4ef790b7d124f6f05c44a7b5d5b211c8510368e112dd12",
+    "assets/tile_05_15.dae": "752b26545ca1dcf6a808ab6491dec91632c26ee0fc22b8e4bef873d634299e02",
+    "assets/tile_05_16.dae": "d70e857bf535e68ec1eec8c3caaf46674b7ceab1b0539c89e52c0482e2159421",
+    "assets/tile_05_17.dae": "6ea4800d7406cd2d415020f99bd44d0cf9717fa2ccf60db9ae868e836b978bc4",
+    "assets/tile_05_18.dae": "af946aa96090f3aa92e16ca955f2b6c0e04c165244b97416df6373c58ccba7d9",
+    "assets/tile_05_19.dae": "c1eae63f9fd977bd440d3f2757087b445773763055360cd3e7c2ac3a72b7c5c0",
+    "assets/tile_06_00.dae": "479bcf2155f8cc83949d36bf6ae8113825e162703e5d0dbdd40f8392a02f6025",
+    "assets/tile_06_01.dae": "7e20236c1e65bf340dca5c4c65ce30a1e2623dc555ec75d8cfaf0427aaee3c6f",
+    "assets/tile_06_02.dae": "58b1f7a6de1de50c7e6a378ddaf17ebb9b8095899e6b61295352ec685b832533",
+    "assets/tile_06_03.dae": "b2f66781dd94c57763b5050d362bc1179e1c53bbb26b48e3efa430f0ea5c6782",
+    "assets/tile_06_04.dae": "07773caaef274ef2e5b936282e2675a555b26225fe1614ed76427cc11cf52aa3",
+    "assets/tile_06_05.dae": "f2cd3973b629441bfa5d8efaba735af33734720de11ab925746eecd70d0b2bb8",
+    "assets/tile_06_06.dae": "807c9686549e7517144be2eb46b17c21d56e265012b27f22fab73a247d22cd9a",
+    "assets/tile_06_07.dae": "051bd96ae90286f7fa4d91386473633e69d4d2b9b49be50f796116e04808b264",
+    "assets/tile_06_08.dae": "db37f0c1fad51a9efa4346b66bf77a17982b5e7a1e4f60d405cd4eed920642a6",
+    "assets/tile_06_09.dae": "b566cce8d014af4279aade3eb5f06f47cf142f89779cbd75782a536089b322f4",
+    "assets/tile_06_10.dae": "173aa69d3e324f5d89395617c04392d7a387c5c1e5ec28a87955efd09adf325c",
+    "assets/tile_06_11.dae": "6613c71ab98a89637ce278cfa1fa8ea9091dc71f319d27ada7e4f6277db46f74",
+    "assets/tile_06_12.dae": "8070325adcf6dce79502aa8adf014e66bace92514761b66231a88f838e30b8fb",
+    "assets/tile_06_13.dae": "bf945cad7e9ffdc1743364ea585ad5a060f683df2db9a4da53e5ad62bdc8df23",
+    "assets/tile_06_14.dae": "cdecbd1b1a20b873d422df0066bf575c63d5c9a8ba92cb899f735992bda967d5",
+    "assets/tile_06_15.dae": "64ec62fc6b605bb34e64768a843afb6f554f6bf11fa2206b6651eb16e43c131e",
+    "assets/tile_06_16.dae": "e1e2f073c81f361e4d63e17a486dea3cfb88511b96ebcc169c33761c707a31c3",
+    "assets/tile_06_17.dae": "fbd065dcdd1014b4025a82a6474acdc7d45e4191f7534864664ea03dfc11efc7",
+    "assets/tile_06_18.dae": "8bb00583d27514cf2d7d538f222345169d1081dba0c5ab8facfb37036e542db2",
+    "assets/tile_06_19.dae": "7d9d128ea25521076d2bae04a5b545d3dce3c1e32e7063cffabd41ca5c7815cf",
+    "assets/tile_07_00.dae": "456b27df5c58682313ef6d8967f98b43d5444e434cafd7b21c26bd2ba23e926f",
+    "assets/tile_07_01.dae": "ea54d1ffa6dbc1b51dca0f6bf4156ff47717f576e40cf36af96b80e800051b06",
+    "assets/tile_07_02.dae": "12d2d8efcdcff6b28d236891eabb82fd82160015641d6bf9bf039d46d50d80b7",
+    "assets/tile_07_03.dae": "2898916f3d5380140601d5e212600bb4a003c5b11d0b4f1fa08dbeb982ab8396",
+    "assets/tile_07_04.dae": "954ce3a0c0aa6df13fa4380e3deceb6133b59a25dc17303473e49520a12aadd7",
+    "assets/tile_07_05.dae": "591d041daa3df6919efa9e1fd3dd804f4181787974c54daa2511e95f0de9cea3",
+    "assets/tile_07_06.dae": "2c0278f8cc5ca8852ae129c66eab0da8a5a0e4d39fadb88fa3f070feda63852a",
+    "assets/tile_07_07.dae": "e236dc1b77d8d93de28abfa76985875f797ddbb30dba26f31a074c30b01575c3",
+    "assets/tile_07_08.dae": "9a994071b27b7c43d71f7e56b4967b5961f0ce4169fb6dcf2d5f8c6d437ad4aa",
+    "assets/tile_07_09.dae": "b49d8392eb5111d0fc9625673e0d39e52a857e3348d015929056b93bbe92cdb5",
+    "assets/tile_07_10.dae": "00e5b14576ba8d8b0b0a3c0d3df0eb699a045e9b8f674d225ae3abcf66f3b0cb",
+    "assets/tile_07_11.dae": "6b04ac546f84a8aab44177af08cc351391f42bd321baa47a7baf27cb4da4af6b",
+    "assets/tile_07_12.dae": "b2005c813ba78e2dfca6de282f3dd6b4dab31cd0667d049e6318c923d32e5c26",
+    "assets/tile_07_13.dae": "0482d4b46e970f5a72fd79ea97b80f4bbda243ed2272a19990bc1eab404a7d12",
+    "assets/tile_07_14.dae": "bfa391f706de5049e3eb2f914788e933315aa36df165d0ce6e38bd71f3bcaa0c",
+    "assets/tile_07_15.dae": "0affc7dcc5bbea259c92845138ce90f33a4beb3af0d341adb52d1020648e4d35",
+    "assets/tile_07_16.dae": "91af3afcbce86a70e64d95cf33e80b589153dfc81708095ccd1399bc74097d67",
+    "assets/tile_07_17.dae": "a98580ba0e6715dc1f3c6e3b142c02960243a20469f69216f7e4780e494e9730",
+    "assets/tile_07_18.dae": "568de756330895861fd1444352e264f6ad4eec6eb3c5c1515eabd8c18b718c5c",
+    "assets/tile_07_19.dae": "d04770f3ecad7e2d3f8a0a657fb6ed5b71cbda582275970cd3a8c55ad48ba951",
+    "assets/tile_08_00.dae": "d0fb93fb6500c5efbe782209694106bcdf8e4b8c4de1a6689c84734f86f40384",
+    "assets/tile_08_01.dae": "21c34cd1a5187e1f497c19950bc249ea32062f8b772d20ff7cb927ccb5a11a6a",
+    "assets/tile_08_02.dae": "9eedfdb424a2a1697351dfea51dcdf95c6f12d722e59c2756dedc43dbfc8041c",
+    "assets/tile_08_03.dae": "99422f9736bce17702a062346dcc12b4f02dad333dc1838d3dd9867855e0f73e",
+    "assets/tile_08_04.dae": "3d4dba938eb05f0ca3dd083665b204d2a53e5e2d13070aa56199bce0eca7d608",
+    "assets/tile_08_05.dae": "10e2cae6b1805106744e043e4171915d8b750ff4b2178bdfaa6403ccbde7534c",
+    "assets/tile_08_06.dae": "b3de3eeab8cb34a3acffe6b7d41deed72a1bd88c6eb4980ce6f229c20c54658a",
+    "assets/tile_08_07.dae": "9ae60aa6d338369e613214a66d4baa268e9cdcecdbd010f6d5cd3e7fe0aa40c3",
+    "assets/tile_08_08.dae": "a9d188d8b51dd4db702fa3225d6defd74ea9eaded2a9bba7f8f06fa197678158",
+    "assets/tile_08_09.dae": "fc097e33b2a9f05bb011e530545dec97b81594f93d97260d0e8b12daaa5a902d",
+    "assets/tile_08_10.dae": "f966f6559cd9bc5475101a306fb18b25f7c5acdee1ed56796e924f57d9c26d5f",
+    "assets/tile_08_11.dae": "476bde59d3c16ca95ed32755693333cde9d928173a6ee5ba4975236572503785",
+    "assets/tile_08_12.dae": "4e82cc61e1c5b944a62cfbfec78fec2d638581250ae53333ba7b55fb5def8557",
+    "assets/tile_08_13.dae": "f8c8736143e0bd95e2b0bbdfa3caada18f36a86e4a7d9cefdebd2d1e78aa2bce",
+    "assets/tile_08_14.dae": "f8fde1e0dbbf156eff699f7ddc783b89094e1545eecbd3142a48ff4f68598e1e",
+    "assets/tile_08_15.dae": "ea2c44668bd0f4b379b5958dc4e425d83b7662611d7f8134fee0abc02ab07432",
+    "assets/tile_08_16.dae": "a003fc8bd3fca7a287e7b0809b3d71dfedbc71ade074996affcc9872c51b0985",
+    "assets/tile_08_17.dae": "c3747403c356b139575f8123fd017d73f8f5bb6b821c5f7e6a1976fa4a53ffd9",
+    "assets/tile_08_18.dae": "3b21714af8685eef7273779ebf246851777df4d6ff27554ac4523a18f458ea3a",
+    "assets/tile_08_19.dae": "a265f0b9e5058ba9ecbd894d662b5567e5f29218ce196a7e87d16e01b544364c",
+    "assets/tile_09_00.dae": "b3179a44a26e0ad227a198cbd192bfb63a357a96bd2e8cbbb3098b53c35e4520",
+    "assets/tile_09_01.dae": "17b542f8c6f96c2e8307cea8b2fdeef72c175f31ea37de57a31157a18de6e1b1",
+    "assets/tile_09_02.dae": "7a42b537c8101de9fdb50948a44d9dd9d012a5fe98544bdcfb97367c204dc618",
+    "assets/tile_09_03.dae": "fe570363f0f0430c7423e82cb9c368a9e458fb647ba013d3353dc0ea9372bda3",
+    "assets/tile_09_04.dae": "75f5a0a5eed32b638f1d21abb8b4b35c77f25a86ee8ac985025c68df22dd2adb",
+    "assets/tile_09_05.dae": "3963164b281a18eda46554b8621bf68c2f9bbdda5044a328bf9360c9ecbc9ea5",
+    "assets/tile_09_06.dae": "a178539edea3e308eb21c2af4ace622023532a1ebae269eef328c4b075105253",
+    "assets/tile_09_07.dae": "5a6f30f1996bb1737caec8bbdcc1d546a19f93ae08eab40fdbf7a6aab5dbef0c",
+    "assets/tile_09_08.dae": "399201ba865923cd3eab37e84f12192954a88711dc8f5e56cd5fc2ce42075bbe",
+    "assets/tile_09_09.dae": "eb6f2648551ef3d4dddacefbf55b31352e8077257a8eef4e7e4c10f5de06da8d",
+    "assets/tile_09_10.dae": "c75f549dd5ae2be2c5c0a705d25f9f923d3d74cfaa0b574c8f00b697f07089f1",
+    "assets/tile_09_11.dae": "6eb29cc5b9c723b7d9928f17dd8c4dec6e1690e278e48d662aa47d08129dda76",
+    "assets/tile_09_12.dae": "6224b0a76e047fc048b946c4fdb241358adae569781829462bbcc81ad8bc9a40",
+    "assets/tile_09_13.dae": "b08d45a210349fa1d2068380c892eed25b1984de5ac8dbd724d08547652c9ddf",
+    "assets/tile_09_14.dae": "931ee6a2ca25baa82ee099bb2cbdefddfe8506c5048187d58b7d09875cf10bc0",
+    "assets/tile_09_15.dae": "4e44d4e4ef5d566e037b6a882756cfae40542a30b311e1ff69cd721f5d5da272",
+    "assets/tile_09_16.dae": "10850116e9bb46f467d33c474cd56cff523c05b342b982e9d63e38ddada708ef",
+    "assets/tile_09_17.dae": "07e0131a6b0236477e2ec025508d132e6885acac824d79cea17538c6f231e805",
+    "assets/tile_09_18.dae": "337c8bc287d8318a666f33cbc018ee57cb247e901944fbc02da6aff96e7ad5a6",
+    "assets/tile_09_19.dae": "15f576f5a8d7ae40a3a5c40331f0ccfc5b2a368deec5e0271b54e2a7c05db432",
+    "assets/tile_10_00.dae": "82e1a58567804c9a7e0307d3f85a90d2b0e9580442b7b0034356beee9218daf1",
+    "assets/tile_10_01.dae": "bf12554af91e6ac64d8b33878bd24d5db75454e984d848a656298ce193618874",
+    "assets/tile_10_02.dae": "68e3a02c25ff6608bdef300e52891c1f6a5e494766b3ab9f3033a32c4b8e4f1a",
+    "assets/tile_10_03.dae": "617b424d366eb8b54c8f77fa12fb63c616e04313ca22344d451d78a4c14401d4",
+    "assets/tile_10_04.dae": "b51c11d755a428e27322ce7013ed458b489d9bcedcd11178c06495387b193ee1",
+    "assets/tile_10_05.dae": "8565af85a8fef33f6bd2a11e485bca6d392572478003e0187723e3cc934188c9",
+    "assets/tile_10_06.dae": "7ce36788cccfb560a1731af9a2dda12ad869a2859b31a2ead49143388794181d",
+    "assets/tile_10_07.dae": "6994f5eb6e3eadf12108ccc99170e757e49cb77c5d6c265e7b04ff0f41361063",
+    "assets/tile_10_08.dae": "289a92ec9ad0cc60e76eb63c80861c069deb9b7ccb8275e7c30a5ac09274dbea",
+    "assets/tile_10_09.dae": "dbb70e0bf3ebd04e6593200785d5d48b00feecec133a0c2ec1159bdbe1096243",
+    "assets/tile_10_10.dae": "9668fb90efe3f8be09450425640a7ab88ceaa20ca23cad6bee600c8cffe08dac",
+    "assets/tile_10_11.dae": "8f7adadd813aaec41000039b89a91226d4e1e5c85359a6ba4ec7e963e55442be",
+    "assets/tile_10_12.dae": "f47536290f03e3ac0f35aab75b62791346dc3ebfae4cd30fc3ee3069d8214b20",
+    "assets/tile_10_13.dae": "d556173e41b008d16d97b37a05bed4897f6cb650bd0b1af2d19f712f2670bce2",
+    "assets/tile_10_14.dae": "12f52d2f2f9e66c814ff9fdf35ed4a476477c2b2ea9654d26003a8b08b27de5d",
+    "assets/tile_10_15.dae": "307051b4203ae4fa054dbe02e3ff1f3ccbe78016e34c93a0ed7f5c8b9f9cc975",
+    "assets/tile_10_16.dae": "946d51935dedd5ad99103c34763377d4e235544f31930489aea822f7fdc4902a",
+    "assets/tile_10_17.dae": "16c0083ffc0956614bd9aa4afaa9cb51efe4a4a45d53f086223c943c72ec6daa",
+    "assets/tile_10_18.dae": "006f9ab256027c7c612e96d998e9444b37215a7d403172c1e54951fca5faba0d",
+    "assets/tile_10_19.dae": "7beba69f6ba6b97150909fb50c31bfc8f06162de7eccea0c4d025e0d495189bd",
+    "assets/tile_11_00.dae": "97e7632a035efed3340a6089e902213b212bd45207c52c1d0b8eaa8c4e55ff0b",
+    "assets/tile_11_01.dae": "3628ec362b5a5c440f1643e0801bc22bcde5fb701491e7d56cd1853686dc371e",
+    "assets/tile_11_02.dae": "9cb41f88f54e7d4cb03b6286768914cd84a2a89548bb2712f6f15bc1ba4c25ba",
+    "assets/tile_11_03.dae": "887246987e296da7130c81ed45a16eec329a3125907794c34a7969f498c9ab7d",
+    "assets/tile_11_04.dae": "0875f08804fabb7ceb28f6e8a2457a2d4912aeb4178d97d2680d821fc43ccc12",
+    "assets/tile_11_05.dae": "226c26adfc3218c80983709f176f29d85bc8a32d2f7d80911f6e72518e817094",
+    "assets/tile_11_06.dae": "a0b0755c77134e25305838dccf383b243539d5c0b66ec7c5737c90e3ba3cecf2",
+    "assets/tile_11_07.dae": "a3a52c894b18f1cf86d497096c774daa2315f3f6d8a91591ecb24960d851b7b9",
+    "assets/tile_11_08.dae": "c9f83df1a11bbcb56fc997abbcfef7bcde8150931f8d49964377345b7c8d5abe",
+    "assets/tile_11_09.dae": "04e384a9aa5d00f3804423f8efea7d5632202c7e4b68419fc5b784f7316c5636",
+    "assets/tile_11_10.dae": "7db373758596a8ce6eaafb5233b3f1c1f458d916ed78a2355fe37abb99d27e38",
+    "assets/tile_11_11.dae": "b28b56c2d35bcd0c5bf346ae39ecc8d81bd0d79574c21b9a27229de63e0035b7",
+    "assets/tile_11_12.dae": "6e9bbccec2b5a3fea9bdce3b8f1d213ec8aed44fabd0d3cf0df00f85de613b9e",
+    "assets/tile_11_13.dae": "7fc80699f06ca0681fc6e72e270cdb25c830d054143a379f2cf92212d3ef743c",
+    "assets/tile_11_14.dae": "2316c4a2d165a253b0062cd3425ef1c4df6d97a08c45ebc0c5cae31a1d374a7a",
+    "assets/tile_11_15.dae": "a32fafc901e800578b8e4e814bb4d67132b5f0bcf57970120598d54fa5789fc0",
+    "assets/tile_11_16.dae": "a51c75a4046723b660f4222426fed36e97ef7fe92ecb641f5d0747fed004eb3c",
+    "assets/tile_11_17.dae": "755467bd858b2475ce57f66853a78199ff6529a4334ce07710428a5a70c81ba8",
+    "assets/tile_11_18.dae": "cda63131e880dcae7fa0335d4da3055d398b10d7e9b54bf6339018cfd1b4a7f4",
+    "assets/tile_11_19.dae": "8c59e057c4d16bf1b465676796bc53da4a22ef0817c001788dd4a144868ae503",
+    "assets/tile_12_00.dae": "24af034d13bf6f1817bc4d84537a6a6324f120d661432c51800debedfd9e1924",
+    "assets/tile_12_01.dae": "04437a544d84cb8fa42ae99387817951409c672911bbcf67aea034fd84dc512e",
+    "assets/tile_12_02.dae": "9cea73d07a8488833d4d44e94e1cd8739f67c25bcab94fd0cb320d1b64be1119",
+    "assets/tile_12_03.dae": "f1558160bf32819a32ef047647f2db462b4961e2d945e0ed8a0141f40ee5acb4",
+    "assets/tile_12_04.dae": "9988b9f90276ef35607a49e35fef0468048069d26a6e97364e6cbbacb636cea2",
+    "assets/tile_12_05.dae": "4daf3307dcdb8af0ab95d8e333c730123804d8e6498b06947fc81510e47de56f",
+    "assets/tile_12_06.dae": "d6d1e8065f3c3fd5cd846aeea3b691d344e4736ca9203e533cea97701adf5e53",
+    "assets/tile_12_07.dae": "c2081882ed25d473856a53bdebef0784795c4ea36876b8bfc2d6a8c2529f318b",
+    "assets/tile_12_08.dae": "ee746f8e0098e7cb6584215cd0390f2238cfe3e1a3867f193d21034e6ab81728",
+    "assets/tile_12_09.dae": "56754aeaf658da02e975c4cdb072c7df69c77f74ba51627cb109ac1faafae33b",
+    "assets/tile_12_10.dae": "54a53169be81cad6a37d144a398096c0cf0b5f15af380600279ef5ab01fe9284",
+    "assets/tile_12_11.dae": "67302537756b5490f7a79e796321d4c1d36f3404139133bfd3dd9746981ade42",
+    "assets/tile_12_12.dae": "c30debefcc6881e99952d13d03647a3b7936127f2bf842025d62f66e738eff43",
+    "assets/tile_12_13.dae": "b636c8109568c22ef4dcf0b8727f01ca610ea9522536dd462ecbaaf3e269c750",
+    "assets/tile_12_14.dae": "5a1b92945c8ba7d06c3556e5a599b8f9cae4ac82bfabf39b4feb8d9aa93f8d1b",
+    "assets/tile_12_15.dae": "ff2c836bcf7dc49de4283989f2e1b0f41358912c8a7a21fd3d442854bd7d2272",
+    "assets/tile_12_16.dae": "6067b668000e33b0415b97b90ab2152841bf6635514b1d810738d80e4cff94f0",
+    "assets/tile_12_17.dae": "4107b8e3d4e2d71109cad7e038e931221c5b75cb0c74eed0401f8adf7a85e59b",
+    "assets/tile_12_18.dae": "52ad0c8c55636faf33c287ae7fa00d2801557d4eb285af8a96365bfe2ef2a898",
+    "assets/tile_12_19.dae": "21b32af4d34c2727b491e326a108a909e098022aa2bfdfdf00cfc82db1ee7557",
+    "assets/tile_13_00.dae": "1fe8f3132e9cc6cf09dd0b7e70cd48a2956060f14c3be4083cb7702c40cdef89",
+    "assets/tile_13_01.dae": "e9555f05ba26ea430586828490e1f09b407d35c586eff35421aa1536eb7f547d",
+    "assets/tile_13_02.dae": "bb4f8b444d0f7df1675edc08aa01c6f5184c1ec31f82c9805b090ef5897570a5",
+    "assets/tile_13_03.dae": "95368634d4710113fb538b0d3a2cd186f30d1c5b85aebd339e55d50a918710ae",
+    "assets/tile_13_04.dae": "b4dcad79558853ce534adcb55f44c1b6f03e5bbfd940166dbfc844966ae44c3c",
+    "assets/tile_13_05.dae": "c86f327d3ab82ae6063eb5d8352ccceca1f348ea80c335ee128d482f581e2a83",
+    "assets/tile_13_06.dae": "6f6534cc03802283d6af0e93748f51c95d545234877441632b97f4a5638c781a",
+    "assets/tile_13_07.dae": "8a4dc7333a289898b653cc8795522443bc4e3dd6561f1e4d6bb7ea939e63880e",
+    "assets/tile_13_08.dae": "8cf1dbc09f1ba4c0a184ad5aca8de9ec97f81eb3bf4ab99cc69f3df6a283d1c8",
+    "assets/tile_13_09.dae": "57202bfbbea38d02f0a92476b6ac19d48fa284f573deaa7171b56fe10fe042ca",
+    "assets/tile_13_10.dae": "57d9eeedeeae1425162eabc24ba5b062dabe361e51f436878512461d62561eeb",
+    "assets/tile_13_11.dae": "f3641adc04a3ce3f8921da841af3175e43bb22c6b9f98548141e4e1707b1bc80",
+    "assets/tile_13_12.dae": "9642c87a994bb3eccfe6914e9a9aa5af967a33033a94cf550df6dff74f7c96c1",
+    "assets/tile_13_13.dae": "3468f9e8cf761085f784561c81bce4da4dca8096e5ff78830e65d995521b72e2",
+    "assets/tile_13_14.dae": "334aebce8ae49b6e0afcfb94abad74af982f6e401f469b51f0e94758ac547d05",
+    "assets/tile_13_15.dae": "d33152c717b0b492cb5e481f84bb7a4c935d207bb734414530ce81b3aa84c440",
+    "assets/tile_13_16.dae": "fc7bcd5463108a2f4e23620ec889cde55542811445c9f0f85985fca9da89145f",
+    "assets/tile_13_17.dae": "90d33ac8a75865eced6a615a1c93139fcbb19bdb255d4411a74b5b15bb775414",
+    "assets/tile_13_18.dae": "65c6988389c77b8f7ddc610dec78e740e9334da43dd9638f965da43f21dee9c3",
+    "assets/tile_13_19.dae": "07b4395ff3f787b921af9202a554ba67a4a00498a0738ef4ac141f2ff6d5936b",
+    "assets/tile_14_00.dae": "3f2a90d94d9f722cc32b9cac07687718a3ac53b8254bb386b5548bd64cc250c8",
+    "assets/tile_14_01.dae": "4177cf35bdff355300c76aee0944ec4c4268d2ed2967d8b7de40256674f9163a",
+    "assets/tile_14_02.dae": "ce9e13505c62a9c5786eb59d99b7f316be0559204fb2c929aeacb20513b5b78a",
+    "assets/tile_14_03.dae": "5ec3220eeb60cfa1cc45660b48d8f2a91d25aab84c77a9259ae58bd9f45954c7",
+    "assets/tile_14_04.dae": "644b1f4e7de39fac3a56ac6f6d03e2a9fef6cd6062bb6c85e6f890a4855660f6",
+    "assets/tile_14_05.dae": "dc83665ce37672c1da1fcfebd4ee022cf722cf0e2e0e3f2f8ba006b2e8e920b7",
+    "assets/tile_14_06.dae": "7ce13bdfe8ecaeb964931e53e8b2d718ab15807be798b725c217be90b1a452ef",
+    "assets/tile_14_07.dae": "398623647e27473eb978235fb98bd5b8e9234b28bb54e6295b6f4332238adf5e",
+    "assets/tile_14_08.dae": "8cb31c142d574b90af55084a276afef458b47a00c9ee42926838de47976dc5cb",
+    "assets/tile_14_09.dae": "f43ad2c0d9eac593f3521e27b344dcd248d37286f0f6e248152546b875e445b1",
+    "assets/tile_14_10.dae": "1baad85dda2a3963cafe63fea5b49a5f9ee315c17b6820ec27887fff2bf1e88d",
+    "assets/tile_14_11.dae": "e46b0f573f56460d26e8f952aeda98cbec044ab9bf7a3f9786bb4419b90c5bfb",
+    "assets/tile_14_12.dae": "2fb90e9cdafff57fd0e0f116ec60321a6b990f14e159fe8ef0410b776a0e1a91",
+    "assets/tile_14_13.dae": "5f2229a825e8b2e4ecf794b9516b154d9de9ef32f2205f9ae611c70016cff942",
+    "assets/tile_14_14.dae": "17e517c340283ea82b8876955df395443c48d19518dd8aa7ebccc04f9aeedea8",
+    "assets/tile_14_15.dae": "89a51c5e367d637cf129b64198f0e30bd25470d6499c4bd0e5bb44ddc73f98a3",
+    "assets/tile_14_16.dae": "61d4dae7c2ee2810288098d21d0004edc257e366e489bd779549a835ab3d4164",
+    "assets/tile_14_17.dae": "118df3b8eea4e82b7b7e5ff68ab6b11a5ab8ab0613c93aac49dfb44b1102f9a7",
+    "assets/tile_14_18.dae": "a710728cf6713850c3e410f19b536773c923592585b13272225bc1d7b91352c1",
+    "assets/tile_14_19.dae": "f5a63b984663dbf365fe8cf613da32cb96478481a1d8ed0466069451aa9ad973",
+    "assets/tile_15_00.dae": "4b4639f65f7ad311f6e98fc4565118b97328221b8670f0ab6ef7eebea3662481",
+    "assets/tile_15_01.dae": "b155ce68cbd412a43f6e113ff52c8c81f85dd00c041955dd5383214a0ef78f0d",
+    "assets/tile_15_02.dae": "f6acf139023f64d909f7b2ff20a5d4f91a283b35929e6b3dae611bf562cf9297",
+    "assets/tile_15_03.dae": "a6d26aac369e71fa818ea29710850eaf792dbae863671ff6b075d654b758bafb",
+    "assets/tile_15_04.dae": "21b10aa05cd7601ed14c0812de41a3127721e239409410a7118a51538d47776e",
+    "assets/tile_15_05.dae": "02352f4f94c3001f2a4a81ec797301f2d495518159d95a9d9ecd495e5c2cb67c",
+    "assets/tile_15_06.dae": "3295336e9726d8c4dbf6d69065ed72519a59b73c8ae77ab0bf325639156eb71e",
+    "assets/tile_15_07.dae": "6aa95d1c2ccd0aac0a16ec2f11ba74555310279a53fc7e781e6f3ddcba845143",
+    "assets/tile_15_08.dae": "aaf3122d9f9cb24d1a976db5e9363d318b468e52f78e64b7a64393fab3e43b55",
+    "assets/tile_15_09.dae": "a668eefbf78bec5027e6cec1d819149a58d22055e7f17b3398d7a99e79734588",
+    "assets/tile_15_10.dae": "c498cd14a453aa64f1707427780fa20a632a3b40f43a321bc35f41014ef68769",
+    "assets/tile_15_11.dae": "784d171988ded7c7f5649e5e5be4ccd10b4b0f9b87867896675ad65fd089ff15",
+    "assets/tile_15_12.dae": "0f982028d8159f35e3a8d3b8855e35689fbdc86e7be023d61a1ef7c99a471810",
+    "assets/tile_15_13.dae": "bbd73717df45ad80d03a8b6516ab95bc7dc667fce0de518405caae3348267eaf",
+    "assets/tile_15_14.dae": "89e3b761a27fbb46d27250134d589e17a70bf1edf4d1515a94ab5e072c2668be",
+    "assets/tile_15_15.dae": "249a916f38a4e930ea0b936a791874f90051804dc1ca9c8afe89188d41514ada",
+    "assets/tile_15_16.dae": "36b6b96f3220bee87768cd3a40bce9c61628b68f3d4cd47df0582b81fc18001c",
+    "assets/tile_15_17.dae": "8884d9e6d6f34c79e7a584ce4a025a4024eec5f676d761b83edb9f3394b19232",
+    "assets/tile_15_18.dae": "a72f4d86628db08a2e7afed00e5d50bcd56d97f92934dd2844f7ce3ecab26248",
+    "assets/tile_15_19.dae": "9d00acc910a4710d98b79455a3fc2ffa6386bc133c310c96763fa25bd52a35c3",
+    "assets/tile_16_00.dae": "63b5a9a9db85ce173dc48de56f37a9568acf5b439a7d62aaaf0605f63a1feba9",
+    "assets/tile_16_01.dae": "6fb4bf2b79242cb66be5ea7a57de343ed708e0e52382df5df2fbb7574539c407",
+    "assets/tile_16_02.dae": "c7158b6035343075354fd59bb1f4077c8086b6419f3d67ad2fc7f7ab2dec1561",
+    "assets/tile_16_03.dae": "e82e6e8db6476f2565df90242cd90507dbfbe107e4bbe992909d6a4914caad02",
+    "assets/tile_16_04.dae": "d1f4884806c816f5fc606c6ddeab2537e4fe7f78d9a1da7e6adb188d52200869",
+    "assets/tile_16_05.dae": "faf7ffdaad7ecd2eade47e8cdabdce741400e0b5c5b3ad8ecfed7265ac966e96",
+    "assets/tile_16_06.dae": "ce036c6441f5de89078b5b6bb02bc6190d2adc204835cfe0f7a2c8797eb95186",
+    "assets/tile_16_07.dae": "b2c6fbd09a86546d8044e9baa40d22026d297e29ffbb8605ee2f1bc8b954a2f9",
+    "assets/tile_16_08.dae": "ba8822a79bd4c932ba6ae98025445832054430bcd4a08e68ce78b93b5dbb83f6",
+    "assets/tile_16_09.dae": "f12d6b3f834d5549b443c741d1894f75058870f00dc0e0da4346f14c572156c8",
+    "assets/tile_16_10.dae": "65808368a2d32466e9a1395a99213533b468acd4f97c6b801539a14521d487ff",
+    "assets/tile_16_11.dae": "a2200c5947d65b51b41920c87059d13fb890913ad6c4a48ebbef8d0528006ff8",
+    "assets/tile_16_12.dae": "f458c9927544cf0bfa44d0ffeb77b40ab333d3d9fbe532d797bb0fe6fe486955",
+    "assets/tile_16_13.dae": "1411a6549e3b2bbbf63f379916ea25c658789cb61ed41878b3527f83698b7435",
+    "assets/tile_16_14.dae": "66cc0756553cf5aa30a86bf34f88735e42348950d7e5946b9067ae3c2aac1365",
+    "assets/tile_16_15.dae": "57adf0f5e5c2aec9992f9e5e6a3a3cfa7667d2fdb5cf58b4c3915df9b8e1f299",
+    "assets/tile_16_16.dae": "e8f56941995556a77adb4cb643e1480beb80635c7f4d904880116ea331493151",
+    "assets/tile_16_17.dae": "1d80673371a24803b7c1cb8d8b3cdad7877b1d121ed6ac652e8953fcced0f03c",
+    "assets/tile_16_18.dae": "23c5753f2a4f10fbd7a310956e263201e58ef5147fef3eb22d6c8fb55ee84b0e",
+    "assets/tile_16_19.dae": "d27d06c7c9159ebfb6f21382fe32487c421c15fbbb5210ed20c51ecdcad42794",
+    "assets/tile_17_00.dae": "e2cbbc1a26d729a3046e2b5599a68c9a132e2bc70c1cf71e83a7d4a063cfd3a7",
+    "assets/tile_17_01.dae": "ee4c37e4d85dd042dee9e200ac249c772f65a956677100e71145bd79f797966a",
+    "assets/tile_17_02.dae": "caf0d3bc74e29daa287c82e879295124df736616a7d1f862e225c246dd5d3c52",
+    "assets/tile_17_03.dae": "649a3473d7f047747842d63ca0ea0989883509a33475f9cc0ea4351daf5b9752",
+    "assets/tile_17_04.dae": "f0a5f8aa47324e4c9df8179a508b52615ba56e149f3a4c06ddb6c298b9c80b6e",
+    "assets/tile_17_05.dae": "23a63f4561b54e03b7b5f2e667d113293b983a30f5289f80922925d50421e9a4",
+    "assets/tile_17_06.dae": "72738273b81c1f2bd8bc9b79321aa7fc5ca270c2dea1022499e0eeed39eb99bd",
+    "assets/tile_17_07.dae": "627744ae569c3c8f7642c3efd407cbf074e1fb08e8ae3bb253911fc04891e073",
+    "assets/tile_17_08.dae": "fc3772ba274893c22142768c3411dee015dacf62cdab1db3727350842570c606",
+    "assets/tile_17_09.dae": "137d6222ffbfe12f08a811c5c45af52b645712fd56fe87a2a315e5a82a1239ee",
+    "assets/tile_17_10.dae": "36a4f22be46d475327d3b3d81cb5e9ca9a1abbd915bc8a707f19943d786d179a",
+    "assets/tile_17_11.dae": "9ba3011e03afa5012346b4e5af3cb57535fe35a46a3608064590a53ede188c70",
+    "assets/tile_17_12.dae": "e11a2d311ed7712b1e167da7e1454835014e80011c43d4c1d2bf37384674b0e6",
+    "assets/tile_17_13.dae": "71cac438fb60e73176a17fe58c71b287be48e0b75f329b4d3d377b8aeff59d2f",
+    "assets/tile_17_14.dae": "d29d5396e893a6dd12e1a28c25618d93d926dbad673b0e8e17006318451056f8",
+    "assets/tile_17_15.dae": "7a696ec4399090bfb44b65fee69b2c2386e72e2606c95d7e97a9cd13e114ce41",
+    "assets/tile_17_16.dae": "2b9bfe7bbe341833f8ab3041d2f67dd8512168544152f8ad732e28b09437bda8",
+    "assets/tile_17_17.dae": "044ff75dd38d941ab8e9a942a51f26f159d0e6705d25c70c8599646ad2b02edd",
+    "assets/tile_17_18.dae": "b7639206871996979d5988bd3bbabd66ea11c826b71ab5a120862396ded543bd",
+    "assets/tile_17_19.dae": "a0858b4ae274dc6af6a9481c22846bce99844032bf0f6b9b6248c7505da78635",
+    "assets/tile_18_00.dae": "ff6434604fb8bb086ad58a1f387c1bdc682833acb3badfce91f5a9f015dc3b5c",
+    "assets/tile_18_01.dae": "0a5a704d2c4b7fd6bb05c8bebfe386ab2d48573d78dca6468a41a643e623f7b9",
+    "assets/tile_18_02.dae": "3e31f56588e4d7ffcfd13ba37677e585d8c2217a2a2cc57b04186345c0dcde8c",
+    "assets/tile_18_03.dae": "7ea714c06c9213304c574d59ddc1ad7bd44d896ae2bdcf1f3ed96ea3f3269e99",
+    "assets/tile_18_04.dae": "f1c31f42c0d5af9e1c3ee5b55b2694fb2adb600a3b1aa60580e8c268616e1b0e",
+    "assets/tile_18_05.dae": "b87bd6e3a972feaa3605aceab351e8e3fd0ac137e9b7e2f59a74f44dce2195d2",
+    "assets/tile_18_06.dae": "20561ecd793a9d2498afa54c0fd223e7488ccae1f6162ca74430d4e8d9c00900",
+    "assets/tile_18_07.dae": "d613c3f1846837a640fc575e8c3a40af959773183b8bec6f940e0507519d274d",
+    "assets/tile_18_08.dae": "cc50c1d228863da30614b1106eea05022ae45449921838bc5967cabdcfc07193",
+    "assets/tile_18_09.dae": "2c6c82241efff95bd3dab2a66a1b0db1e3056282bee8a0263d9e83e77249452b",
+    "assets/tile_18_10.dae": "ed600b55e3b15730a3fc5f72b62fe53011abb4522c41d4bcd724927ebc02ca78",
+    "assets/tile_18_11.dae": "34f5e8cfdb78af058b29dc8fd3a9e5c45faa41c795c3b0167500ee5876bcf4b0",
+    "assets/tile_18_12.dae": "4b35cf8fcdcfe82a0f15ea61720c4316225d3ab49b90c7c909c07dac16c4185b",
+    "assets/tile_18_13.dae": "62f06ec92a2db05314f47a672d8b0320d65ae6420ea6e52b1e35512497951a2b",
+    "assets/tile_18_14.dae": "86d057caa4eb1fc6fe30f6cc96dc15c7a20718d30d1e71d065a87da7bfe8d98c",
+    "assets/tile_18_15.dae": "9b54bbda0cd98f3d37312d18c582b1d88f1d32f973359cafef0f5cf6f29cbee2",
+    "assets/tile_18_16.dae": "5b91c027f85a630cb4ed7165c8873ea952df143814959d7b90a2dbd38948f576",
+    "assets/tile_18_17.dae": "1d9744f5455be6334c4ab5fa3c5a78c791ea507a1fbd7037a3e6e7e1cddef7d9",
+    "assets/tile_18_18.dae": "0cc03eaf3a77bb2331c1359f6fdfc910a9de2b80f23524fc1eb5be5b0c0dcfcd",
+    "assets/tile_18_19.dae": "c48ac1ddc0786b1fa12ea8921335467a3c483c7c6565cc23e4a97de0609a986b",
+    "assets/tile_19_00.dae": "2f349e0f92c216606ed75aa977ee2608b0b68d03e9aa42a90b04f8650cef458f",
+    "assets/tile_19_01.dae": "47850ca2e26f53e5c1ad46e6e6ce134339bc0467a19594e9604888ab7d986f41",
+    "assets/tile_19_02.dae": "441a469552560365434c8082b25d1ca9e3fe14a19d01fb102401fc730a498c24",
+    "assets/tile_19_03.dae": "e276aaebddfc2137a07a300e1a0edbe72af90d366e14cdd1d9c154cedfa67ee9",
+    "assets/tile_19_04.dae": "e6a37e572e6298c818bd7f94f4be237d71a12a8e04296434233cac45ba58d882",
+    "assets/tile_19_05.dae": "174f69a836481bc45c7f9a485b26642d0a2045e3caa185c5c49a61b7bed4ac52",
+    "assets/tile_19_06.dae": "882d1b2ce2387e78df7c13a947257f3f0c072018c48c47643af0f8341a9f1fbe",
+    "assets/tile_19_07.dae": "1804f349a2e5bcd4dee8559063d99b410cdaf9c9fb5e6b737b6ce1d733e1e96f",
+    "assets/tile_19_08.dae": "2460aa2eea34323b94d62eae9cd806431b1f7c36123bc73e996ca1b6f9d7001a",
+    "assets/tile_19_09.dae": "6d1a609f2cb018b4c0c60931b2abe2e0e904ff79971ffa9fab55c19711efca1e",
+    "assets/tile_19_10.dae": "b48a7972f509e5378bd5c4dcefbab9eb3c4155dd3bb8eb0ebaf5e0a71b75a9ff",
+    "assets/tile_19_11.dae": "706eec45e5b4e42d8e5ae30d94daab5de5e52fd766e2f4c09153cb71450f3f0a",
+    "assets/tile_19_12.dae": "a2ab2c114458e1ce4a4766df6d8f79a87de7e2c1212e6f5f55dab38ab986ed3c",
+    "assets/tile_19_13.dae": "18ffc9147565bead2888db42fa4abee63ad6d986546dbbb758f187d4bd0c4d8c",
+    "assets/tile_19_14.dae": "75352469f36bf0bd3fb7528d5fc61e1c4b9dc2e9fbb7e3e3c416840ef57119af",
+    "assets/tile_19_15.dae": "d2eb915f77a4c6be09d35f82010aba253023d820ca641fedb4af49e9af70dc0e",
+    "assets/tile_19_16.dae": "40ae948913bb2b5d323a5f3e04949f368488611cb5ea5fa693fce7fced953746",
+    "assets/tile_19_17.dae": "dc816e0694a6d6d12f2945d9642bf587dbd47ef89de2779102bb39e928d67c5a",
+    "assets/tile_19_18.dae": "141ed4247d0ef93e540cbac11118057de84cba600fef96ec412999d0857160c4",
+    "assets/tile_19_19.dae": "69ada27cf73a013b454c0da3db7bff782ee1658ed8c8c84a49f0c9325be2f623"
+  },
+  "imagery_sources": [
+    {
+      "name": "imagery_0_0",
+      "source_url": "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=13252894.777019%2C3786001.041892%2C13255862.951884%2C3788983.469205&bboxSR=3857&imageSR=3857&size=2080%2C2080&format=jpg&f=image&dpi=96&adjustAspectRatio=false&transparent=false",
+      "source_sha256": "1b53ea571a3a694f376f6e74f46a28aa23989897d29e3c5bc27c5a5d66135fcb",
+      "source_actual_extent_epsg3857": [
+        13252887.650795,
+        3786001.0418920005,
+        13255870.078108,
+        3788983.4692050004
+      ],
+      "texture_uri": "assets/imagery_0_0.jpg",
+      "bounds_enu_m": [
+        -5000,
+        -5000,
+        -2500,
+        -2500
+      ]
+    },
+    {
+      "name": "imagery_1_0",
+      "source_url": "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=13255846.224601%2C3786002.138842%2C13258813.672090%2C3788983.835034&bboxSR=3857&imageSR=3857&size=2080%2C2080&format=jpg&f=image&dpi=96&adjustAspectRatio=false&transparent=false",
+      "source_sha256": "5fae2fadf3a8c20cc5b6e2f0b95b4deffa1af93f95309e7977798484a6320e51",
+      "source_actual_extent_epsg3857": [
+        13255839.100249503,
+        3786002.138842,
+        13258820.796441503,
+        3788983.835034
+      ],
+      "texture_uri": "assets/imagery_1_0.jpg",
+      "bounds_enu_m": [
+        -2500,
+        -5000,
+        0,
+        -2500
+      ]
+    },
+    {
+      "name": "imagery_2_0",
+      "source_url": "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=13258797.672090%2C3786002.138842%2C13261765.119578%2C3788983.835034&bboxSR=3857&imageSR=3857&size=2080%2C2080&format=jpg&f=image&dpi=96&adjustAspectRatio=false&transparent=false",
+      "source_sha256": "34657071bdad0aa693ead6d3d16087906c85009b70406e8beaf3cffcaa8dd927",
+      "source_actual_extent_epsg3857": [
+        13258790.547737999,
+        3786002.138842,
+        13261772.243929999,
+        3788983.835034
+      ],
+      "texture_uri": "assets/imagery_2_0.jpg",
+      "bounds_enu_m": [
+        0,
+        -5000,
+        2500,
+        -2500
+      ]
+    },
+    {
+      "name": "imagery_3_0",
+      "source_url": "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=13261748.392295%2C3786001.041892%2C13264716.567160%2C3788983.469205&bboxSR=3857&imageSR=3857&size=2080%2C2080&format=jpg&f=image&dpi=96&adjustAspectRatio=false&transparent=false",
+      "source_sha256": "796a1bea1aa9910e317362164f787d3a7d563713494889821d2bfc6f4369aea4",
+      "source_actual_extent_epsg3857": [
+        13261741.266071003,
+        3786001.0418920005,
+        13264723.693384003,
+        3788983.4692050004
+      ],
+      "texture_uri": "assets/imagery_3_0.jpg",
+      "bounds_enu_m": [
+        2500,
+        -5000,
+        5000,
+        -2500
+      ]
+    },
+    {
+      "name": "imagery_0_1",
+      "source_url": "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=13252893.320826%2C3788966.371717%2C13255862.224601%2C3791949.523252&bboxSR=3857&imageSR=3857&size=2080%2C2080&format=jpg&f=image&dpi=96&adjustAspectRatio=false&transparent=false",
+      "source_sha256": "714d008915eaffdc17469f6635035b969cfa25b6a0ade9b33d4c173a8b8fcc2f",
+      "source_actual_extent_epsg3857": [
+        13252886.196946,
+        3788966.371717,
+        13255869.348481001,
+        3791949.523252
+      ],
+      "texture_uri": "assets/imagery_0_1.jpg",
+      "bounds_enu_m": [
+        -5000,
+        -2500,
+        -2500,
+        0
+      ]
+    },
+    {
+      "name": "imagery_1_1",
+      "source_url": "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=13255845.496505%2C3788967.469205%2C13258813.672090%2C3791949.889261&bboxSR=3857&imageSR=3857&size=2080%2C2080&format=jpg&f=image&dpi=96&adjustAspectRatio=false&transparent=false",
+      "source_sha256": "e0422039e9b294dc1129096646481b8444de52b06a310143acf3d24dcb50b4a0",
+      "source_actual_extent_epsg3857": [
+        13255838.374269499,
+        3788967.469205,
+        13258820.794325499,
+        3791949.889261
+      ],
+      "texture_uri": "assets/imagery_1_1.jpg",
+      "bounds_enu_m": [
+        -2500,
+        -2500,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "imagery_2_1",
+      "source_url": "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=13258797.672090%2C3788967.469205%2C13261765.847675%2C3791949.889261&bboxSR=3857&imageSR=3857&size=2080%2C2080&format=jpg&f=image&dpi=96&adjustAspectRatio=false&transparent=false",
+      "source_sha256": "22e70361498a6e7ec11dd8ff9247560df612e18db689ea4bed8f968a889d0992",
+      "source_actual_extent_epsg3857": [
+        13258790.549854498,
+        3788967.469205,
+        13261772.969910499,
+        3791949.889261
+      ],
+      "texture_uri": "assets/imagery_2_1.jpg",
+      "bounds_enu_m": [
+        0,
+        -2500,
+        2500,
+        0
+      ]
+    },
+    {
+      "name": "imagery_3_1",
+      "source_url": "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=13261749.119578%2C3788966.371717%2C13264718.023353%2C3791949.523252&bboxSR=3857&imageSR=3857&size=2080%2C2080&format=jpg&f=image&dpi=96&adjustAspectRatio=false&transparent=false",
+      "source_sha256": "24ec9e0276144d92463facfd7f0cce04b34a123f4092bac53a125ba2b060721a",
+      "source_actual_extent_epsg3857": [
+        13261741.995698,
+        3788966.371717,
+        13264725.147233,
+        3791949.523252
+      ],
+      "texture_uri": "assets/imagery_3_1.jpg",
+      "bounds_enu_m": [
+        2500,
+        -2500,
+        5000,
+        0
+      ]
+    },
+    {
+      "name": "imagery_0_2",
+      "source_url": "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=13252891.863004%2C3791932.425225%2C13255861.496505%2C3794916.302255&bboxSR=3857&imageSR=3857&size=2080%2C2080&format=jpg&f=image&dpi=96&adjustAspectRatio=false&transparent=false",
+      "source_sha256": "699665c6c63f441eaa419e61699b3244e5065d336fa62a33829e982774a3184d",
+      "source_actual_extent_epsg3857": [
+        13252884.741239501,
+        3791932.425225,
+        13255868.618269501,
+        3794916.302255
+      ],
+      "texture_uri": "assets/imagery_0_2.jpg",
+      "bounds_enu_m": [
+        -5000,
+        0,
+        -2500,
+        2500
+      ]
+    },
+    {
+      "name": "imagery_1_2",
+      "source_url": "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=13255844.767594%2C3791933.523252%2C13258813.672090%2C3794916.668444&bboxSR=3857&imageSR=3857&size=2080%2C2080&format=jpg&f=image&dpi=96&adjustAspectRatio=false&transparent=false",
+      "source_sha256": "2e222f516340c19ab3ac66305281bc9a2df9003fe155bc5f65c0052b0d6b184a",
+      "source_actual_extent_epsg3857": [
+        13255837.647246,
+        3791933.523252,
+        13258820.792438,
+        3794916.668444
+      ],
+      "texture_uri": "assets/imagery_1_2.jpg",
+      "bounds_enu_m": [
+        -2500,
+        0,
+        0,
+        2500
+      ]
+    },
+    {
+      "name": "imagery_2_2",
+      "source_url": "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=13258797.672090%2C3791933.523252%2C13261766.576586%2C3794916.668444&bboxSR=3857&imageSR=3857&size=2080%2C2080&format=jpg&f=image&dpi=96&adjustAspectRatio=false&transparent=false",
+      "source_sha256": "a279181476c6351e98a81e7ab5b7226f96050c947af9dee61a8a5ae7b3376a5c",
+      "source_actual_extent_epsg3857": [
+        13258790.551742002,
+        3791933.523252,
+        13261773.696934003,
+        3794916.668444
+      ],
+      "texture_uri": "assets/imagery_2_2.jpg",
+      "bounds_enu_m": [
+        0,
+        0,
+        2500,
+        2500
+      ]
+    },
+    {
+      "name": "imagery_3_2",
+      "source_url": "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=13261749.847675%2C3791932.425225%2C13264719.481175%2C3794916.302255&bboxSR=3857&imageSR=3857&size=2080%2C2080&format=jpg&f=image&dpi=96&adjustAspectRatio=false&transparent=false",
+      "source_sha256": "f7fc44b15a55a130e17a919cc4b7293a3f2252e547d80602436c621f9e5067f6",
+      "source_actual_extent_epsg3857": [
+        13261742.72591,
+        3791932.425225,
+        13264726.60294,
+        3794916.302255
+      ],
+      "texture_uri": "assets/imagery_3_2.jpg",
+      "bounds_enu_m": [
+        2500,
+        0,
+        5000,
+        2500
+      ]
+    },
+    {
+      "name": "imagery_0_3",
+      "source_url": "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=13252890.403552%2C3794899.203688%2C13255860.767594%2C3797883.807485&bboxSR=3857&imageSR=3857&size=2080%2C2080&format=jpg&f=image&dpi=96&adjustAspectRatio=false&transparent=false",
+      "source_sha256": "a044bd7f21b3fae471c310dcb67e97c247d65171c70614fe41dc3deb292e9d9a",
+      "source_actual_extent_epsg3857": [
+        13252883.283674495,
+        3794899.2036880003,
+        13255867.887471495,
+        3797883.8074850007
+      ],
+      "texture_uri": "assets/imagery_0_3.jpg",
+      "bounds_enu_m": [
+        -5000,
+        2500,
+        -2500,
+        5000
+      ]
+    },
+    {
+      "name": "imagery_1_3",
+      "source_url": "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=13255844.037867%2C3794900.302255%2C13258813.672090%2C3797884.173854&bboxSR=3857&imageSR=3857&size=2080%2C2080&format=jpg&f=image&dpi=96&adjustAspectRatio=false&transparent=false",
+      "source_sha256": "9d62e5cf3160d1103b75841e24aba1ac31e6f78603e8181925c4ea1a78b4a03b",
+      "source_actual_extent_epsg3857": [
+        13255836.919179,
+        3794900.302255,
+        13258820.790778,
+        3797884.173854
+      ],
+      "texture_uri": "assets/imagery_1_3.jpg",
+      "bounds_enu_m": [
+        -2500,
+        2500,
+        0,
+        5000
+      ]
+    },
+    {
+      "name": "imagery_2_3",
+      "source_url": "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=13258797.672090%2C3794900.302255%2C13261767.306312%2C3797884.173854&bboxSR=3857&imageSR=3857&size=2080%2C2080&format=jpg&f=image&dpi=96&adjustAspectRatio=false&transparent=false",
+      "source_sha256": "54b2b386ab40f86890394e3e1543ba5ad9a1eaeb0e13b1e7c652c71e28dfc24d",
+      "source_actual_extent_epsg3857": [
+        13258790.5534015,
+        3794900.302255,
+        13261774.4250005,
+        3797884.173854
+      ],
+      "texture_uri": "assets/imagery_2_3.jpg",
+      "bounds_enu_m": [
+        0,
+        2500,
+        2500,
+        5000
+      ]
+    },
+    {
+      "name": "imagery_3_3",
+      "source_url": "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=13261750.576586%2C3794899.203688%2C13264720.940628%2C3797883.807485&bboxSR=3857&imageSR=3857&size=2080%2C2080&format=jpg&f=image&dpi=96&adjustAspectRatio=false&transparent=false",
+      "source_sha256": "91b216ca056fd1b4650db94058bf1925227d7ae6131b6c5681ce2f9db34a22b0",
+      "source_actual_extent_epsg3857": [
+        13261743.4567085,
+        3794899.2036880003,
+        13264728.0605055,
+        3797883.8074850007
+      ],
+      "texture_uri": "assets/imagery_3_3.jpg",
+      "bounds_enu_m": [
+        2500,
+        2500,
+        5000,
+        5000
+      ]
+    }
+  ],
+  "terrain_tile_size_m": 500,
+  "terrain_tiles_per_axis": 20,
+  "terrain_vertices_per_tile_axis": 17,
+  "terrain_triangles_total": 204800,
+  "imagery_texture_sharing": "500 m mesh tiles reference georeferenced subregions of 16 shared imagery textures",
+  "imagery_output_pixels_per_texture": 2048,
+  "imagery_texture_pixels_per_texture": 2064
+}

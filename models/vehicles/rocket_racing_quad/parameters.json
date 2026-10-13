@@ -1,0 +1,96 @@
+{
+  "geometry": {
+    "body_length_m": 0.45,
+    "body_radius_m": 0.045,
+    "diagonal_wheelbase_m": 0.381,
+    "propeller_diameter_m": 0.254,
+    "nacelle_length_m": 0.09,
+    "nacelle_radius_m": 0.04,
+    "nacelle_z_m": -0.12,
+    "rotor_z_m": -0.185,
+    "fin_span_m": 0.1455,
+    "fin_thickness_m": 0.004,
+    "fin_root_length_m": 0.3,
+    "arm_radius_m": 0.008,
+    "fin_tip_z_m": -0.12,
+    "fin_tip_chord_m": 0.04
+  },
+  "mass": {
+    "body_kg": 1.1,
+    "nacelle_kg": 0.04,
+    "propeller_kg": 0.025
+  },
+  "motor": {
+    "max_velocity_rad_s": 1250,
+    "idle_velocity_rad_s": 0,
+    "thrust_constant": 1.9e-05,
+    "moment_constant_m": 0.02,
+    "time_constant_up_s": 0.0125,
+    "time_constant_down_s": 0.025,
+    "rotor_drag_coefficient": 0.00012,
+    "rolling_moment_coefficient": 1e-06,
+    "visual_slowdown": 10
+  },
+  "aerodynamics": {
+    "air_density_kg_m3": 1.225,
+    "drag_coefficient": 0.73,
+    "reference_area_m2": 0.0177
+  },
+  "sensors": {
+    "imu_rate_hz": 250,
+    "air_pressure_rate_hz": 50,
+    "magnetometer_rate_hz": 100,
+    "navsat_rate_hz": 30
+  },
+  "simulation": {
+    "step_size_s": 0.004,
+    "real_time_factor": 1,
+    "spawn_clearance_m": 0.005,
+    "latitude_deg": 47.397971057728974,
+    "longitude_deg": 8.546163739800146,
+    "elevation_m": 0,
+    "imu_wait_timeout_s": 90,
+    "ground_size_m": 50000
+  },
+  "px4": {
+    "airframe_id": 4022,
+    "parameters": {
+      "MPC_THR_HOVER": 0.11223578947368422,
+      "MPC_TILTMAX_AIR": 85,
+      "MPC_XY_VEL_MAX": 95,
+      "MPC_XY_CRUISE": 15,
+      "MPC_VEL_MANUAL": 20,
+      "NAV_DLL_ACT": 2,
+      "EKF2_BCOEF_X": 0,
+      "EKF2_BCOEF_Y": 0,
+      "EKF2_MCOEF": 0.12,
+      "THR_MDL_FAC": 1,
+      "MPC_USE_HTE": 0,
+      "MPC_THR_MIN": 0.03,
+      "MPC_THR_MAX": 0.9,
+      "EKF2_HGT_REF": 0
+    }
+  },
+  "flight_test": {
+    "endpoint": "udpin:0.0.0.0:14540",
+    "setpoint_rate_hz": 20,
+    "telemetry_timeout_s": 2,
+    "heartbeat_timeout_s": 5,
+    "command_timeout_s": 30,
+    "phase_wall_timeout_s": 600,
+    "takeoff_altitude_m": 30,
+    "climb_speed_m_s": 2,
+    "altitude_tolerance_m": 2,
+    "hover_seconds": 30,
+    "hover_drift_limit_m": 1,
+    "cruise_speed_km_h": 200,
+    "cruise_seconds": 30,
+    "sprint_speed_km_h": 300,
+    "sprint_seconds": 10,
+    "ramp_seconds": 30,
+    "speed_setpoint_margin_km_h": 15,
+    "speed_acquire_timeout_s": 60,
+    "deceleration_m_s2": 4,
+    "landing_timeout_s": 120
+  }
+}

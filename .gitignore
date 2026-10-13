@@ -3,4 +3,8 @@ __pycache__/
 *.pyc
 runs/
 
+# spec-kit 产物不入库
+.specify/
+specs/
+
 models/gimbals/two_axis_pod/controller/build/

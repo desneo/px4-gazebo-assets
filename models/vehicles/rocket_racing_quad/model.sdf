@@ -1,0 +1,621 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<sdf version="1.9">
+  <model name="rocket_racing_quad">
+    <self_collide>false</self_collide>
+    <link name="base_link">
+      <inertial>
+        <mass>1.1</mass>
+        <inertia>
+          <ixx>0.019119375000000004</ixx>
+          <iyy>0.019119375000000004</iyy>
+          <izz>0.00111375</izz>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyz>0</iyz>
+        </inertia>
+      </inertial>
+      <visual name="fuselage_visual">
+        <geometry>
+          <mesh>
+            <uri>model://rocket_racing_quad/meshes/fuselage.stl</uri>
+          </mesh>
+        </geometry>
+        <material>
+          <ambient>0.16 0.18 0.21 1</ambient>
+          <diffuse>0.24 0.29 0.34 1</diffuse>
+        </material>
+      </visual>
+      <visual name="tail_visual">
+        <geometry>
+          <mesh>
+            <uri>model://rocket_racing_quad/meshes/tail.stl</uri>
+          </mesh>
+        </geometry>
+        <material>
+          <ambient>0.16 0.18 0.21 1</ambient>
+          <diffuse>0.24 0.29 0.34 1</diffuse>
+        </material>
+      </visual>
+      <collision name="body_collision">
+        <geometry>
+          <cylinder>
+            <radius>0.045</radius>
+            <length>0.45</length>
+          </cylinder>
+        </geometry>
+      </collision>
+      <collision name="arm_0_collision">
+        <pose>0.06735192091 -0.06735192091 -0.12 0 1.570796327 -0.7853981634</pose>
+        <geometry>
+          <cylinder>
+            <radius>0.008</radius>
+            <length>0.19049999999999997</length>
+          </cylinder>
+        </geometry>
+      </collision>
+      <collision name="arm_1_collision">
+        <pose>-0.06735192091 0.06735192091 -0.12 0 1.570796327 2.35619449</pose>
+        <geometry>
+          <cylinder>
+            <radius>0.008</radius>
+            <length>0.19049999999999997</length>
+          </cylinder>
+        </geometry>
+      </collision>
+      <collision name="arm_2_collision">
+        <pose>0.06735192091 0.06735192091 -0.12 0 1.570796327 0.7853981634</pose>
+        <geometry>
+          <cylinder>
+            <radius>0.008</radius>
+            <length>0.19049999999999997</length>
+          </cylinder>
+        </geometry>
+      </collision>
+      <collision name="arm_3_collision">
+        <pose>-0.06735192091 -0.06735192091 -0.12 0 1.570796327 -2.35619449</pose>
+        <geometry>
+          <cylinder>
+            <radius>0.008</radius>
+            <length>0.19049999999999997</length>
+          </cylinder>
+        </geometry>
+      </collision>
+      <sensor name="imu_sensor" type="imu">
+        <gz_frame_id>base_link</gz_frame_id>
+        <always_on>1</always_on>
+        <update_rate>250</update_rate>
+        <imu>
+          <angular_velocity>
+            <x>
+              <noise type="gaussian">
+                <mean>0</mean>
+                <stddev>0.0008726646</stddev>
+              </noise>
+            </x>
+            <y>
+              <noise type="gaussian">
+                <mean>0</mean>
+                <stddev>0.0008726646</stddev>
+              </noise>
+            </y>
+            <z>
+              <noise type="gaussian">
+                <mean>0</mean>
+                <stddev>0.0008726646</stddev>
+              </noise>
+            </z>
+          </angular_velocity>
+          <linear_acceleration>
+            <x>
+              <noise type="gaussian">
+                <mean>0</mean>
+                <stddev>0.00637</stddev>
+              </noise>
+            </x>
+            <y>
+              <noise type="gaussian">
+                <mean>0</mean>
+                <stddev>0.00637</stddev>
+              </noise>
+            </y>
+            <z>
+              <noise type="gaussian">
+                <mean>0</mean>
+                <stddev>0.00637</stddev>
+              </noise>
+            </z>
+          </linear_acceleration>
+        </imu>
+      </sensor>
+      <sensor name="air_pressure_sensor" type="air_pressure">
+        <gz_frame_id>base_link</gz_frame_id>
+        <always_on>1</always_on>
+        <update_rate>50</update_rate>
+      </sensor>
+      <sensor name="magnetometer_sensor" type="magnetometer">
+        <gz_frame_id>base_link</gz_frame_id>
+        <always_on>1</always_on>
+        <update_rate>100</update_rate>
+      </sensor>
+      <sensor name="navsat_sensor" type="navsat">
+        <gz_frame_id>base_link</gz_frame_id>
+        <always_on>1</always_on>
+        <update_rate>30</update_rate>
+      </sensor>
+    </link>
+    <link name="nacelle_0">
+      <pose>0.1347038418 -0.1347038418 -0.12 0 0 0</pose>
+      <inertial>
+        <mass>0.04</mass>
+        <inertia>
+          <ixx>4.2999999999999995e-05</ixx>
+          <iyy>4.2999999999999995e-05</iyy>
+          <izz>3.2000000000000005e-05</izz>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyz>0</iyz>
+        </inertia>
+      </inertial>
+      <visual name="nacelle_0_visual">
+        <geometry>
+          <mesh>
+            <uri>model://rocket_racing_quad/meshes/nacelle.stl</uri>
+          </mesh>
+        </geometry>
+        <material>
+          <ambient>0.16 0.18 0.21 1</ambient>
+          <diffuse>0.24 0.29 0.34 1</diffuse>
+        </material>
+      </visual>
+      <collision name="nacelle_0_collision">
+        <geometry>
+          <cylinder>
+            <radius>0.04</radius>
+            <length>0.09</length>
+          </cylinder>
+        </geometry>
+      </collision>
+      <visual name="motor_shaft_0_visual">
+        <pose>0 0 -0.048 0 0 0</pose>
+        <geometry>
+          <cylinder>
+            <radius>0.006</radius>
+            <length>0.006000000000000005</length>
+          </cylinder>
+        </geometry>
+      </visual>
+      <collision name="motor_shaft_0_collision">
+        <pose>0 0 -0.048 0 0 0</pose>
+        <geometry>
+          <cylinder>
+            <radius>0.006</radius>
+            <length>0.006000000000000005</length>
+          </cylinder>
+        </geometry>
+      </collision>
+    </link>
+    <joint name="nacelle_0_joint" type="fixed">
+      <parent>base_link</parent>
+      <child>nacelle_0</child>
+    </joint>
+    <link name="rotor_0">
+      <pose>0.1347038418 -0.1347038418 -0.185 0 0 0</pose>
+      <inertial>
+        <mass>0.025</mass>
+        <inertia>
+          <ixx>0.00010090833333333334</ixx>
+          <iyy>0.00010090833333333334</iyy>
+          <izz>0.00020161250000000003</izz>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyz>0</iyz>
+        </inertia>
+      </inertial>
+      <visual name="rotor_0_visual">
+        <geometry>
+          <mesh>
+            <uri>model://rocket_racing_quad/meshes/propeller_10in.stl</uri>
+          </mesh>
+        </geometry>
+        <material>
+          <ambient>0.16 0.18 0.21 1</ambient>
+          <diffuse>0.24 0.29 0.34 1</diffuse>
+        </material>
+      </visual>
+      <collision name="rotor_0_collision">
+        <geometry>
+          <cylinder>
+            <radius>0.127</radius>
+            <length>0.007</length>
+          </cylinder>
+        </geometry>
+      </collision>
+    </link>
+    <joint name="rotor_0_joint" type="revolute">
+      <parent>base_link</parent>
+      <child>rotor_0</child>
+      <axis>
+        <xyz>0 0 1</xyz>
+        <limit>
+          <lower>-1e16</lower>
+          <upper>1e16</upper>
+        </limit>
+      </axis>
+    </joint>
+    <plugin filename="gz-sim-multicopter-motor-model-system" name="gz::sim::systems::MulticopterMotorModel">
+      <jointName>rotor_0_joint</jointName>
+      <linkName>rotor_0</linkName>
+      <turningDirection>ccw</turningDirection>
+      <commandSubTopic>command/motor_speed</commandSubTopic>
+      <motorNumber>0</motorNumber>
+      <motorType>velocity</motorType>
+      <maxRotVelocity>1250</maxRotVelocity>
+      <motorConstant>1.9e-05</motorConstant>
+      <momentConstant>0.02</momentConstant>
+      <timeConstantUp>0.0125</timeConstantUp>
+      <timeConstantDown>0.025</timeConstantDown>
+      <rotorDragCoefficient>0.00012</rotorDragCoefficient>
+      <rollingMomentCoefficient>1e-06</rollingMomentCoefficient>
+      <rotorVelocitySlowdownSim>10</rotorVelocitySlowdownSim>
+    </plugin>
+    <link name="nacelle_1">
+      <pose>-0.1347038418 0.1347038418 -0.12 0 0 0</pose>
+      <inertial>
+        <mass>0.04</mass>
+        <inertia>
+          <ixx>4.2999999999999995e-05</ixx>
+          <iyy>4.2999999999999995e-05</iyy>
+          <izz>3.2000000000000005e-05</izz>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyz>0</iyz>
+        </inertia>
+      </inertial>
+      <visual name="nacelle_1_visual">
+        <geometry>
+          <mesh>
+            <uri>model://rocket_racing_quad/meshes/nacelle.stl</uri>
+          </mesh>
+        </geometry>
+        <material>
+          <ambient>0.16 0.18 0.21 1</ambient>
+          <diffuse>0.24 0.29 0.34 1</diffuse>
+        </material>
+      </visual>
+      <collision name="nacelle_1_collision">
+        <geometry>
+          <cylinder>
+            <radius>0.04</radius>
+            <length>0.09</length>
+          </cylinder>
+        </geometry>
+      </collision>
+      <visual name="motor_shaft_1_visual">
+        <pose>0 0 -0.048 0 0 0</pose>
+        <geometry>
+          <cylinder>
+            <radius>0.006</radius>
+            <length>0.006000000000000005</length>
+          </cylinder>
+        </geometry>
+      </visual>
+      <collision name="motor_shaft_1_collision">
+        <pose>0 0 -0.048 0 0 0</pose>
+        <geometry>
+          <cylinder>
+            <radius>0.006</radius>
+            <length>0.006000000000000005</length>
+          </cylinder>
+        </geometry>
+      </collision>
+    </link>
+    <joint name="nacelle_1_joint" type="fixed">
+      <parent>base_link</parent>
+      <child>nacelle_1</child>
+    </joint>
+    <link name="rotor_1">
+      <pose>-0.1347038418 0.1347038418 -0.185 0 0 0</pose>
+      <inertial>
+        <mass>0.025</mass>
+        <inertia>
+          <ixx>0.00010090833333333334</ixx>
+          <iyy>0.00010090833333333334</iyy>
+          <izz>0.00020161250000000003</izz>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyz>0</iyz>
+        </inertia>
+      </inertial>
+      <visual name="rotor_1_visual">
+        <geometry>
+          <mesh>
+            <uri>model://rocket_racing_quad/meshes/propeller_10in.stl</uri>
+          </mesh>
+        </geometry>
+        <material>
+          <ambient>0.16 0.18 0.21 1</ambient>
+          <diffuse>0.24 0.29 0.34 1</diffuse>
+        </material>
+      </visual>
+      <collision name="rotor_1_collision">
+        <geometry>
+          <cylinder>
+            <radius>0.127</radius>
+            <length>0.007</length>
+          </cylinder>
+        </geometry>
+      </collision>
+    </link>
+    <joint name="rotor_1_joint" type="revolute">
+      <parent>base_link</parent>
+      <child>rotor_1</child>
+      <axis>
+        <xyz>0 0 1</xyz>
+        <limit>
+          <lower>-1e16</lower>
+          <upper>1e16</upper>
+        </limit>
+      </axis>
+    </joint>
+    <plugin filename="gz-sim-multicopter-motor-model-system" name="gz::sim::systems::MulticopterMotorModel">
+      <jointName>rotor_1_joint</jointName>
+      <linkName>rotor_1</linkName>
+      <turningDirection>ccw</turningDirection>
+      <commandSubTopic>command/motor_speed</commandSubTopic>
+      <motorNumber>1</motorNumber>
+      <motorType>velocity</motorType>
+      <maxRotVelocity>1250</maxRotVelocity>
+      <motorConstant>1.9e-05</motorConstant>
+      <momentConstant>0.02</momentConstant>
+      <timeConstantUp>0.0125</timeConstantUp>
+      <timeConstantDown>0.025</timeConstantDown>
+      <rotorDragCoefficient>0.00012</rotorDragCoefficient>
+      <rollingMomentCoefficient>1e-06</rollingMomentCoefficient>
+      <rotorVelocitySlowdownSim>10</rotorVelocitySlowdownSim>
+    </plugin>
+    <link name="nacelle_2">
+      <pose>0.1347038418 0.1347038418 -0.12 0 0 0</pose>
+      <inertial>
+        <mass>0.04</mass>
+        <inertia>
+          <ixx>4.2999999999999995e-05</ixx>
+          <iyy>4.2999999999999995e-05</iyy>
+          <izz>3.2000000000000005e-05</izz>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyz>0</iyz>
+        </inertia>
+      </inertial>
+      <visual name="nacelle_2_visual">
+        <geometry>
+          <mesh>
+            <uri>model://rocket_racing_quad/meshes/nacelle.stl</uri>
+          </mesh>
+        </geometry>
+        <material>
+          <ambient>0.16 0.18 0.21 1</ambient>
+          <diffuse>0.24 0.29 0.34 1</diffuse>
+        </material>
+      </visual>
+      <collision name="nacelle_2_collision">
+        <geometry>
+          <cylinder>
+            <radius>0.04</radius>
+            <length>0.09</length>
+          </cylinder>
+        </geometry>
+      </collision>
+      <visual name="motor_shaft_2_visual">
+        <pose>0 0 -0.048 0 0 0</pose>
+        <geometry>
+          <cylinder>
+            <radius>0.006</radius>
+            <length>0.006000000000000005</length>
+          </cylinder>
+        </geometry>
+      </visual>
+      <collision name="motor_shaft_2_collision">
+        <pose>0 0 -0.048 0 0 0</pose>
+        <geometry>
+          <cylinder>
+            <radius>0.006</radius>
+            <length>0.006000000000000005</length>
+          </cylinder>
+        </geometry>
+      </collision>
+    </link>
+    <joint name="nacelle_2_joint" type="fixed">
+      <parent>base_link</parent>
+      <child>nacelle_2</child>
+    </joint>
+    <link name="rotor_2">
+      <pose>0.1347038418 0.1347038418 -0.185 0 0 0</pose>
+      <inertial>
+        <mass>0.025</mass>
+        <inertia>
+          <ixx>0.00010090833333333334</ixx>
+          <iyy>0.00010090833333333334</iyy>
+          <izz>0.00020161250000000003</izz>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyz>0</iyz>
+        </inertia>
+      </inertial>
+      <visual name="rotor_2_visual">
+        <geometry>
+          <mesh>
+            <uri>model://rocket_racing_quad/meshes/propeller_10in.stl</uri>
+          </mesh>
+        </geometry>
+        <material>
+          <ambient>0.16 0.18 0.21 1</ambient>
+          <diffuse>0.24 0.29 0.34 1</diffuse>
+        </material>
+      </visual>
+      <collision name="rotor_2_collision">
+        <geometry>
+          <cylinder>
+            <radius>0.127</radius>
+            <length>0.007</length>
+          </cylinder>
+        </geometry>
+      </collision>
+    </link>
+    <joint name="rotor_2_joint" type="revolute">
+      <parent>base_link</parent>
+      <child>rotor_2</child>
+      <axis>
+        <xyz>0 0 1</xyz>
+        <limit>
+          <lower>-1e16</lower>
+          <upper>1e16</upper>
+        </limit>
+      </axis>
+    </joint>
+    <plugin filename="gz-sim-multicopter-motor-model-system" name="gz::sim::systems::MulticopterMotorModel">
+      <jointName>rotor_2_joint</jointName>
+      <linkName>rotor_2</linkName>
+      <turningDirection>cw</turningDirection>
+      <commandSubTopic>command/motor_speed</commandSubTopic>
+      <motorNumber>2</motorNumber>
+      <motorType>velocity</motorType>
+      <maxRotVelocity>1250</maxRotVelocity>
+      <motorConstant>1.9e-05</motorConstant>
+      <momentConstant>0.02</momentConstant>
+      <timeConstantUp>0.0125</timeConstantUp>
+      <timeConstantDown>0.025</timeConstantDown>
+      <rotorDragCoefficient>0.00012</rotorDragCoefficient>
+      <rollingMomentCoefficient>1e-06</rollingMomentCoefficient>
+      <rotorVelocitySlowdownSim>10</rotorVelocitySlowdownSim>
+    </plugin>
+    <link name="nacelle_3">
+      <pose>-0.1347038418 -0.1347038418 -0.12 0 0 0</pose>
+      <inertial>
+        <mass>0.04</mass>
+        <inertia>
+          <ixx>4.2999999999999995e-05</ixx>
+          <iyy>4.2999999999999995e-05</iyy>
+          <izz>3.2000000000000005e-05</izz>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyz>0</iyz>
+        </inertia>
+      </inertial>
+      <visual name="nacelle_3_visual">
+        <geometry>
+          <mesh>
+            <uri>model://rocket_racing_quad/meshes/nacelle.stl</uri>
+          </mesh>
+        </geometry>
+        <material>
+          <ambient>0.16 0.18 0.21 1</ambient>
+          <diffuse>0.24 0.29 0.34 1</diffuse>
+        </material>
+      </visual>
+      <collision name="nacelle_3_collision">
+        <geometry>
+          <cylinder>
+            <radius>0.04</radius>
+            <length>0.09</length>
+          </cylinder>
+        </geometry>
+      </collision>
+      <visual name="motor_shaft_3_visual">
+        <pose>0 0 -0.048 0 0 0</pose>
+        <geometry>
+          <cylinder>
+            <radius>0.006</radius>
+            <length>0.006000000000000005</length>
+          </cylinder>
+        </geometry>
+      </visual>
+      <collision name="motor_shaft_3_collision">
+        <pose>0 0 -0.048 0 0 0</pose>
+        <geometry>
+          <cylinder>
+            <radius>0.006</radius>
+            <length>0.006000000000000005</length>
+          </cylinder>
+        </geometry>
+      </collision>
+    </link>
+    <joint name="nacelle_3_joint" type="fixed">
+      <parent>base_link</parent>
+      <child>nacelle_3</child>
+    </joint>
+    <link name="rotor_3">
+      <pose>-0.1347038418 -0.1347038418 -0.185 0 0 0</pose>
+      <inertial>
+        <mass>0.025</mass>
+        <inertia>
+          <ixx>0.00010090833333333334</ixx>
+          <iyy>0.00010090833333333334</iyy>
+          <izz>0.00020161250000000003</izz>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyz>0</iyz>
+        </inertia>
+      </inertial>
+      <visual name="rotor_3_visual">
+        <geometry>
+          <mesh>
+            <uri>model://rocket_racing_quad/meshes/propeller_10in.stl</uri>
+          </mesh>
+        </geometry>
+        <material>
+          <ambient>0.16 0.18 0.21 1</ambient>
+          <diffuse>0.24 0.29 0.34 1</diffuse>
+        </material>
+      </visual>
+      <collision name="rotor_3_collision">
+        <geometry>
+          <cylinder>
+            <radius>0.127</radius>
+            <length>0.007</length>
+          </cylinder>
+        </geometry>
+      </collision>
+    </link>
+    <joint name="rotor_3_joint" type="revolute">
+      <parent>base_link</parent>
+      <child>rotor_3</child>
+      <axis>
+        <xyz>0 0 1</xyz>
+        <limit>
+          <lower>-1e16</lower>
+          <upper>1e16</upper>
+        </limit>
+      </axis>
+    </joint>
+    <plugin filename="gz-sim-multicopter-motor-model-system" name="gz::sim::systems::MulticopterMotorModel">
+      <jointName>rotor_3_joint</jointName>
+      <linkName>rotor_3</linkName>
+      <turningDirection>cw</turningDirection>
+      <commandSubTopic>command/motor_speed</commandSubTopic>
+      <motorNumber>3</motorNumber>
+      <motorType>velocity</motorType>
+      <maxRotVelocity>1250</maxRotVelocity>
+      <motorConstant>1.9e-05</motorConstant>
+      <momentConstant>0.02</momentConstant>
+      <timeConstantUp>0.0125</timeConstantUp>
+      <timeConstantDown>0.025</timeConstantDown>
+      <rotorDragCoefficient>0.00012</rotorDragCoefficient>
+      <rollingMomentCoefficient>1e-06</rollingMomentCoefficient>
+      <rotorVelocitySlowdownSim>10</rotorVelocitySlowdownSim>
+    </plugin>
+    <plugin filename="gz-sim-advanced-lift-drag-system" name="gz::sim::systems::AdvancedLiftDrag">
+      <link_name>base_link</link_name>
+      <air_density>1.225</air_density>
+      <forward>0 0 1</forward>
+      <upward>1 0 0</upward>
+      <CL0>0</CL0>
+      <CLa>0</CLa>
+      <CD0>0.73</CD0>
+      <alpha_stall>1.5707963267948966</alpha_stall>
+      <AR>1</AR>
+      <eff>1</eff>
+      <area>0.0177</area>
+      <cp>0 0 0</cp>
+    </plugin>
+  </model>
+</sdf>

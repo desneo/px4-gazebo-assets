@@ -115,6 +115,7 @@ std::pair<bool, std::string> GimbalControl::StartTracking(
 void GimbalControl::Stop()
 {
   mode_ = Mode::IDLE;
+  public_manual_ = public_axis_target_ = false;
   track_state_ = TrackState::IDLE;
   target_valid_ = false;
   has_box_ = false;
@@ -136,6 +137,7 @@ void GimbalControl::Manual(double _yawDps, double _pitchDps, double _rollDps)
   if (mode_ != Mode::MANUAL)
     Stop();
   has_manual_time_ = false;
+  public_manual_ = false;
   mode_ = Mode::MANUAL;
   track_state_ = TrackState::IDLE;
   target_valid_ = false;
@@ -158,17 +160,116 @@ void GimbalControl::GoHome()
   mode_ = Mode::HOME;
   track_state_ = TrackState::IDLE;
   target_valid_ = false;
-  home_target_ = {0.0, 0.0, 0.0};
+  SetWorldDirectionTarget({0.0, 0.0, 1.0});
 }
 
-void GimbalControl::GoLevelForward()
+bool GimbalControl::GoLevelForward(const JointSample &_js)
 {
+  std::array<double,3> joints;
+  if(!SolvePublicTarget({0,0,0},_js,joints)) return false;
   Stop();
-  mode_ = Mode::HOME;
-  track_state_ = TrackState::IDLE;
-  target_valid_ = false;
-  const double az_fwd = cfg_.forward_az_deg * M_PI / 180.0;
-  home_target_ = {WrapPi(M_PI - az_fwd), -M_PI / 2.0, 0.0};
+  mode_=Mode::HOME;
+  home_target_=joints;
+  return true;
+}
+
+bool GimbalControl::ManualPublic(double yaw,double pitch,double roll,const JointSample &js)
+{
+  std::array<double,3> rates;
+  if(!PublicRatesToJoint(js.yaw,js.roll,js.pitch,cfg_.mount_world_rotation,
+      cfg_.sensor_rotation,cfg_.forward_az_deg*M_PI/180.,{yaw,pitch,roll},rates))
+  {
+    WatchdogStop();
+    client_message_="公共Euler姿态处于奇异区，yaw/roll控制已停止；请先调整pitch";
+    return false;
+  }
+  Manual(yaw,pitch,roll);
+  public_manual_=true;
+  return true;
+}
+
+bool GimbalControl::SolvePublicTarget(const std::array<double,3> &a,
+    const JointSample &js,std::array<double,3> &out) const
+{
+  const Mat3 reference=MatMul(Rz(cfg_.forward_az_deg*M_PI/180.),Rx(M_PI));
+  const Mat3 target=MatMul(Rz(a[0]),MatMul(Ry(a[1]),Rx(a[2])));
+  const Mat3 joint=MatMul(Transpose(cfg_.mount_world_rotation),
+    MatMul(reference,MatMul(target,MatMul(Rx(M_PI),Transpose(cfg_.sensor_rotation)))));
+  const double b=std::asin(Clamp(joint.m[2][1],-1.,1.));
+  const double az=std::atan2(-joint.m[0][1],joint.m[1][1]);
+  const double pitch=std::atan2(-joint.m[2][0],joint.m[2][2]);
+  double best=1e30;
+  for(const auto &candidate : {std::array<double,3>{-az,pitch,-b},
+      std::array<double,3>{-az-M_PI,pitch+M_PI,b-M_PI}})
+  {
+    const double y=js.yaw+WrapPi(candidate[0]-js.yaw);
+    const double p=WrapPi(candidate[1]),r=WrapPi(candidate[2]);
+    constexpr double rad=180./M_PI;
+    if(p*rad < cfg_.pitch_min_deg+cfg_.limit_margin_deg-1e-8 ||
+       p*rad > cfg_.pitch_max_deg-cfg_.limit_margin_deg+1e-8 ||
+       r*rad < cfg_.roll_min_deg+cfg_.limit_margin_deg-1e-8 ||
+       r*rad > cfg_.roll_max_deg-cfg_.limit_margin_deg+1e-8) continue;
+    const double cost=(y-js.yaw)*(y-js.yaw)+(p-js.pitch)*(p-js.pitch)+(r-js.roll)*(r-js.roll);
+    if(cost<best) { best=cost;out={y,p,r}; }
+  }
+  return best<1e29;
+}
+
+bool GimbalControl::ResetAxis(const std::string &axis,const JointSample &js)
+{
+  if(axis!="yaw" && axis!="pitch" && axis!="roll") return false;
+  const Mat3 rotation=PublicRotation(js.yaw,js.roll,js.pitch,cfg_.mount_world_rotation,
+      cfg_.sensor_rotation,cfg_.forward_az_deg*M_PI/180.);
+  if(PublicSingular(rotation) && axis!="pitch") return false;
+  const auto current=PublicAngles(rotation);
+  auto target=current;
+  const int index=axis=="yaw"?0:axis=="pitch"?1:2;
+  target[index]=0;
+  std::array<double,3> joints;
+  for(int i=1;i<=24;++i)
+  {
+    auto intermediate=current;
+    intermediate[index]=current[index]*(1.-i/24.);
+    if(!SolvePublicTarget(intermediate,js,joints)) return false;
+  }
+  Stop();
+  mode_=Mode::HOME;
+  home_target_=joints;
+  public_target_=target;
+  public_axis_target_=true;
+  return true;
+}
+
+void GimbalControl::SetWorldDirectionTarget(const Vec3 &_direction)
+{
+  // R_world_mount 的转置将世界目标转换到安装系。
+  const Mat3 &r = cfg_.mount_world_rotation;
+  const Vec3 local{r.m[0][0] * _direction.x + r.m[1][0] * _direction.y + r.m[2][0] * _direction.z,
+                   r.m[0][1] * _direction.x + r.m[1][1] * _direction.y + r.m[2][1] * _direction.z,
+                   r.m[0][2] * _direction.x + r.m[1][2] * _direction.y + r.m[2][2] * _direction.z};
+  const auto azEl = AzElFromDir(local);
+  const auto ik = IkUp(azEl.first, azEl.second);
+  const double lo = (cfg_.pitch_min_deg + cfg_.limit_margin_deg) * M_PI / 180.0;
+  const double hi = (cfg_.pitch_max_deg - cfg_.limit_margin_deg) * M_PI / 180.0;
+  std::array<double, 3> best{0.0, Clamp(ik.second, lo, hi), 0.0};
+  double bestError = 10.0;
+  // 两个零 roll 逆解分支都考虑，避免把可达方向误判成限位。
+  for (const auto &candidate : {std::pair<double, double>{ik.first, ik.second},
+                                std::pair<double, double>{ik.first + M_PI, -ik.second}})
+  {
+    const double yaw = WrapPi(candidate.first);
+    const double pitch = Clamp(candidate.second, lo, hi);
+    const double error = AngleBetween(LosMount(yaw, 0.0, pitch), local);
+    if (error < bestError)
+    {
+      best = {yaw, pitch, 0.0};
+      bestError = error;
+    }
+  }
+  // 天顶方向 yaw 不影响视线，使用零位避免无意义的半圈转动。
+  if (std::hypot(local.x, local.y) < 1e-9 && local.z > 0)
+    best[0] = 0.0;
+  home_target_ = best;
 }
 
 void GimbalControl::ResetFault()
@@ -187,6 +288,33 @@ void GimbalControl::TargetCmdFromTracking()
 
 void GimbalControl::TargetCmdHome(double _yaw, double _pitch, double _roll)
 {
+  if(public_axis_target_)
+  {
+    const Mat3 rotation=PublicRotation(_yaw,_roll,_pitch,cfg_.mount_world_rotation,
+        cfg_.sensor_rotation,cfg_.forward_az_deg*M_PI/180.);
+    const auto angles=PublicAngles(rotation);
+    std::array<double,3> rates{};
+    bool done=true;
+    for(int i=0;i<3;++i)
+    {
+      const double error=i==1?public_target_[i]-angles[i]:WrapPi(public_target_[i]-angles[i]);
+      rates[i]=Clamp(error*60.,-40.,40.);
+      if(std::abs(error)>0.5*M_PI/180.) done=false;
+    }
+    if(PublicSingular(rotation)) rates[0]=rates[2]=0;
+    if(done) { mode_=Mode::IDLE;raw_cmd_={0,0,0};public_axis_target_=false;return; }
+    if(!PublicRatesToJoint(_yaw,_roll,_pitch,cfg_.mount_world_rotation,cfg_.sensor_rotation,
+        cfg_.forward_az_deg*M_PI/180.,rates,raw_cmd_))
+    {
+      WatchdogStop();
+      client_message_="公共Euler姿态进入奇异区，复位已停止";
+      return;
+    }
+    double scale=1.;
+    for(double v:raw_cmd_) scale=std::max(scale,std::abs(v)/40.);
+    for(double &v:raw_cmd_) v/=scale;
+    return;
+  }
   const double k = 60.0;  // dps per rad
   constexpr double kRad2Deg = 180.0 / M_PI;
   const double dyaw = WrapPi(home_target_[0] - _yaw);
@@ -338,7 +466,9 @@ void GimbalControl::UpdateMeasurement(double _now, const cv::Mat &_bgr,
     ++invalid_frames_;
     return;
   }
-  auto [valid, box] = tracker_.Update(_bgr);
+  // 丢失后只用遮挡前保存的模板确认目标，避免失效跟踪器接受遮挡物。
+  auto [valid, box] = track_state_ == TrackState::TEMP_LOST ?
+      std::pair<bool, Box>{false, Box{}} : tracker_.Update(_bgr);
   if (!valid && (track_state_ == TrackState::INIT ||
                  track_state_ == TrackState::TEMP_LOST) && TryReacquire(_bgr))
   {
@@ -353,14 +483,15 @@ void GimbalControl::UpdateMeasurement(double _now, const cv::Mat &_bgr,
     ++valid_frames_;
     const Vec3 d_s =
         PixelToSensorRay(box.Cx(), box.Cy(), _width, _height);
-    auto [az, el] = SensorRayToAzEl(d_s, _yaw, _roll, _pitch);
-    const Vec3 d_cam = LosMount(_yaw, _roll, _pitch);
+    const Mat3 rSensor=MatMul(RMountCamera(_yaw,_roll,_pitch),cfg_.sensor_rotation);
+    auto [az, el] = AzElFromDir(MatVec(rSensor,d_s));
+    const Vec3 d_cam = MatVec(rSensor,{1,0,0});
     auto [az_cam, el_cam] = AzElFromDir(d_cam);
     const double az_err = WrapPi(az - az_cam);
     const double el_err = el - el_cam;
     measure_az_ = az;
     measure_el_ = el;
-    const Vec3 d_t = MatVec(RMountSensor(_yaw, _roll, _pitch), d_s);
+    const Vec3 d_t = MatVec(rSensor, d_s);
     center_err_deg_ = AngleBetween(d_cam, d_t) * 180.0 / M_PI;
 
     if (track_state_ == TrackState::INIT ||
@@ -428,7 +559,7 @@ void GimbalControl::UpdateMeasurement(double _now, const cv::Mat &_bgr,
     else if (track_state_ == TrackState::TEMP_LOST)
     {
       const double since = has_lost_since_ ? lost_since_ : _watchdogNow;
-      if (_watchdogNow - since >= cfg_.temp_lost_timeout_s)
+      if (_watchdogNow - since >= cfg_.occlusion_timeout_s)
         track_state_ = TrackState::LOST;
     }
   }
@@ -475,7 +606,7 @@ std::array<double, 3> GimbalControl::Step(double _now, bool _newFrame,
         (track_state_ == TrackState::INIT &&
          watchdog_now - init_started_ >= cfg_.temp_lost_timeout_s) ||
         (track_state_ == TrackState::TEMP_LOST && has_lost_since_ &&
-         watchdog_now - lost_since_ >= cfg_.temp_lost_timeout_s))
+         watchdog_now - lost_since_ >= cfg_.occlusion_timeout_s))
     {
       track_state_ = TrackState::LOST;
       target_valid_ = false;
@@ -505,7 +636,17 @@ std::array<double, 3> GimbalControl::Step(double _now, bool _newFrame,
   if (mode_ == Mode::TRACK)
     TargetCmdFromTracking();
   else if (mode_ == Mode::MANUAL)
-    raw_cmd_ = manual_cmd_;
+  {
+    raw_cmd_=manual_cmd_;
+    if(public_manual_ && !PublicRatesToJoint(_js.yaw,_js.roll,_js.pitch,
+        cfg_.mount_world_rotation,cfg_.sensor_rotation,cfg_.forward_az_deg*M_PI/180.,
+        manual_cmd_,raw_cmd_))
+    {
+      WatchdogStop();
+      client_message_="公共Euler姿态处于奇异区，yaw/roll控制已停止；请先调整pitch";
+      safety_stop=true;
+    }
+  }
   else if (mode_ == Mode::HOME)
     TargetCmdHome(_js.yaw, _js.pitch, _js.roll);
   else

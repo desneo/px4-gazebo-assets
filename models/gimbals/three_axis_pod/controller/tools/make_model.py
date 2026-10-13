@@ -26,6 +26,7 @@ PLUGIN_BLOCK = """    <!-- 三轴云台插件：图像跟踪 + 视觉伺服 + �
       <yaw_joint>cgo3_vertical_arm_joint</yaw_joint>
       <pitch_joint>cgo3_camera_joint</pitch_joint>
       <roll_joint>cgo3_horizontal_arm_joint</roll_joint>
+      <mount_link>cgo3_mount_link</mount_link>
       <camera_link>camera_link</camera_link>
       <camera_sensor>camera</camera_sensor>
       <command_topic>/gimbal/command</command_topic>
@@ -36,6 +37,7 @@ PLUGIN_BLOCK = """    <!-- 三轴云台插件：图像跟踪 + 视觉伺服 + �
       <max_rate_dps>100</max_rate_dps>
       <max_acc_dps2>160</max_acc_dps2>
       <forward_az_deg>0</forward_az_deg>
+      <mount_mode>skyward</mount_mode>
     </plugin>
   </model>
 </sdf>

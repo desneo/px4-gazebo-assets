@@ -23,6 +23,8 @@
 #include <gz/msgs/stringmsg.pb.h>
 #include <gz/plugin/Register.hh>
 #include <gz/sim/Model.hh>
+#include <gz/sim/Link.hh>
+#include <gz/sim/components/Camera.hh>
 #include <gz/sim/System.hh>
 #include <gz/sim/Util.hh>
 #include <gz/sim/components/JointPosition.hh>
@@ -92,11 +94,14 @@ class GimbalController : public gz::sim::System,
   // SDF 配置
   ControlConfig cfg_;
   AxisJoints axes_;
+  std::string mountLinkName_{"cgo3_mount_link"};
   std::string linkName_{"camera_link"};
   std::string sensorName_{"camera"};
   std::string commandTopic_{"/gimbal/command"};
   std::string telemetryTopic_{"/gimbal/telemetry"};
   std::string resultTopic_{"/gimbal/command_result"};
+  std::string mountMode_{"skyward"};
+  Mat3 mountWorldRotation_;
   double controlHz_{100.0};
   double telemetryHz_{50.0};
 
@@ -127,10 +132,16 @@ class GimbalController : public gz::sim::System,
   double startTime_{-1.0};
   double controlAccum_{0.0};
   double telemetryAccum_{0.0};
+  bool configured_{false};
   bool jointsInitialized_{false};
   std::array<double, 3> lastCmd_{{0.0, 0.0, 0.0}};
 
   // 关节遥测（角加速度平滑）
+  std::array<double,3> previousPublicRates_{};
+  double previousPublicTime_{0.0};
+  bool previousPublicValid_{false};
+  JointSample latestJointSample_;
+  bool hasJointSample_{false};
   JointSample prevJs_;
   bool hasPrevJs_{false};
   std::array<double, 3> accel_{{0.0, 0.0, 0.0}};
@@ -154,6 +165,7 @@ void GimbalController::Configure(
   axes_.names[0] = getStr("yaw_joint", axes_.names[0]);
   axes_.names[1] = getStr("pitch_joint", axes_.names[1]);
   axes_.names[2] = getStr("roll_joint", axes_.names[2]);
+  mountLinkName_ = getStr("mount_link", mountLinkName_);
   linkName_ = getStr("camera_link", linkName_);
   sensorName_ = getStr("camera_sensor", sensorName_);
   commandTopic_ = getStr("command_topic", commandTopic_);
@@ -161,6 +173,42 @@ void GimbalController::Configure(
   resultTopic_ = getStr("command_result_topic", resultTopic_);
   controlHz_ = std::max(1.0, getDouble("control_rate", controlHz_));
   telemetryHz_ = std::max(1.0, getDouble("telemetry_rate", telemetryHz_));
+
+  mountMode_ = getStr("mount_mode", mountMode_);
+  if (mountMode_ != "skyward" && mountMode_ != "downward")
+  {
+    gzerr << "[gimbal] mount_mode 必须为 skyward 或 downward，插件禁用\n";
+    return;
+  }
+  // 固定安装外参包括嵌套模型姿态；初始化后保持不变。
+  gz::sim::Model model(this->modelEntity_);
+  const auto mountEntity = model.LinkByName(_ecm, mountLinkName_);
+  if (mountEntity == gz::sim::kNullEntity)
+  {
+    gzerr << "[gimbal] 未找到安装 link [" << mountLinkName_ << "]，插件禁用\n";
+    return;
+  }
+  const auto staticRotation = gz::sim::worldPose(mountEntity, _ecm).Rot();
+  mountWorldRotation_ = MatMul(Rz(staticRotation.Yaw()),
+      MatMul(Ry(staticRotation.Pitch()), Rx(staticRotation.Roll())));
+  cfg_.mount_world_rotation = mountWorldRotation_;
+  const double expectedVertical = mountMode_ == "skyward" ? 1.0 : -1.0;
+  if (mountWorldRotation_.m[2][2] * expectedVertical < .99)
+    gzwarn << "[gimbal] mount_mode=" << mountMode_
+           << " 与实际静态安装姿态不一致；请同步模型 pose。控制和遥测使用实际外参\n";
+
+  const auto cameraLinkEntity=model.LinkByName(_ecm,linkName_);
+  gz::sim::Link cameraLink(cameraLinkEntity);
+  const auto sensorEntity=cameraLink.SensorByName(_ecm,sensorName_);
+  if(cameraLinkEntity==gz::sim::kNullEntity || sensorEntity==gz::sim::kNullEntity ||
+     !_ecm.Component<gz::sim::components::Camera>(sensorEntity))
+  {
+    gzerr << "[gimbal] 未找到实际相机sensor，插件禁用\n";
+    return;
+  }
+  const auto optical=(gz::sim::worldPose(cameraLinkEntity,_ecm).Rot().Inverse()*
+      gz::sim::worldPose(sensorEntity,_ecm).Rot());
+  cfg_.sensor_rotation=MatMul(Rz(optical.Yaw()),MatMul(Ry(optical.Pitch()),Rx(optical.Roll())));
 
   cfg_.max_rate_dps = getDouble("max_rate_dps", cfg_.max_rate_dps);
   cfg_.max_acc_dps2 = getDouble("max_acc_dps2", cfg_.max_acc_dps2);
@@ -174,10 +222,11 @@ void GimbalController::Configure(
   cfg_.roll_max_deg = getDouble("roll_max_deg", cfg_.roll_max_deg);
   cfg_.temp_lost_timeout_s =
       getDouble("temp_lost_timeout_s", cfg_.temp_lost_timeout_s);
+  cfg_.occlusion_timeout_s =
+      getDouble("occlusion_timeout_s", cfg_.occlusion_timeout_s);
   control_.Configure(cfg_);
 
   // ---------------- 实体与关节 ----------------
-  gz::sim::Model model(this->modelEntity_);
   for (std::size_t i = 0; i < 3; ++i)
   {
     const auto j = model.JointByName(_ecm, axes_.names[i]);
@@ -218,6 +267,7 @@ void GimbalController::Configure(
   this->resultPub_ =
       this->node_.Advertise<gz::msgs::StringMsg>(resultTopic_);
 
+  configured_=true;
   gzmsg << "[gimbal] 插件已配置: 模型=" << modelName << " 图像=" << imageTopic
         << " 指令=" << commandTopic_ << " 遥测=" << telemetryTopic_
         << " 控制=" << controlHz_ << "Hz\n";
@@ -355,9 +405,30 @@ void GimbalController::OnCommand(const gz::msgs::StringMsg &_msg)
   else if (cmd == "reset")
   {
     std::lock_guard<std::mutex> lock(this->ctrlMutex_);
-    this->control_.Stop();
-    this->control_.ResetFault();
-    this->control_.GoLevelForward();
+    if(!this->control_.GoLevelForward(this->latestJointSample_))
+    { reply(false,"公共水平前向零姿态超出机械安全范围，请检查安装与光学标定");return; }
+    reply(true, "");
+  }
+  else if (cmd == "reset_axis")
+  {
+    const json::Value *axisV = v.Find("axis");
+    const std::string axis = axisV ? axisV->AsStr() : "";
+    if (axis != "yaw" && axis != "pitch" && axis != "roll")
+    {
+      reply(false, "axis 必须为 yaw、pitch 或 roll");
+      return;
+    }
+    std::lock_guard<std::mutex> lock(this->ctrlMutex_);
+    if (!this->hasJointSample_)
+    {
+      reply(false, "尚无关节采样");
+      return;
+    }
+    if (!this->control_.ResetAxis(axis, this->latestJointSample_))
+    {
+      reply(false, "公共轴零姿态或保持路径不可达，或yaw/roll处于Euler奇异区");
+      return;
+    }
     reply(true, "");
   }
   else if (cmd == "manual")
@@ -376,7 +447,10 @@ void GimbalController::OnCommand(const gz::msgs::StringMsg &_msg)
       return x ? x->AsNum() : 0.0;
     };
     std::lock_guard<std::mutex> lock(this->ctrlMutex_);
-    this->control_.Manual(num("yaw"), num("pitch"), num("roll"));
+    if(!this->hasJointSample_)
+    { reply(false,"尚无关节采样");return; }
+    if(!this->control_.ManualPublic(num("yaw"),num("pitch"),num("roll"),this->latestJointSample_))
+    { reply(false,this->control_.client_message());return; }
     this->manualReceived_ = std::chrono::steady_clock::now();
   }
   else if (cmd == "reset_fault")
@@ -397,7 +471,7 @@ void GimbalController::OnCommand(const gz::msgs::StringMsg &_msg)
 void GimbalController::PreUpdate(const gz::sim::UpdateInfo &_info,
                                  gz::sim::EntityComponentManager &_ecm)
 {
-  if (_info.paused || this->modelEntity_ == gz::sim::kNullEntity)
+  if (!configured_ || _info.paused || this->modelEntity_ == gz::sim::kNullEntity)
     return;
 
   const double now =
@@ -420,6 +494,12 @@ void GimbalController::PreUpdate(const gz::sim::UpdateInfo &_info,
             _ecm.Component<gz::sim::components::JointVelocity>(jointEntities_[i]))
       if (!v->Data().empty())
         *vel[i] = v->Data()[0];
+  }
+
+  {
+    std::lock_guard<std::mutex> lock(this->ctrlMutex_);
+    this->latestJointSample_ = js;
+    this->hasJointSample_ = true;
   }
 
   // 角加速度（平滑）
@@ -540,15 +620,37 @@ void GimbalController::PublishTelemetry(double _now, const JointSample &_js,
 
   const double yawDeg = _js.yaw * kRad2Deg;
   const double yawDevDeg = WrapPi(_js.yaw - M_PI) * kRad2Deg;
-  const Mat3 rCam = RMountSensor(_js.yaw, _js.roll, _js.pitch);
+  const Mat3 rCam = MatMul(RMountCamera(_js.yaw, _js.roll, _js.pitch),cfg_.sensor_rotation);
   const auto qBody = QuatFromR(rCam);
   const auto rpyBody = RToRpyDeg(rCam);
+  const auto rWorld = MatMul(mountWorldRotation_, rCam);
+  const auto qWorld = QuatFromR(rWorld);
+  const auto qMount = QuatFromR(mountWorldRotation_);
+  const auto rpyWorld = RToRpyDeg(rWorld);
+
+  const Mat3 publicRotation=PublicRotation(_js.yaw,_js.roll,_js.pitch,
+      mountWorldRotation_,cfg_.sensor_rotation,cfg_.forward_az_deg*kDeg2Rad);
+  const auto publicAngles=PublicAngles(publicRotation);
+  const auto publicQuat=QuatFromR(publicRotation);
+  const bool singular=PublicSingular(publicRotation);
+  std::array<double,3> publicRates{},publicAccel{};
+  const bool publicValid=JointRatesToPublic(_js.yaw,_js.roll,_js.pitch,
+      mountWorldRotation_,cfg_.sensor_rotation,cfg_.forward_az_deg*kDeg2Rad,
+      {_js.yaw_vel,_js.pitch_vel,_js.roll_vel},publicRates);
+  if(publicValid && previousPublicValid_ && _now>previousPublicTime_)
+    for(int i=0;i<3;++i) publicAccel[i]=(publicRates[i]-previousPublicRates_[i])/(_now-previousPublicTime_);
+  previousPublicRates_=publicRates;
+  previousPublicTime_=_now;
+  previousPublicValid_=publicValid;
 
   const auto &lf = c.limit_flags();
   const auto &cmd = c.cmd();
 
   std::ostringstream os;
   os << "{\"type\":\"telemetry\",\"source\":\"gazebo_plugin\""
+     << ",\"mount\":{\"mode\":\"" << mountMode_ << "\",\"static\":true,\"quat_world\":["
+     << Num(qMount[0], 6) << "," << Num(qMount[1], 6) << ","
+     << Num(qMount[2], 6) << "," << Num(qMount[3], 6) << "]}"
      << ",\"ts_mono\":" << Num(_now, 6)
      << ",\"sim_uptime\":" << Num(_now - this->startTime_, 1)
      << ",\"mode\":\"" << ToString(c.mode()) << "\""
@@ -588,6 +690,15 @@ void GimbalController::PublishTelemetry(double _now, const JointSample &_js,
   }
   os << "}";
 
+  os << ",\"angle_convention\":\"px4_frd\",\"attitude_deg\":{\"singular\":" << (singular?"true":"false");
+  const char *publicNames[3]={"yaw","pitch","roll"};
+  for(int i=0;i<3;++i)
+    os << ",\"" << publicNames[i] << "\":{\"pos\":" << Num(publicAngles[i]*kRad2Deg,3)
+       << ",\"vel\":" << (publicValid?Num(publicRates[i]*kRad2Deg,3):"null")
+       << ",\"acc\":" << (publicValid?Num(publicAccel[i]*kRad2Deg,3):"null") << "}";
+  os << "},\"attitude_quat_frd\":[" << Num(publicQuat[0],6) << "," << Num(publicQuat[1],6)
+     << "," << Num(publicQuat[2],6) << "," << Num(publicQuat[3],6) << "]";
+
   os << ",\"joints_deg\":{"
      << "\"yaw\":{\"pos\":" << Num(yawDevDeg, 3)
      << ",\"pos_raw\":" << Num(yawDeg, 3)
@@ -604,10 +715,10 @@ void GimbalController::PublishTelemetry(double _now, const JointSample &_js,
      << Num(qBody[1], 6) << "," << Num(qBody[2], 6) << "," << Num(qBody[3], 6)
      << "],\"rpy_body_deg\":[" << Num(rpyBody[0], 3) << ","
      << Num(rpyBody[1], 3) << "," << Num(rpyBody[2], 3)
-     << "],\"quat_world\":[" << Num(qBody[0], 6) << "," << Num(qBody[1], 6)
-     << "," << Num(qBody[2], 6) << "," << Num(qBody[3], 6)
-     << "],\"rpy_world_deg\":[" << Num(rpyBody[0], 3) << ","
-     << Num(rpyBody[1], 3) << "," << Num(rpyBody[2], 3)
+     << "],\"quat_world\":[" << Num(qWorld[0], 6) << "," << Num(qWorld[1], 6)
+     << "," << Num(qWorld[2], 6) << "," << Num(qWorld[3], 6)
+     << "],\"rpy_world_deg\":[" << Num(rpyWorld[0], 3) << ","
+     << Num(rpyWorld[1], 3) << "," << Num(rpyWorld[2], 3)
      << "],\"frame_seq\":" << this->meanSeq_ << "}";
 
   os << ",\"limits\":{\"yaw\":" << (lf[0] ? "true" : "false")

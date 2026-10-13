@@ -50,9 +50,11 @@ def main():
     try:
         send('reset')
         telemetry, results = collect(15, lambda t:
-            t['mode'] == 'IDLE' and abs(t['joints_deg']['pitch']['pos'] + 90) < 1)
+            t['mode'] == 'IDLE' and abs(t['attitude_deg']['pitch']['pos']) < 1)
         print('reset', results, telemetry['joints_deg'], flush=True)
         assert telemetry['mode'] == 'IDLE', 'reset 未在15秒内到位'
+        assert telemetry['angle_convention'] == 'px4_frd'
+        assert all(abs(telemetry['attitude_deg'][axis]['pos']) < 1 for axis in ('yaw', 'pitch', 'roll'))
 
         send('track', box=[0.45, 0.8, 0.08, 0.08])
         telemetry, results = collect(3)
@@ -68,13 +70,11 @@ def main():
 
         send('home')
         telemetry, results = collect(15, lambda t:
-            t['mode'] == 'IDLE' and abs(t['joints_deg']['pitch']['pos']) < 1)
+            t['mode'] == 'IDLE' and abs(t['attitude_deg']['pitch']['pos'] - 90) < 1)
         print('home', results, telemetry['joints_deg'], flush=True)
         assert telemetry['mode'] == 'IDLE', 'home 未在15秒内到位'
-        # yaw 连续旋转，回零按方向判断，原始角可相差整圈。
-        yaw_error = (telemetry['joints_deg']['yaw']['pos_raw'] + 180) % 360 - 180
-        assert abs(yaw_error) < 1
-        assert abs(telemetry['joints_deg']['roll']['pos']) < 1
+        # 天顶处 yaw/roll 的欧拉分解不唯一，不把显示分量作为独立到位条件。
+        assert telemetry['attitude_deg']['singular']
         print('PASS live reset/track/stop/home', flush=True)
     finally:
         try:

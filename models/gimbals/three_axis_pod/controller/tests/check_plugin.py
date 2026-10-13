@@ -25,7 +25,14 @@ def main():
     model.set('name', 'watchdog_pod')
     for link in model.findall('link'):
         for sensor in link.findall('sensor'):
-            link.remove(sensor)
+            if sensor.get('name') == 'camera':
+                topic = sensor.find('topic')
+                if topic is None:
+                    topic = ET.SubElement(sensor, 'topic')
+                topic.text = '/watchdog/unused_camera'
+                sensor.find('update_rate').text = '0.01'
+            else:
+                link.remove(sensor)
     joint = ET.SubElement(model, 'joint', name='test_anchor', type='fixed')
     ET.SubElement(joint, 'parent').text = 'world'
     ET.SubElement(joint, 'child').text = 'cgo3_mount_link'
@@ -95,8 +102,9 @@ def main():
             print('PASS plugin request_id echo and correlated validation errors', flush=True)
 
             started = time.monotonic()
-            send('manual', yaw=30)
-            wait_for(lambda: telemetry[-1][1]['cmd_dps']['yaw'] > 0)
+            # 初始镜头在天顶，只有公共 pitch 能确定地离开欧拉奇异区。
+            send('manual', pitch=-30)
+            wait_for(lambda: abs(telemetry[-1][1]['cmd_dps']['pitch']) > 0)
             stopped = wait_for(lambda: telemetry[-1] if telemetry[-1][1]['mode'] == 'IDLE'
                                and telemetry[-1][1]['cmd_dps']['yaw'] == 0 else None)
             age = stopped[0] - started
@@ -131,6 +139,28 @@ def main():
                 publish_frame()
                 time.sleep(0.04)
             wait_for(lambda: telemetry[-1][1]['tracking']['state'] == 'TRACK')
+
+            target_pixels = frame.data
+            for cycle in range(2):
+                frame.data = bytes(320 * 240 * 3)
+                occlusion_started = time.monotonic()
+                while time.monotonic() - occlusion_started < 2.05:
+                    publish_frame()
+                    time.sleep(1 / 30)
+                temporary = wait_for(lambda: telemetry[-1] if
+                    telemetry[-1][1]['tracking']['state'] == 'TEMP_LOST' else None)
+                assert not temporary[1]['target']['valid']
+                assert all(v == 0 for v in temporary[1]['cmd_dps'].values())
+                frame.data = target_pixels
+                restored = time.monotonic()
+                while time.monotonic() - restored < 0.2:
+                    publish_frame()
+                    time.sleep(1 / 30)
+                wait_for(lambda: telemetry[-1][1]['tracking']['state'] == 'TRACK'
+                         and telemetry[-1][1]['target']['valid'])
+                print(f'PASS plugin occlusion {cycle + 1}: >2s continuous '
+                      'blank frames, stopped output and automatic recovery', flush=True)
+
             last_frame = time.monotonic()
             stale = wait_for(lambda: telemetry[-1] if
                              telemetry[-1][1]['tracking']['state'] == 'TEMP_LOST' else None)

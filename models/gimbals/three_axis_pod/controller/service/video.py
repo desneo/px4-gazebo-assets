@@ -1,7 +1,7 @@
 """视频服务：Gazebo 相机帧 -> NVENC 硬件 H.264 编码 -> RTP/UDP -> RTSP 中继。
 
 结构（两段式，避免 appsrc 与 GstRtspServer media 生命周期耦合）：
-  [编码管线] appsrc -> videoconvert -> nvh264enc -> rtph264pay -> udpsink 127.0.0.1:5600
+  [编码管线] appsrc -> videoconvert -> nvcudah264enc -> rtph264pay -> udpsink 127.0.0.1:5600
   [RTSP 服务] udpsrc 5600 -> rtph264depay -> rtph264pay(pay0) -> 客户端
 - 每帧左下角烧录 32bit 二进制序号（8bit 魔数 0xA5 + 24bit 帧序号），
   客户端解码该序号并按服务端发送的 (序号 -> 采样时刻) 表计算端到端时延。

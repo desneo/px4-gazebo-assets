@@ -68,7 +68,7 @@ const Mat3 &CamSensorRot()
   static const Mat3 kR = [] {
     Mat3 r;
     r.m[0][0] = 0.0; r.m[0][1] = 0.0; r.m[0][2] = 1.0;
-    r.m[1][0] = 0.0; r.m[1][1] = 1.0; r.m[1][2] = 0.0;
+    r.m[1][0] = 0.0; r.m[1][1] = -1.0; r.m[1][2] = 0.0;
     r.m[2][0] = 1.0; r.m[2][1] = 0.0; r.m[2][2] = 0.0;
     return r;
   }();
@@ -108,7 +108,7 @@ Vec3 PixelToSensorRay(double _px, double _py, int _width, int _height,
   const double f = (_width / 2.0) / std::tan(_hfov / 2.0);
   const double ax = std::atan((_px - _width / 2.0) / f);
   const double ay = std::atan((_py - _height / 2.0) / f);
-  Vec3 d{1.0, std::tan(ax), -std::tan(ay)};
+  Vec3 d{1.0, -std::tan(ax), -std::tan(ay)};
   const double n = std::sqrt(d.x * d.x + d.y * d.y + d.z * d.z);
   d.x /= n; d.y /= n; d.z /= n;
   return d;
@@ -192,6 +192,80 @@ double AngleBetween(const Vec3 &_a, const Vec3 &_b)
   double dot = _a.x * _b.x + _a.y * _b.y + _a.z * _b.z;
   dot = std::max(-1.0, std::min(1.0, dot));
   return std::acos(dot);
+}
+
+Mat3 Transpose(const Mat3 &_r)
+{
+  Mat3 t;
+  for (int i=0;i<3;++i) for(int j=0;j<3;++j) t.m[i][j]=_r.m[j][i];
+  return t;
+}
+
+Mat3 PublicRotation(double yaw, double roll, double pitch,
+                    const Mat3 &mount, const Mat3 &sensor, double forward)
+{
+  const Mat3 worldSensor = MatMul(mount, MatMul(RMountCamera(yaw,roll,pitch), sensor));
+  return MatMul(MatMul(Rx(M_PI), Rz(-forward)), MatMul(worldSensor, Rx(M_PI)));
+}
+
+std::array<double,3> PublicAngles(const Mat3 &r)
+{
+  const auto angles=RToRpyDeg(r);
+  return {angles[2]*M_PI/180., angles[1]*M_PI/180., angles[0]*M_PI/180.};
+}
+
+bool PublicSingular(const Mat3 &r)
+{
+  return std::hypot(r.m[0][0],r.m[1][0]) < std::sin(M_PI/180.);
+}
+
+namespace {
+Vec3 Cross(const Vec3 &a,const Vec3 &b)
+{ return {a.y*b.z-a.z*b.y,a.z*b.x-a.x*b.z,a.x*b.y-a.y*b.x}; }
+double Dot(const Vec3 &a,const Vec3 &b) { return a.x*b.x+a.y*b.y+a.z*b.z; }
+std::array<Vec3,3> JointAxes(double yaw,double roll,const Mat3 &mount)
+{
+  return {MatVec(mount,{0,0,-1}),
+    MatVec(MatMul(mount,MatMul(Rz(-yaw),Rx(-roll))),{0,1,0}),
+    MatVec(MatMul(mount,Rz(-yaw)),{-1,0,0})};
+}
+}
+
+bool PublicRatesToJoint(double yaw,double roll,double pitch,const Mat3 &mount,
+    const Mat3 &sensor,double forward,const std::array<double,3> &rates,std::array<double,3> &out)
+{
+  const Mat3 rotation=PublicRotation(yaw,roll,pitch,mount,sensor,forward);
+  if(PublicSingular(rotation) && (std::abs(rates[0])>1e-9 || std::abs(rates[2])>1e-9)) return false;
+  const auto angles=PublicAngles(rotation);
+  const Vec3 pitchAxis=MatVec(Rz(angles[0]),{0,1,0});
+  const Vec3 rollAxis=MatVec(MatMul(Rz(angles[0]),Ry(angles[1])),{1,0,0});
+  const Vec3 referenceOmega{rates[1]*pitchAxis.x+rates[2]*rollAxis.x,
+    rates[1]*pitchAxis.y+rates[2]*rollAxis.y,
+    rates[0]+rates[1]*pitchAxis.z+rates[2]*rollAxis.z};
+  const Vec3 omega=MatVec(MatMul(Rz(forward),Rx(M_PI)),referenceOmega);
+  const auto axes=JointAxes(yaw,roll,mount);
+  const double determinant=Dot(axes[0],Cross(axes[1],axes[2]));
+  if(std::abs(determinant)<1e-6) return false;
+  out={Dot(omega,Cross(axes[1],axes[2]))/determinant,
+       Dot(omega,Cross(axes[2],axes[0]))/determinant,
+       Dot(omega,Cross(axes[0],axes[1]))/determinant};
+  return true;
+}
+
+bool JointRatesToPublic(double yaw,double roll,double pitch,const Mat3 &mount,
+    const Mat3 &sensor,double forward,const std::array<double,3> &rates,std::array<double,3> &out)
+{
+  const Mat3 rotation=PublicRotation(yaw,roll,pitch,mount,sensor,forward);
+  if(PublicSingular(rotation)) return false;
+  const auto a=PublicAngles(rotation);
+  const auto axes=JointAxes(yaw,roll,mount);
+  Vec3 omega{};
+  for(int i=0;i<3;++i) { omega.x+=rates[i]*axes[i].x; omega.y+=rates[i]*axes[i].y; omega.z+=rates[i]*axes[i].z; }
+  const Vec3 body=MatVec(Transpose(MatMul(mount,MatMul(RMountCamera(yaw,roll,pitch),MatMul(sensor,Rx(M_PI))))),omega);
+  const double sr=std::sin(a[2]),cr=std::cos(a[2]),cp=std::cos(a[1]);
+  const double yawRate=(sr*body.y+cr*body.z)/cp;
+  out={yawRate,cr*body.y-sr*body.z,body.x+std::sin(a[1])*yawRate};
+  return true;
 }
 
 }  // namespace gimbal

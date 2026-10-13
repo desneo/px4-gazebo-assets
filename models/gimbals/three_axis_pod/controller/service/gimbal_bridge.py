@@ -59,7 +59,7 @@ RESULT_TIMEOUT = 30.0
 SESSION_RETENTION = 60.0
 
 # 直接透传给插件的指令（插件负责执行并回 command_result）
-PASSTHROUGH_CMDS = {"track", "stop", "home", "reset", "manual", "reset_fault"}
+PASSTHROUGH_CMDS = {"track", "stop", "home", "reset", "reset_axis", "manual", "reset_fault"}
 
 # x264 软编降级管线（NVENC 不可用时使用，使用本地 video 模块）
 X264_ENCODE_LAUNCH = (
@@ -218,7 +218,8 @@ class GimbalBridge:
             self.video = VideoStreamer(width, height,
                                        rtsp_port=self.args.rtsp_port,
                                        mount=self.args.mount,
-                                       bitrate_kbps=self.args.video_bitrate)
+                                       bitrate_kbps=self.args.video_bitrate,
+                                       udp_port=self.args.rtp_port)
             print(f"[video] RTSP 服务已启动 "
                   f"rtsp://0.0.0.0:{self.args.rtsp_port}{self.args.mount} "
                   f"({width}x{height}, encoder={self.args.encoder})",
@@ -307,7 +308,8 @@ class GimbalBridge:
             hello = {
                 "type": "hello",
                 "proto": "gimbal-udp",
-                "version": 1,
+                "version": 2,
+                "angle_convention": "px4_frd",
                 "clock_domain": self.clock_domain,
                 "telemetry_hz": self.args.telemetry_hz,
                 "video_rtsp_path": self.args.mount,
@@ -378,6 +380,15 @@ class GimbalBridge:
                 return
             cl.last_control_seq = seq
 
+        if cmd == "reset_axis":
+            axis = msg.get("axis")
+            if not isinstance(axis, str) or axis not in {"yaw", "pitch", "roll"}:
+                self._reply_and_cache(cl, seq, {"type": "command_result", "cmd": cmd,
+                    "ok": False, "message": "axis 必须为 yaw、pitch 或 roll"})
+                return
+            self._record_and_publish(cl, seq, {"cmd": cmd, "axis": axis})
+            return
+
         if cmd in {"track", "manual"}:
             try:
                 if cmd == "track":
@@ -406,6 +417,15 @@ class GimbalBridge:
                 self._reply_and_cache(cl, seq, {"type": "command_result", "cmd": cmd,
                                                 "ok": False, "message": str(exc)})
                 return
+            if cmd == "manual":
+                snap = self.snapshot()
+                singular = bool(snap and (snap.get("attitude_deg") or {}).get("singular"))
+                if singular and (out["yaw"] != 0 or out["roll"] != 0):
+                    self._record_and_publish(cl, seq,
+                        {"cmd": "manual", "yaw": 0.0, "pitch": 0.0, "roll": 0.0})
+                    self._reply_and_cache(cl, seq, {"type": "command_result", "cmd": cmd,
+                        "ok": False, "message": "天顶/天底欧拉角奇异，先用 pitch 离开极点"})
+                    return
             self._record_and_publish(cl, seq, out)
             return
 
@@ -426,7 +446,7 @@ class GimbalBridge:
     def _record_and_publish(self, cl: _Client, seq, out: dict):
         """使用网关唯一 ID 绑定会话、客户端 seq 和命令。"""
         self._expire_requests(time.monotonic())
-        needs_result = out["cmd"] in {"track", "stop", "home", "reset"}
+        needs_result = out["cmd"] in {"track", "stop", "home", "reset", "reset_axis"}
         if needs_result and len(self.pending_requests) >= MAX_PENDING:
             self._reply_and_cache(cl, seq, {"type": "command_result", "cmd": out["cmd"],
                                             "ok": False, "message": "等待回执队列已满，未执行"})
@@ -557,6 +577,8 @@ def main():
     parser.add_argument("--client-timeout", type=float, default=5.0,
                         help="客户端登记超时（秒，models/gimbals/three_axis_pod/docs/system.md）")
     parser.add_argument("--rtsp-port", type=int, default=8554)
+    parser.add_argument("--rtp-port", type=int, default=5600,
+                        help="本机编码器与 RTSP 中继之间的 RTP 端口；并行实例须使用不同端口")
     parser.add_argument("--mount", default="/gimbal")
     parser.add_argument("--video-bitrate", type=int, default=8000,
                         help="H.264 码率（kbps）")

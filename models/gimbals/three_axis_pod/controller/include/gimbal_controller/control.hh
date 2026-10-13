@@ -13,6 +13,7 @@
 #include <opencv2/core.hpp>
 
 #include "gimbal_controller/tracker.hh"
+#include "gimbal_controller/kinematics.hh"
 
 namespace gimbal {
 
@@ -54,6 +55,9 @@ struct ControlConfig
   double kd{0.10};
   double ff{1.0};
   double forward_az_deg{0.0};
+  // 固定安装外参；仅在初始化读取，不执行载机动态姿态补偿。
+  Mat3 mount_world_rotation;
+  Mat3 sensor_rotation{CamSensorRot()};
   double integral_limit{25.0};
   double pitch_min_deg{-135.0};
   double pitch_max_deg{45.0};
@@ -66,6 +70,8 @@ struct ControlConfig
   double manual_timeout_s{0.5};
   double frame_stop_timeout_s{0.5};
   double temp_lost_timeout_s{2.0};
+  // 连续视频中的视觉遮挡窗口；为完整 2 秒遮挡保留恢复帧调度余量。
+  double occlusion_timeout_s{2.5};
   double stable_enter_s{1.0};
   double stable_rms_deg{1.0};
   double unstable_rms_deg{2.0};
@@ -98,11 +104,15 @@ class GimbalControl
   void Stop();
   /// 超时保护立即清除输出，不经过加速度平滑。
   void WatchdogStop();
+  /// 内部机械轴速度入口；网络手动控制使用ManualPublic。
   void Manual(double _yawDps, double _pitchDps, double _rollDps);
   /// _now 与 Step 的 watchdog 时间使用相同时间源。
   void Manual(double _yawDps, double _pitchDps, double _rollDps, double _now);
   void GoHome();
-  void GoLevelForward();
+  bool GoLevelForward(const JointSample &_js = {});
+  bool ManualPublic(double _yawDps, double _pitchDps, double _rollDps, const JointSample &_js);
+  /// 指定轴回遥测显示零，其他轴保持采样角度；非法轴/不可达零位拒绝。
+  bool ResetAxis(const std::string &_axis, const JointSample &_js);
   void ResetFault();
 
   /// 执行一步控制；返回三轴速度指令（°/s，顺序 yaw, pitch, roll）。
@@ -137,6 +147,8 @@ class GimbalControl
   bool TryReacquire(const cv::Mat &_bgr);
   void TargetCmdFromTracking();
   void TargetCmdHome(double _yaw, double _pitch, double _roll);
+  void SetWorldDirectionTarget(const Vec3 &_direction);
+  bool SolvePublicTarget(const std::array<double, 3> &_angles, const JointSample &_js, std::array<double, 3> &_joints) const;
   void ApplyLimits(std::array<double, 3> &_command, double _rollRad,
                    double _pitchRad, double _now);
   void UpdateSaturation(const JointSample &_js, double _now);
@@ -157,6 +169,9 @@ class GimbalControl
   double measure_el_{0.0};
   double center_err_deg_{0.0};
 
+  bool public_manual_{false};
+  bool public_axis_target_{false};
+  std::array<double, 3> public_target_{};
   std::array<double, 3> home_target_{{0.0, 0.0, 0.0}};  // yaw, pitch, roll
   bool has_lost_since_{false};
   double lost_since_{0.0};

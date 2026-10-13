@@ -3,7 +3,7 @@
 // 关节链： R_M->C = Rz(-yaw) @ Rx(-roll) @ Ry(pitch)
 //   yaw 关节轴 (0,0,-1)，roll 轴 (-1,0,0)，pitch 轴 (0,1,0)
 // 相机传感器朝向（rpy = 180,-90,0 度）：
-//   传感器 x（视线）= camera_link +Z；传感器 y = +Y；传感器 z（图像上）= +X
+//   传感器 x（视线）= camera_link +Z；传感器 y = -Y；传感器 z（图像上）= +X
 //
 // IK（朝天分支）： pitch = el - 90°， yaw = 180° - az
 //
@@ -70,6 +70,23 @@ std::array<double, 3> RToRpyDeg(const Mat3 &_r);
 
 /// 相机相对安装系姿态的欧拉角表示误差计算辅助（目标中心角误差）。
 double AngleBetween(const Vec3 &_a, const Vec3 &_b);
+Mat3 Transpose(const Mat3 &_r);
+/// 参考前/右/下系中的相机FRD姿态，参考前由世界水平forwardAz指定。
+Mat3 PublicRotation(double _yaw, double _roll, double _pitch,
+                    const Mat3 &_mount, const Mat3 &_sensor, double _forwardAz);
+/// 返回公共 yaw,pitch,roll (rad)。极点采用固定Euler分支，需同时检查PublicSingular。
+std::array<double, 3> PublicAngles(const Mat3 &_rotation);
+bool PublicSingular(const Mat3 &_rotation);
+/// 公共Euler角速度 -> 机械yaw,pitch,roll角速度，含三轴耦合；输入输出保持相同单位。
+bool PublicRatesToJoint(double _yaw, double _roll, double _pitch,
+                        const Mat3 &_mount, const Mat3 &_sensor, double _forwardAz,
+                        const std::array<double, 3> &_rates,
+                        std::array<double, 3> &_jointRates);
+/// 机械关节角速度 -> 公共Euler角速度，输入输出保持相同单位；Euler奇异时返回false。
+bool JointRatesToPublic(double _yaw, double _roll, double _pitch,
+                        const Mat3 &_mount, const Mat3 &_sensor, double _forwardAz,
+                        const std::array<double, 3> &_rates,
+                        std::array<double, 3> &_publicRates);
 
 }  // namespace gimbal
 

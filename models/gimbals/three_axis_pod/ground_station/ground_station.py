@@ -8,10 +8,10 @@
 功能：
 - RTSP 硬解播放（默认 ``nvh264dec``，可配置/自动回退 ``avdec_h264``）；
 - 鼠标拖拽画框，松开自动提交 ``track``（归一化到整帧 0..1）；
-- 显示实时跟踪框、跟踪状态、稳定性、三轴关节角/角速度、限位/饱和、
+- 显示实时跟踪框、跟踪状态、稳定性、三轴 PX4 公共姿态/角速度、限位/饱和、
   目标中心角误差、端到端时延（用 ``frame_table``）、显示帧率与丢帧率；
 - 按钮与快捷键：复位 reset / 停止 stop / 朝天 home / 清故障 reset_fault，
-  方向键与 ``[`` ``]`` 手动指向；
+  二维 yaw/pitch 和一维 roll 虚拟摇杆，方向键与 ``[`` ``]`` 手动指向；
 - 连接状态指示、UDP 登记/续期/重登记与视频断线自动重连。
 
 无显示器/自检模式：
@@ -25,7 +25,10 @@
 from __future__ import annotations
 
 import argparse
+import ctypes
+import ctypes.util
 import json
+import math
 import os
 import socket
 import statistics
@@ -210,6 +213,7 @@ class UdpClient(threading.Thread):
         self.errors = []
         self.messages = 0                # 收到的 telemetry 计数
         self.last_rx_mono = 0.0          # 最近收到服务端消息的单调时刻
+        self.last_telemetry_mono = 0.0
         self.pings_sent = 0              # 已发送 ping 次数（兼作重登记探测）
 
         self._seq = 0                    # 单调递增序号（models/gimbals/three_axis_pod/docs/system.md）
@@ -241,6 +245,8 @@ class UdpClient(threading.Thread):
             return self._seq
 
     def _raw_send(self, payload: dict) -> bool:
+        if not self._public_command_allowed(payload):
+            return False
         if self.sock is None:
             return False
         try:
@@ -264,7 +270,10 @@ class UdpClient(threading.Thread):
         return seq
 
     def send_reliable(self, cmd: str, **extra) -> int:
-        """有回执指令（track / stop / home / reset）：带 seq 发送并按需重传。"""
+        """有回执指令（track / stop / home / reset / reset_axis）：带 seq 发送并按需重传。"""
+        if not self._public_command_allowed(dict(cmd=cmd, **extra)):
+            self.on_log(f"[udp] 公共姿态未就绪或处于奇异点，拒绝 {cmd}")
+            return -1
         seq = self.next_seq()
         payload = dict(cmd=cmd, seq=seq, **extra)
         with self.lock:
@@ -278,6 +287,55 @@ class UdpClient(threading.Thread):
         """manual：无回执，以 ≥10 Hz 连续发送（见 ManualController）。"""
         return self.send_once("manual", yaw=float(yaw), pitch=float(pitch),
                               roll=float(roll))
+
+    @property
+    def public_angles_ready(self):
+        """仅在版本、角度标记和新鲜公共姿态均确认后允许角度控制。"""
+        with self.lock:
+            hello = self.hello or {}
+            tele = self.telemetry or {}
+            fresh = time.monotonic() - getattr(self, "last_telemetry_mono", 0.0) <= self.client_timeout
+            return bool(self.connected and fresh and type(hello.get("version")) is int and hello.get("version") == 2
+                        and hello.get("angle_convention") == "px4_frd"
+                        and tele.get("angle_convention") == "px4_frd"
+                        and self._valid_attitude(tele.get("attitude_deg")))
+
+    @staticmethod
+    def _valid_attitude(attitude):
+        if not isinstance(attitude, dict):
+            return False
+        singular = attitude.get("singular", False)
+        if type(singular) is not bool:
+            return False
+        for axis in ("yaw", "pitch", "roll"):
+            values = attitude.get(axis)
+            if not isinstance(values, dict):
+                return False
+            for key in ("pos", "vel", "acc"):
+                value = values.get(key)
+                if singular and key in ("vel", "acc") and key in values and value is None:
+                    continue
+                if type(value) not in (int, float) or not -float("inf") < value < float("inf"):
+                    return False
+        return True
+
+    def _public_command_allowed(self, payload):
+        cmd = payload.get("cmd")
+        sensitive = cmd == "reset_axis" or (cmd == "manual" and any(payload.get(axis, 0) != 0 for axis in ("yaw", "pitch", "roll")))
+        if not sensitive:
+            return True
+        if not self.public_angles_ready:
+            return False
+        if self.public_attitude_singular:
+            if cmd == "reset_axis":
+                return payload.get("axis") == "pitch"
+            return not any(payload.get(axis, 0) != 0 for axis in ("yaw", "roll"))
+        return True
+
+    @property
+    def public_attitude_singular(self):
+        with self.lock:
+            return bool((self.telemetry.get("attitude_deg") or {}).get("singular", False))
 
     def _send_ping(self):
         seq = self.next_seq()
@@ -409,9 +467,11 @@ class UdpClient(threading.Thread):
                                   and not isinstance(msg["clock_domain"], str)):
             return
         if mtype == "telemetry":
-            for key in ("tracking", "stability", "joints_deg", "limits", "cmd_dps", "video"):
+            for key in ("tracking", "stability", "joints_deg", "attitude_deg", "limits", "cmd_dps", "video"):
                 if key in msg and not isinstance(msg[key], dict):
                     return
+            if "attitude_deg" in msg and not self._valid_attitude(msg["attitude_deg"]):
+                return
             table = msg.get("frame_table", [])
             if not isinstance(table, list):
                 return
@@ -425,6 +485,7 @@ class UdpClient(threading.Thread):
         if mtype == "telemetry":
             with self.lock:
                 self.telemetry = msg
+                self.last_telemetry_mono = time.monotonic()
                 self.messages += 1
                 for entry in msg.get("frame_table") or []:
                     if isinstance(entry, (list, tuple)) and len(entry) >= 2:
@@ -517,7 +578,7 @@ class UdpClient(threading.Thread):
 
 
 class ManualController(threading.Thread):
-    """把按键/按钮的“手动脉冲”变成 ≥10 Hz 的 manual 流（models/gimbals/three_axis_pod/docs/system.md）。
+    """把按键脉冲和摇杆输入变成 ≥10 Hz 的 manual 流。
 
     按轴记录 ``(角速度, 到期时刻)``；每 tick 组合三轴发送；全部到期后再补发
     一条 0 速度指令。持续按住时反复触发 ``hold`` 可续期，从而一直发送。
@@ -530,28 +591,98 @@ class ManualController(threading.Thread):
         self.lock = threading.Lock()
         self.axes = {}          # axis -> (value, expire_mono)
         self._was_active = False
-        self._stop = threading.Event()
+        self._stop_event = threading.Event()
 
     def hold(self, axis, value, duration=0.4):
         with self.lock:
             self.axes[axis] = (float(value), time.monotonic() + float(duration))
 
+    def cancel(self):
+        """取消所有手动输入并立即归零；与发送线程串行，避免归零后残留非零包。"""
+        with self.lock:
+            active = bool(self.axes) or self._was_active
+            self.axes.clear()
+            self._was_active = False
+            if active:
+                self.client.send_manual(0.0, 0.0, 0.0)
+
     def run(self):
-        while not self._stop.is_set():
+        while not self._stop_event.is_set():
             now = time.monotonic()
             with self.lock:
                 self.axes = {a: v for a, v in self.axes.items() if v[1] > now}
                 vals = {a: v[0] for a, v in self.axes.items()}
-            active = bool(vals)
-            if active or self._was_active:
-                self.client.send_manual(vals.get("yaw", 0.0),
-                                        vals.get("pitch", 0.0),
-                                        vals.get("roll", 0.0))
-            self._was_active = active
-            self._stop.wait(self.period)
+                active = bool(vals)
+                if active or self._was_active:
+                    self.client.send_manual(vals.get("yaw", 0.0),
+                                            vals.get("pitch", 0.0),
+                                            vals.get("roll", 0.0))
+                self._was_active = active
+            self._stop_event.wait(self.period)
 
     def stop(self):
-        self._stop.set()
+        self._stop_event.set()
+        self.cancel()
+
+
+class PointerGuard:
+    """X11 下检查窗口焦点和物理左键，捕获窗口外松手及切换窗口。
+
+    其他窗口系统返回 None，由 GUI 使用短输入租约，避免永久保持角速度。
+    """
+
+    def __init__(self, title):
+        self.title = title
+        self.display = None
+        try:
+            self.lib = ctypes.CDLL(ctypes.util.find_library("X11"))
+            self.lib.XOpenDisplay.argtypes = [ctypes.c_char_p]
+            self.lib.XOpenDisplay.restype = ctypes.c_void_p
+            self.lib.XDefaultRootWindow.argtypes = [ctypes.c_void_p]
+            self.lib.XDefaultRootWindow.restype = ctypes.c_ulong
+            self.lib.XGetInputFocus.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_ulong), ctypes.POINTER(ctypes.c_int)]
+            self.lib.XFetchName.argtypes = [ctypes.c_void_p, ctypes.c_ulong, ctypes.POINTER(ctypes.c_char_p)]
+            self.lib.XQueryTree.argtypes = [ctypes.c_void_p, ctypes.c_ulong, ctypes.POINTER(ctypes.c_ulong), ctypes.POINTER(ctypes.c_ulong), ctypes.POINTER(ctypes.POINTER(ctypes.c_ulong)), ctypes.POINTER(ctypes.c_uint)]
+            self.lib.XQueryPointer.argtypes = [ctypes.c_void_p, ctypes.c_ulong, ctypes.POINTER(ctypes.c_ulong), ctypes.POINTER(ctypes.c_ulong), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_uint)]
+            self.lib.XFree.argtypes = [ctypes.c_void_p]
+            self.lib.XCloseDisplay.argtypes = [ctypes.c_void_p]
+            self.display = self.lib.XOpenDisplay(None)
+        except (OSError, TypeError, AttributeError):
+            self.display = None
+
+    def held_in_window(self):
+        if not self.display:
+            return None
+        focus, revert = ctypes.c_ulong(), ctypes.c_int()
+        self.lib.XGetInputFocus(self.display, ctypes.byref(focus), ctypes.byref(revert))
+        window = focus.value
+        matched = False
+        for _ in range(16):
+            if window <= 1:
+                break
+            name = ctypes.c_char_p()
+            if self.lib.XFetchName(self.display, window, ctypes.byref(name)) and name.value:
+                matched = name.value.decode("utf-8", errors="replace") == self.title
+                self.lib.XFree(name)
+            if matched:
+                break
+            root, parent, children, count = ctypes.c_ulong(), ctypes.c_ulong(), ctypes.POINTER(ctypes.c_ulong)(), ctypes.c_uint()
+            if not self.lib.XQueryTree(self.display, window, ctypes.byref(root), ctypes.byref(parent), ctypes.byref(children), ctypes.byref(count)):
+                break
+            if children:
+                self.lib.XFree(children)
+            if parent.value == window:
+                break
+            window = parent.value
+        root, child, mask = ctypes.c_ulong(), ctypes.c_ulong(), ctypes.c_uint()
+        rx, ry, wx, wy = (ctypes.c_int() for _ in range(4))
+        ok = self.lib.XQueryPointer(self.display, self.lib.XDefaultRootWindow(self.display), ctypes.byref(root), ctypes.byref(child), ctypes.byref(rx), ctypes.byref(ry), ctypes.byref(wx), ctypes.byref(wy), ctypes.byref(mask))
+        return bool(ok and matched and mask.value & (1 << 8))
+
+    def close(self):
+        if self.display:
+            self.lib.XCloseDisplay(self.display)
+            self.display = None
 
 
 # ---------------------------------------------------------------------------
@@ -634,6 +765,10 @@ class GroundStation:
         self.buttons = []
         self.pressed = None
         self.hover = None
+        self.joystick = None       # "aim"（yaw/pitch）或 "roll"
+        self.joystick_values = (0.0, 0.0)
+        self.joystick_event_at = 0.0
+        self.pointer_guard = PointerGuard(self.win)
 
         font_path = find_font(cfg)
         self.font = None
@@ -750,44 +885,137 @@ class GroundStation:
 
     # ------------------------------------------------------------- mouse
     def _button_at(self, x, y):
-        for label, rect, cmd in self.buttons:
+        for label, rect, cmd, extra in self.buttons:
             if rect[0] <= x <= rect[0] + rect[2] and rect[1] <= y <= rect[1] + rect[3]:
-                return (label, rect, cmd)
+                return (label, rect, cmd, extra)
         return None
 
     def on_mouse(self, event, x, y, flags, param):
         if event == cv2.EVENT_LBUTTONDOWN:
+            hit = self._joystick_at(x, y)
+            if hit:
+                if not self.tele.public_angles_ready:
+                    self.last_cmd = "未确认 PX4 公共角度协议，摇杆已禁用"
+                    return
+                if hit == "roll" and self.tele.public_attitude_singular:
+                    self.last_cmd = "俯仰处于奇异点，请先调整俯仰"
+                    return
+                self.manual.cancel()
+                self.joystick = hit
+                self._update_joystick(x, y)
+                return
             btn = self._button_at(x, y)
             if btn is not None:
-                self.pressed = (btn[0], btn[2], x, y)
+                self.pressed = (btn[0], btn[2], x, y, btn[3])
+                return
+            if y >= self.display_size[1]:
                 return
             self.mouse_start = (x, y)
             self.mouse_end = (x, y)
             self.drawing = True
         elif event == cv2.EVENT_MOUSEMOVE:
+            if self.joystick:
+                if flags & cv2.EVENT_FLAG_LBUTTON:
+                    self._update_joystick(x, y)
+                else:
+                    self._release_joystick()
+                return
             hit = self._button_at(x, y)
             self.hover = hit[0] if hit else None
             if self.drawing:
                 self.mouse_end = (x, y)
         elif event == cv2.EVENT_LBUTTONUP:
+            if self.joystick:
+                self._release_joystick()
+                return
             if self.pressed is not None:
-                label, cmd, px, py = self.pressed
+                label, cmd, px, py, extra = self.pressed
                 self.pressed = None
                 hit = self._button_at(x, y)
                 if hit is not None and hit[0] == label:
-                    self._send_ctrl(cmd, f"已执行: {label}")
+                    self._send_ctrl(cmd, f"已下发: {label}", **extra)
                 return
             if self.drawing:
                 self.mouse_end = (x, y)
                 self.drawing = False
                 self.submit_box()
 
-    def _send_ctrl(self, cmd, label=None):
-        """下发控制指令：有回执指令重传，其余单发。"""
-        if cmd in ("track", "stop", "home", "reset"):
-            self.tele.send_reliable(cmd)
+    def _joystick_geometry(self):
+        dw, dh = self.display_size
+        radius = min(56, max(30, dw // 10))
+        return (max(radius + 20, dw // 4), dh + 88, radius), (3 * dw // 4, dh + 88, radius)
+
+    def _joystick_at(self, x, y):
+        aim, roll = self._joystick_geometry()
+        for name, (cx, cy, radius) in (("aim", aim), ("roll", roll)):
+            if math.hypot(x - cx, y - cy) <= radius:
+                return name
+        return None
+
+    def _update_joystick(self, x, y):
+        aim, roll = self._joystick_geometry()
+        cx, cy, radius = aim if self.joystick == "aim" else roll
+        dx, dy = (x - cx) / radius, (cy - y) / radius
+        length = math.hypot(dx, dy) if self.joystick == "aim" else abs(dx)
+        if length > 1.0:
+            dx, dy = dx / length, dy / length
+        # 中心 8% 死区；超过死区后按行程线性增加。
+        def response(value):
+            return math.copysign(max(0.0, (abs(value) - 0.08) / 0.92), value)
+        self.joystick_values = (response(dx), response(dy) if self.joystick == "aim" else 0.0)
+        self.joystick_event_at = time.monotonic()
+        self._refresh_joystick()
+
+    def _refresh_joystick(self):
+        if not self.joystick:
+            return
+        x, y = self.joystick_values
+        if self.joystick == "aim":
+            # 公共 FRD Euler 角速度，与方向键同号。
+            yaw = 30.0 * x
+            if self.tele.public_attitude_singular:
+                yaw = 0.0
+                self.last_cmd = "俯仰处于奇异点，仅俯仰摇杆可用"
+            self.manual.hold("yaw", yaw, 0.3)
+            self.manual.hold("pitch", 20.0 * y, 0.3)
         else:
-            self.tele.send_once(cmd)
+            self.manual.hold("roll", 20.0 * x, 0.3)
+
+    def _release_joystick(self):
+        self.joystick = None
+        self.joystick_values = (0.0, 0.0)
+        self.manual.cancel()
+
+    def _check_joystick(self):
+        if not self.joystick:
+            return
+        if not self.tele.public_angles_ready:
+            self._release_joystick()
+            self.last_cmd = "公共姿态协议失效，已停止手动输入"
+            return
+        if self.joystick == "roll" and self.tele.public_attitude_singular:
+            self._release_joystick()
+            self.last_cmd = "俯仰处于奇异点，请先调整俯仰"
+            return
+        held = self.pointer_guard.held_in_window()
+        if held is False or (held is None and time.monotonic() - self.joystick_event_at > 0.3):
+            self._release_joystick()
+        else:
+            self._refresh_joystick()
+
+    def _send_ctrl(self, cmd, label=None, **extra):
+        """下发控制指令：有回执指令重传，其余单发。"""
+        self._release_joystick()
+        if cmd == "reset_axis" and not self.tele.public_angles_ready:
+            self.last_cmd = "未确认 PX4 公共角度协议，单轴复位已禁用"
+            return
+        if cmd == "reset_axis" and extra.get("axis") != "pitch" and self.tele.public_attitude_singular:
+            self.last_cmd = "俯仰处于奇异点，请先进行 Pitch复位"
+            return
+        if cmd in ("track", "stop", "home", "reset", "reset_axis"):
+            self.tele.send_reliable(cmd, **extra)
+        else:
+            self.tele.send_once(cmd, **extra)
         if label:
             self.last_cmd = label
 
@@ -797,7 +1025,7 @@ class GroundStation:
         x0 = min(self.mouse_start[0], self.mouse_end[0])
         y0 = min(self.mouse_start[1], self.mouse_end[1])
         x1 = max(self.mouse_start[0], self.mouse_end[0])
-        y1 = max(self.mouse_start[1], self.mouse_end[1])
+        y1 = min(self.display_size[1], max(self.mouse_start[1], self.mouse_end[1]))
         if x1 - x0 < 6 or y1 - y0 < 6:
             return
         with self.lock:
@@ -806,6 +1034,7 @@ class GroundStation:
         sx = w / dw
         sy = h / dh
         box = [x0 * sx / w, y0 * sy / h, (x1 - x0) * sx / w, (y1 - y0) * sy / h]
+        self.manual.cancel()
         self.tele.send_reliable("track", box=[round(v, 6) for v in box])
         self.last_cmd = "已提交选框，开始跟踪"
         self.mouse_start = None
@@ -848,7 +1077,7 @@ class GroundStation:
         self.buttons = []
         for i, (label, cmd) in enumerate(button_defs):
             rect = (x0 + i * (bw + 8), 10, bw, bh)
-            self.buttons.append((label, rect, cmd))
+            self.buttons.append((label, rect, cmd, {}))
             bg = (70, 70, 70)
             if self.hover == label:
                 bg = (110, 110, 110)
@@ -867,17 +1096,30 @@ class GroundStation:
         if tele:
             t = tele.get("tracking") or {}
             s = tele.get("stability") or {}
-            j = tele.get("joints_deg") or {}
+            ready = (self.tele.public_angles_ready and tele.get("angle_convention") == "px4_frd"
+                     and UdpClient._valid_attitude(tele.get("attitude_deg")))
+            j = tele.get("attitude_deg") or {}
+            def angle_line(axis):
+                if not ready:
+                    return f"{axis}: 公共姿态待确认"
+                value = j[axis]
+                velocity = f"{value['vel']:+7.2f}°/s" if value['vel'] is not None else "不可用（奇异点）"
+                return f"{axis:5s} {value['pos']:+7.2f}°  角速度 {velocity}"
             limits = tele.get("limits") or {}
             lines = [
                 f"状态: {STATE_CN.get(t.get('state'), t.get('state'))}   稳定性: {STABILITY_CN.get(s.get('state'), s.get('state'))}   模式: {tele.get('mode')}",
-                f"目标中心误差: {s.get('center_err_deg', 0):.2f}°    伺服: {tele.get('cmd_dps') or {}}",
-                f"yaw   {j.get('yaw', {}).get('pos', 0):+7.2f}°  角速度 {j.get('yaw', {}).get('vel', 0):+7.2f}°/s",
-                f"pitch {j.get('pitch', {}).get('pos', 0):+7.2f}°  角速度 {j.get('pitch', {}).get('vel', 0):+7.2f}°/s",
-                f"roll  {j.get('roll', {}).get('pos', 0):+7.2f}°  角速度 {j.get('roll', {}).get('vel', 0):+7.2f}°/s",
+                f"目标中心误差: {s.get('center_err_deg', 0):.2f}°    机械输出: {tele.get('cmd_dps') or {}}",
+                angle_line("yaw"), angle_line("pitch"), angle_line("roll"),
             ]
             colors = [(0, 255, 255)] * len(lines)
             colors[0] = (0, 255, 255)
+            mode = (tele.get("mount") or {}).get("mode")
+            mounting = {"skyward": "立装（底座朝下）", "downward": "悬挂（底座朝上）"}.get(mode, "未知")
+            lines.append(f"安装: {mounting}   公共角度: {'PX4 FRD' if ready else '未确认，角度控制禁用'}")
+            colors.append((0, 255, 255))
+            if ready and j.get("singular", False):
+                lines.append("俯仰奇异点：偏航/滚转不能独立控制，请先调整俯仰")
+                colors.append((0, 165, 255))
             if limits.get("saturated") or any(limits.get(k) for k in ("yaw", "pitch", "roll")):
                 lines.append(f"限位/饱和: {limits}")
                 colors.append((0, 165, 255))
@@ -919,7 +1161,7 @@ class GroundStation:
             for i, (text, c) in enumerate(zip(lines, colors)):
                 draw.text((12, 8 + i * 30), text, font=self.font,
                           fill=(c[2], c[1], c[0]))
-            for label, rect, cmd in self.buttons:
+            for label, rect, cmd, extra in self.buttons:
                 bbox = draw.textbbox((0, 0), label, font=self.font)
                 tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
                 draw.text((rect[0] + (rect[2] - tw) / 2 - bbox[0],
@@ -930,10 +1172,62 @@ class GroundStation:
             for i, (text, c) in enumerate(zip(lines, colors)):
                 cv2.putText(disp, text, (12, 28 + i * 26),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.6, c, 2, cv2.LINE_AA)
+        # 摇杆区独立于视频，避免遮挡选框；视频尺寸及 ROI 归一化不包含控制区。
+        panel = np.full((224, dw, 3), 28, dtype=np.uint8)
+        disp = np.vstack((disp, panel))
+        for name, (cx, cy, radius) in zip(("aim", "roll"), self._joystick_geometry()):
+            cv2.circle(disp, (cx, cy), radius, (150, 150, 150), 1, cv2.LINE_AA)
+            cv2.line(disp, (cx - radius, cy), (cx + radius, cy), (80, 80, 80), 1)
+            if name == "aim":
+                cv2.line(disp, (cx, cy - radius), (cx, cy + radius), (80, 80, 80), 1)
+            x, y = self.joystick_values if self.joystick == name else (0.0, 0.0)
+            cv2.circle(disp, (int(cx + x * radius), int(cy - y * radius)), 11, (0, 200, 255), -1, cv2.LINE_AA)
+            cv2.putText(disp, "YAW / PITCH" if name == "aim" else "ROLL", (cx - radius, dh + 21), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (230, 230, 230), 1, cv2.LINE_AA)
+            cv2.putText(disp, "left -yaw / right +yaw" if name == "aim" else "left -roll / right +roll", (max(4, cx - 100), dh + 159), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (190, 190, 190), 1, cv2.LINE_AA)
+            if name == "aim":
+                cv2.putText(disp, "+pitch", (cx + radius + 6, cy - radius + 14), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (190, 190, 190), 1, cv2.LINE_AA)
+                cv2.putText(disp, "-pitch", (cx + radius + 6, cy + radius), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (190, 190, 190), 1, cv2.LINE_AA)
+        axis_buttons = self._axis_reset_buttons()
+        self.buttons.extend(axis_buttons)
+        for label, rect, cmd, extra in axis_buttons:
+            active = self.pressed is not None and self.pressed[0] == label
+            color = (0, 130, 0) if active else ((110, 110, 110) if self.hover == label else (70, 70, 70))
+            if not self.tele.public_angles_ready or (extra["axis"] != "pitch" and self.tele.public_attitude_singular):
+                color = (40, 40, 40)
+            cv2.rectangle(disp, (rect[0], rect[1]), (rect[0] + rect[2], rect[1] + rect[3]), color, -1)
+            cv2.rectangle(disp, (rect[0], rect[1]), (rect[0] + rect[2], rect[1] + rect[3]), (200, 200, 200), 1)
+        if self.font is not None:
+            pil = Image.fromarray(cv2.cvtColor(disp[dh + 176:, :], cv2.COLOR_BGR2RGB))
+            painter = ImageDraw.Draw(pil)
+            for label, rect, cmd, extra in axis_buttons:
+                bbox = painter.textbbox((0, 0), label, font=self.font)
+                tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
+                painter.text((rect[0] + (rect[2] - tw) / 2 - bbox[0], rect[1] - dh - 176 + (rect[3] - th) / 2 - bbox[1]), label, font=self.font, fill=(255, 255, 255))
+            disp[dh + 176:, :] = cv2.cvtColor(np.array(pil), cv2.COLOR_RGB2BGR)
+        else:
+            for label, rect, cmd, extra in axis_buttons:
+                cv2.putText(disp, extra["axis"].upper() + " RESET", (rect[0] + 6, rect[1] + 23), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (255, 255, 255), 1, cv2.LINE_AA)
         return disp
+
+    def _axis_reset_buttons(self):
+        dw, dh = self.display_size
+        width, gap = min(140, (dw - 48) // 3), 12
+        x0 = (dw - 3 * width - 2 * gap) // 2
+        return [(axis.capitalize() + "复位", (x0 + i * (width + gap), dh + 182, width, 32), "reset_axis", {"axis": axis})
+                for i, axis in enumerate(("yaw", "pitch", "roll"))]
 
     def _manual(self, axis, value, label="", duration=0.4):
         """方向键/按钮手动脉冲：持续 ~duration 秒以 ≥10 Hz 发送后归零。"""
+        if not self.tele.public_angles_ready:
+            self.manual.cancel()
+            self.last_cmd = "未确认 PX4 公共角度协议，手动控制已禁用"
+            return
+        if axis != "pitch" and self.tele.public_attitude_singular:
+            self.manual.cancel()
+            self.last_cmd = "俯仰处于奇异点，请先调整俯仰"
+            return
+        if self.joystick:
+            self._release_joystick()
         self.manual.hold(axis, value, duration)
         if label:
             self.last_cmd = label
@@ -951,6 +1245,7 @@ class GroundStation:
         cv2.setMouseCallback(self.win, self.on_mouse)
         print("地面站已启动：拖拽鼠标画框并松开自动跟踪；"
               "按钮[复位/停止/朝天/清故障]或按键 R/S/H/M；"
+              "底部虚拟摇杆控制 yaw/pitch 和 roll，松手归零；"
               "方向键手动 yaw/pitch；[ ] 手动 roll；ESC 退出")
         self.last_draw_t = 0.0
         while not self._stop:
@@ -963,19 +1258,28 @@ class GroundStation:
                     self.latest_frame = None
             tele = self.tele.snapshot()
             now = time.monotonic()
+            self._check_joystick()
             if getattr(self, "last_frame", None) is not None and (new_frame or now - self.last_draw_t > 0.1):
                 disp = self.draw(self.last_frame.copy(), tele)
                 self.last_disp = disp
                 cv2.imshow(self.win, disp)
                 self.last_draw_t = now
                 time.sleep(0.005)
-            elif getattr(self, "last_frame", None) is None and self.last_disp is None:
+            elif getattr(self, "last_frame", None) is None and now - self.last_draw_t > 0.1:
                 blank = np.zeros((self.display_size[1], self.display_size[0], 3), dtype=np.uint8)
                 cv2.putText(blank, "Waiting video...", (30, self.display_size[1] // 2),
                             cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 255), 2)
-                cv2.imshow(self.win, blank)
+                self.last_disp = self.draw(blank, tele)
+                cv2.imshow(self.win, self.last_disp)
+                self.last_draw_t = now
                 time.sleep(0.02)
             key = cv2.waitKeyEx(1)
+            try:
+                visible = cv2.getWindowProperty(self.win, cv2.WND_PROP_VISIBLE)
+            except cv2.error:
+                visible = 0
+            if visible < 1:
+                break
             if key == 27:  # ESC
                 break
             elif key in (ord('s'), ord('S')):
@@ -989,26 +1293,30 @@ class GroundStation:
             elif key == 0 or key == -1:
                 pass
             elif key in (2424832, 65361):   # left
-                self._manual("yaw", 30, "手动: yaw +30°/s")
-            elif key in (2555904, 65363):   # right
                 self._manual("yaw", -30, "手动: yaw -30°/s")
+            elif key in (2555904, 65363):   # right
+                self._manual("yaw", 30, "手动: yaw +30°/s")
             elif key in (2490368, 65362):   # up
                 self._manual("pitch", 20, "手动: pitch +20°/s")
             elif key in (2621440, 65364):   # down
                 self._manual("pitch", -20, "手动: pitch -20°/s")
             elif key == ord('['):
-                self._manual("roll", 20, "手动: roll +20°/s")
-            elif key == ord(']'):
                 self._manual("roll", -20, "手动: roll -20°/s")
+            elif key == ord(']'):
+                self._manual("roll", 20, "手动: roll +20°/s")
 
         if self.args.gui_snapshot and self.last_disp is not None:
             cv2.imwrite(self.args.gui_snapshot, self.last_disp)
             print("界面截图:", self.args.gui_snapshot)
-        self.shutdown()
         return 0
 
     def shutdown(self):
+        if getattr(self, "_shutdown_done", False):
+            return
+        self._shutdown_done = True
         self._stop = True
+        self._release_joystick()
+        self.pointer_guard.close()
         try:
             if self.pipeline is not None:
                 self.pipeline.set_state(Gst.State.NULL)
@@ -1100,16 +1408,16 @@ def run_selftest(cfg: dict, args) -> int:
         if args.send_home and home_seq is None and elapsed >= 0.6:
             home_seq = client.send_reliable("home")
         if args.send_manual and not manual_started and elapsed >= 1.0:
-            manual_ctrl.hold("yaw", 20.0,
+            manual_ctrl.hold("pitch", -20.0,
                              duration=min(1.0, max(0.3, duration - 1.2)))
             manual_started = True
         snap = client.snapshot()
         if snap:
             last = snap
             if manual_started:
-                cd = snap.get("cmd_dps") or {}
+                cd = (snap.get("attitude_deg") or {}).get("pitch") or {}
                 try:
-                    val = abs(float(cd.get("yaw") or 0.0))
+                    val = abs(float(cd.get("vel") or 0.0))
                 except (TypeError, ValueError):
                     val = 0.0
                 manual_max = max(manual_max, val)
@@ -1148,9 +1456,8 @@ def run_selftest(cfg: dict, args) -> int:
               f"fault = {t.get('fault')}  message = {t.get('message')}")
         print(f"[selftest] stability.state = {s.get('state')}  "
               f"center_err_deg = {s.get('center_err_deg')}")
-        print(f"[selftest] joints_deg = yaw {((last.get('joints_deg') or {}).get('yaw') or {}).get('pos')} / "
-              f"pitch {((last.get('joints_deg') or {}).get('pitch') or {}).get('pos')} / "
-              f"roll {((last.get('joints_deg') or {}).get('roll') or {}).get('pos')} (°)")
+        print(f"[selftest] attitude_deg（PX4 公共姿态） = {last.get('attitude_deg')}")
+        print(f"[selftest] joints_deg（机械诊断） = {last.get('joints_deg')}")
         print(f"[selftest] frame_table 长度 = {len(table)}  "
               f"末条 = {table[-1] if table else None}")
         print(f"[selftest] video = {video}")
@@ -1183,7 +1490,7 @@ def run_selftest(cfg: dict, args) -> int:
             print("[selftest] manual 指令：已收到 command_result")
         elif manual_mode_seen and manual_max > 0.1:
             print("[selftest] manual 指令：已生效（遥测证据 mode=MANUAL, "
-                  f"cmd_dps.yaw 峰值={manual_max:.1f}°/s；"
+                  f"公共 pitch 角速度峰值={manual_max:.1f}°/s；"
                   "该插件对 manual 不返回 command_result，属对端设计）")
         else:
             print("[selftest] 失败：发送 manual 后既无 command_result 也无遥测生效证据")
@@ -1331,7 +1638,7 @@ def build_parser() -> argparse.ArgumentParser:
     ap.add_argument("--send-home", action="store_true",
                     help="selftest 中额外发送 home，校验带 seq 的 command_result")
     ap.add_argument("--send-manual", action="store_true",
-                    help="selftest 中额外以 10Hz 发送 manual(yaw) 再归零，校验生效")
+                    help="selftest 中额外以 10Hz 发送 manual(pitch=-20) 再归零，校验生效")
     ap.add_argument("--test-timeout", type=float, nargs="?", const=2.5,
                     default=None, metavar="SECONDS",
                     help="selftest 中追加超时/重登记子测试（默认 2.5s）")
@@ -1363,7 +1670,10 @@ def main(argv=None) -> int:
     print(f"[ground_station] RTSP {rtsp_url(cfg)}  decoder={cfg.get('decoder')}  "
           f"display_scale={cfg.get('display_scale')}")
     gs = GroundStation(cfg, args)
-    return gs.run()
+    try:
+        return gs.run()
+    finally:
+        gs.shutdown()
 
 
 if __name__ == "__main__":

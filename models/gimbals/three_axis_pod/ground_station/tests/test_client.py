@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 import threading
 import time
+from types import SimpleNamespace
 import unittest
 
 
@@ -26,6 +27,11 @@ class ClientTests(unittest.TestCase):
         self.client.target = ("127.0.0.1", 8765)
         self.client.clock_domain = "local-boot"
         self.client.last_rx_mono = 0.
+        self.client.last_telemetry_mono = 0.
+        self.client.client_timeout = 5.0
+        self.client._seq = 0
+        self.packets = []
+        self.client.sock = SimpleNamespace(sendto=lambda data, target: self.packets.append(json.loads(data)))
         self.client.telemetry = {}
         self.client.frame_t0 = {}
         self.client.messages = self.client.pongs = 0
@@ -77,6 +83,69 @@ class ClientTests(unittest.TestCase):
         self.client._pending[5] = {"payload": {"cmd": "home"}, "result": None}
         self.receive({"type": "command_result", "seq": 5, "cmd": "stop", "ok": True})
         self.assertIn(5, self.client._pending)
+
+    def test_axis_reset_result_completes_its_reliable_request(self):
+        self.client._pending[8] = {"payload": {"cmd": "reset_axis", "axis": "pitch"}, "result": None}
+        self.receive({"type": "command_result", "seq": 8, "cmd": "reset_axis", "ok": True})
+        self.assertNotIn(8, self.client._pending)
+        self.assertTrue(self.client.find_result(cmd="reset_axis", seq=8)["ok"])
+
+    def confirm_public_angles(self):
+        self.receive({"type": "hello", "version": 2, "angle_convention": "px4_frd"})
+        self.receive({"type": "telemetry", "angle_convention": "px4_frd", "attitude_deg": {
+            axis: {"pos": 0.0, "vel": 0.0, "acc": 0.0} for axis in ("yaw", "pitch", "roll")}})
+
+    def test_public_control_requires_both_version_and_valid_public_telemetry(self):
+        self.client.send_manual(yaw=10.0)
+        self.assertEqual(self.client.send_reliable("reset_axis", axis="yaw"), -1)
+        self.assertFalse(self.packets)
+        self.confirm_public_angles()
+        self.assertTrue(self.client.public_angles_ready)
+        self.client.send_manual(yaw=10.0, pitch=-5.0, roll=3.0)
+        self.client.send_reliable("reset_axis", axis="pitch")
+        self.assertEqual([packet["cmd"] for packet in self.packets], ["manual", "reset_axis"])
+        self.assertEqual(self.packets[0]["roll"], 3.0)
+
+    def test_stale_or_downgraded_protocol_blocks_even_retransmission_but_allows_zero(self):
+        self.confirm_public_angles()
+        seq = self.client.send_reliable("reset_axis", axis="roll")
+        self.receive({"type": "hello", "version": 1})
+        self.assertFalse(self.client._raw_send(self.client._pending[seq]["payload"]))
+        self.client.send_manual(roll=10.0)
+        self.client.send_manual()
+        self.assertEqual(len(self.packets), 2)
+        self.assertEqual(self.packets[-1]["roll"], 0.0)
+        self.confirm_public_angles()
+        self.client.last_telemetry_mono -= 6.0
+        self.assertFalse(self.client.public_angles_ready)
+        self.client.send_manual(yaw=10.0)
+        self.assertEqual(len(self.packets), 2)
+
+    def test_marker_alone_or_malformed_public_attitude_cannot_enable_control(self):
+        self.receive({"type": "hello", "version": 2, "angle_convention": "px4_frd"})
+        for attitude in ({}, {axis: {"pos": 0., "vel": 0., "acc": float("nan")} for axis in ("yaw", "pitch", "roll")}):
+            self.receive({"type": "telemetry", "angle_convention": "px4_frd", "attitude_deg": attitude})
+            self.assertFalse(self.client.public_angles_ready)
+        self.receive({"type": "telemetry", "angle_convention": "px4_frd"})
+        self.assertFalse(self.client.public_angles_ready)
+
+    def test_singular_attitude_allows_null_derivatives_and_pitch_escape(self):
+        self.confirm_public_angles()
+        attitude = {axis: {"pos": 90.0 if axis == "pitch" else 0.0, "vel": None, "acc": None} for axis in ("yaw", "pitch", "roll")}
+        attitude["singular"] = True
+        self.receive({"type": "telemetry", "angle_convention": "px4_frd", "attitude_deg": attitude})
+        self.assertTrue(self.client.public_angles_ready)
+        self.assertTrue(self.client.public_attitude_singular)
+        self.client.send_manual(pitch=-20.0)
+        self.client.send_manual(yaw=20.0)
+        self.client.send_manual(roll=20.0)
+        self.assertEqual(self.client.send_reliable("reset_axis", axis="yaw"), -1)
+        self.client.send_reliable("reset_axis", axis="pitch")
+        self.assertEqual(len(self.packets), 2)
+        self.assertEqual(self.packets[0]["pitch"], -20.0)
+        self.assertEqual(self.packets[1]["axis"], "pitch")
+        attitude["singular"] = False
+        self.assertFalse(UdpClient._valid_attitude(attitude))
 
     def test_delay_requires_matching_boot_domain_and_nonnegative_age(self):
         self.receive({"type": "telemetry", "frame_table": [[42, 10.]]})

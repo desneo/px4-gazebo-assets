@@ -4,7 +4,7 @@
   R_M->C = Rz(-yaw) @ Rx(-roll) @ Ry(pitch)
   - yaw 关节轴 (0,0,-1)，roll 轴 (-1,0,0)，pitch 轴 (0,1,0)
 相机传感器重装（rpy = 180,-90,0 度）：
-  传感器 x（视线）= camera_link +Z；传感器 y = +Y；传感器 z（图像上）= +X
+  传感器 x（视线）= camera_link +Z；传感器 y = -Y；传感器 z（图像上）= +X
 
 IK（朝天分支）：
   俯仰角 e（相对水平面）、方位角 a： pitch = e - 90°, yaw = 180° - a
@@ -18,12 +18,17 @@ import numpy as np
 # 传感器相对 camera_link 的旋转: 把传感器坐标变换到 camera_link
 R_CAM_SENSOR = np.array([
     [0.0, 0.0, 1.0],
-    [0.0, 1.0, 0.0],
+    [0.0, -1.0, 0.0],
     [1.0, 0.0, 0.0],
 ])
 
 # 相机水平视场角 60°
 HFOV = math.radians(60.0)
+
+
+def sensor_rotation(mount_mode: str = 'skyward') -> np.ndarray:
+    """配套安装的真实光学外参；悬挂成像器绕视线校准 180°。"""
+    return Ry(-math.pi / 2) if mount_mode == 'downward' else R_CAM_SENSOR.copy()
 
 
 def Rz(t: float) -> np.ndarray:
@@ -46,8 +51,9 @@ def R_mount_camera(yaw: float, roll: float, pitch: float) -> np.ndarray:
     return Rz(-yaw) @ Rx(-roll) @ Ry(pitch)
 
 
-def R_mount_sensor(yaw: float, roll: float, pitch: float) -> np.ndarray:
-    return R_mount_camera(yaw, roll, pitch) @ R_CAM_SENSOR
+def R_mount_sensor(yaw: float, roll: float, pitch: float,
+                   sensor_R: np.ndarray | None = None) -> np.ndarray:
+    return R_mount_camera(yaw, roll, pitch) @ (R_CAM_SENSOR if sensor_R is None else sensor_R)
 
 
 def los_mount(yaw: float, roll: float, pitch: float) -> np.ndarray:
@@ -71,20 +77,21 @@ def pixel_to_sensor_ray(px: float, py: float, width: int, height: int,
                         hfov: float = HFOV) -> np.ndarray:
     """像素坐标（含 0.5 像素中心）-> 传感器系单位方向向量。
 
-    与 Gazebo 相机渲染一致（图像 x 向右对应传感器 +y）。
+    与 Gazebo 相机渲染一致（图像 x 向右对应传感器 -y）。
     """
     f = (width / 2.0) / math.tan(hfov / 2.0)
     ax = math.atan((px - width / 2.0) / f)   # 目标在右侧为正
     ay = math.atan((py - height / 2.0) / f)  # 目标在下方为正
-    d = np.array([1.0, math.tan(ax), -math.tan(ay)])
+    d = np.array([1.0, -math.tan(ax), -math.tan(ay)])
     return d / np.linalg.norm(d)
 
 
 def sensor_ray_to_az_el(d_sensor: np.ndarray, yaw: float, roll: float,
                         pitch: float, base_R: np.ndarray | None = None,
+                        sensor_R: np.ndarray | None = None,
                         ) -> tuple[float, float]:
     """传感器系方向 -> mount 系（或世界系，给 base_R）方位/俯仰角。"""
-    d = R_mount_sensor(yaw, roll, pitch) @ d_sensor
+    d = R_mount_sensor(yaw, roll, pitch, sensor_R) @ d_sensor
     if base_R is not None:
         d = base_R @ d
     return az_el_from_dir(d)

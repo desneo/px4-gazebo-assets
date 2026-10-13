@@ -1,0 +1,10 @@
+{
+  "plate_size_m": [0.014, 0.09, 0.20],
+  "camera_radius_m": 0.035,
+  "camera_center_m": [0.085, 0, 0],
+  "yaw_limits_deg": [-90, 90],
+  "pitch_limits_deg": [-45, 90],
+  "max_rate_dps": 100,
+  "max_acc_dps2": 160,
+  "camera": {"width": 1920, "height": 1080, "fps": 30, "hfov_deg": 60, "near_m": 0.05, "far_m": 30000}
+}

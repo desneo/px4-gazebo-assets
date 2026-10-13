@@ -11,6 +11,7 @@ px4-gazebo-assets/
 ├── models/                    # 可复用的基础模型
 │   ├── vehicles/              # 无人机本体，包含机载传感器参数
 │   ├── gimbals/               # 云台，包含相机、控制器及其参数
+│   │   ├── two_axis_pod/      # 两轴侧装吊舱，包含专用控制、网关、地面站和演示
 │   │   └── three_axis_pod/
 │   │       ├── controller/    # 专用 C++ 控制插件、网关、工具和单元测试
 │   │       ├── ground_station/ # 吊舱配套地面站
@@ -22,6 +23,7 @@ px4-gazebo-assets/
 ├── assemblies/                # 多个 model 组合完成的复杂模型
 ├── worlds/                    # 静态环境定义、专用资源和说明
 └── scenarios/                 # 大型综合测试场景的配置、启动和辅助脚本(组件自己用的测试跟model放一起)
+    ├── geographic_two_axis_pod/ # 完整地理背景中的两轴侧装部件测试
     └── common/                # 多个场景共用的辅助脚本
 ```
 
@@ -34,17 +36,20 @@ px4-gazebo-assets/
 - 场景可以使用 `run.sh` 作为启动入口；需要配置文件时，由对应脚本读取。自定义配置文件不视为 PX4 或 Gazebo 原生支持的格式。
 - 组件的使用说明、启动脚本、配置、自测试和小型演示世界均随对应模型保存，不单独放入 `scenarios/`。组件专用控制插件与网关放入模型的 `controller/`，配套地面站放入 `ground_station/`，使用脚本放入 `scripts/`，组件自测和演示世界放入 `tests/`，功能与验证说明放入 `docs/`。
 - 三轴吊舱归入 `models/gimbals/three_axis_pod/`，吊舱与其内置云台一一对应，地面站是该组件的一部分。固定支架与吊舱的组合模型归入 `assemblies/three_axis_pod_stand/`。
+- 两轴侧装吊舱归入 `models/gimbals/two_axis_pod/`，模型、专用控制器、网关、地面站、生成工具与侧装演示均随组件保存。该组件的机械角定义与三轴公共姿态协议不同。
 - 多个场景共用的辅助脚本放入 `scenarios/common/`。
 - 目录与文件使用有意义的英文名称。目录结构和归属规则统一维护在本文件中，模型或场景的专用说明维护在各自目录中。
 
 ## 使用状态
 
-仓库包含静态真实地理背景环境，以及固定支架三轴吊舱、演示世界、控制插件、网络网关和地面站；尚未添加无人机模型。
+仓库包含静态真实地理背景环境，以及两轴侧装吊舱、固定支架三轴吊舱、演示世界、控制插件、网络网关和地面站。
 
 - 环境：`worlds/geo_32_217857_119_105878/world.sdf`，以 WGS84 坐标 `(32.21785737811048, 119.1058778440883)` 为中心，提供包含半径 5 km 区域的真实高程、地表影像和静态天空；配套 GUI 插件提供“回到地图中心”按钮，构建和安装方法见环境说明。
 - 启动：在仓库根目录运行 `gz sim -r worlds/geo_32_217857_119_105878/world.sdf`。运行条件、数据来源和精度限制见 [环境说明](worlds/geo_32_217857_119_105878/README.md)。
 - 场景：运行 `bash scenarios/geographic_camera/run.sh --gui`，使用上述真实地理 world 的运行副本验证立装/悬挂三轴吊舱、移动小车跟踪、NVENC 视频与 2 秒实体遮挡重捕获；不启动 PX4。目标、遮挡操作及安装方向见[场景说明](scenarios/geographic_camera/README.md)。
 - 三轴吊舱：见 [组件说明](models/gimbals/three_axis_pod/README.md)和[使用说明](models/gimbals/three_axis_pod/scripts/README.md)；功能、协议和当前限制见 [系统说明](models/gimbals/three_axis_pod/docs/system.md)，自验证结果见 [验证说明](models/gimbals/three_axis_pod/docs/validation.md)。
+- 两轴地理测试：运行 `bash scenarios/geographic_two_axis_pod/run.sh --gui`，在完整地理环境中测试标准侧装两轴吊舱、空中动态棋盘靶标、实体遮挡与 UDP/RTSP 地面站；不加载载机或 PX4，见[测试场景说明](scenarios/geographic_two_axis_pod/README.md)。
+- 两轴侧装吊舱：见[组件说明](models/gimbals/two_axis_pod/README.md)、[安装与运动学](models/gimbals/two_axis_pod/docs/mounting.md)和[验证说明](models/gimbals/two_axis_pod/docs/validation.md)。侧装外轴绕安装板法线转动，偏航 ±90°、俯仰 −45°～+90°，机械零位朝天，俯仰正值朝前。
 
 空目录中的 `.gitkeep` 用于让 Git 保存目录；添加实际文件后可以移除。
 

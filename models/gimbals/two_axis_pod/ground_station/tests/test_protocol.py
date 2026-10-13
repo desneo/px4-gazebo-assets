@@ -105,8 +105,8 @@ class BridgeProtocolTests(unittest.TestCase):
         self.bridge._on_datagram(b'{"cmd":"ping","seq":1}', ("127.0.0.1", 12000))
         hello = self.sent[-2][1]
         self.assertEqual(hello["type"], "hello")
-        self.assertEqual(hello["version"], 3)
-        self.assertEqual(hello["angle_convention"], "side_mount_joint")
+        self.assertEqual(hello["version"], 4)
+        self.assertEqual(hello["angle_convention"], "upright_joint")
 
     def test_duplicate_replays_result_without_second_execution(self):
         self.command(cmd="home", seq=1)

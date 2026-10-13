@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""复制完整地理环境，加入标准侧装两轴吊舱和空中视觉测试夹具。"""
+"""复制完整地理环境，加入标准立装两轴吊舱和空中视觉测试夹具。"""
 import argparse
 import math
 from pathlib import Path
@@ -109,6 +109,11 @@ def prepare(output):
     pod.append(ET.fromstring('''<joint name="fixed_installation" type="fixed">
       <parent>world</parent><child>mount_link</child></joint>'''))
     world.append(pod)
+    fixture = ET.fromstring('''<model name="pod_mount_fixture"><static>true</static>
+      <pose>0 0 49.996 0 0 0</pose><link name="platform"/></model>''')
+    visual(fixture.find('link'), 'horizontal_platform', '0 0 0 0 0 0',
+           '.12 .12 .008', '.25 .45 .65 1')
+    world.append(fixture)
     world.append(location_marker())
     world.append(target_model())
     panel = ET.fromstring('''<model name="occlusion_panel"><static>true</static>

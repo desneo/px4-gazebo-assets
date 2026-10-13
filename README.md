@@ -14,7 +14,7 @@ px4-gazebo-assets/
 │   │   ├── xiaomotuo/         # 小摩托：平滑三角翼外观、两叶尾桨、起落架通用固定翼
 │   │   └── xiaobianfu/        # 小蝙蝠：白绿飞翼、手抛起飞、机腹着陆固定翼
 │   ├── gimbals/               # 云台，包含相机、控制器及其参数
-│   │   ├── two_axis_pod/      # 两轴侧装吊舱，包含专用控制、网关、地面站和演示
+│   │   ├── two_axis_pod/      # 两轴立装吊舱，包含专用控制、网关、地面站和演示
 │   │   └── three_axis_pod/
 │   │       ├── controller/    # 专用 C++ 控制插件、网关、工具和单元测试
 │   │       ├── ground_station/ # 吊舱配套地面站
@@ -27,7 +27,7 @@ px4-gazebo-assets/
 ├── assemblies/                # 多个 model 组合完成的复杂模型
 ├── worlds/                    # 静态环境定义、专用资源和说明
 └── scenarios/                 # 大型综合测试场景的配置、启动和辅助脚本(组件自己用的测试跟model放一起)
-    ├── geographic_two_axis_pod/ # 完整地理背景中的两轴侧装部件测试
+    ├── geographic_two_axis_pod/ # 完整地理背景中的两轴立装部件测试
     └── common/                # 多个场景共用的辅助脚本
 ```
 
@@ -40,13 +40,13 @@ px4-gazebo-assets/
 - 场景可以使用 `run.sh` 作为启动入口；需要配置文件时，由对应脚本读取。自定义配置文件不视为 PX4 或 Gazebo 原生支持的格式。
 - 组件的使用说明、启动脚本、配置、自测试和小型演示世界均随对应模型保存，不单独放入 `scenarios/`。组件专用控制插件与网关放入模型的 `controller/`，配套地面站放入 `ground_station/`，使用脚本放入 `scripts/`，组件自测和演示世界放入 `tests/`，功能与验证说明放入 `docs/`。
 - 三轴吊舱归入 `models/gimbals/three_axis_pod/`，吊舱与其内置云台一一对应，地面站是该组件的一部分。固定支架与吊舱的组合模型归入 `assemblies/three_axis_pod_stand/`。
-- 两轴侧装吊舱归入 `models/gimbals/two_axis_pod/`，模型、专用控制器、网关、地面站、生成工具与侧装演示均随组件保存。该组件的机械角定义与三轴公共姿态协议不同。
+- 两轴立装吊舱归入 `models/gimbals/two_axis_pod/`，模型、专用控制器、网关、地面站、生成工具与立装演示均随组件保存。该组件的机械角定义与三轴公共姿态协议不同。
 - 多个场景共用的辅助脚本放入 `scenarios/common/`。
 - 目录与文件使用有意义的英文名称。目录结构和归属规则统一维护在本文件中，模型或场景的专用说明维护在各自目录中。
 
 ## 使用状态
 
-仓库包含静态真实地理背景环境、四旋翼火箭穿越机、小摩托与小蝙蝠固定翼模型，以及两轴侧装吊舱、固定支架三轴吊舱、演示世界、控制插件、网络网关和地面站。
+仓库包含静态真实地理背景环境、四旋翼火箭穿越机、小摩托与小蝙蝠固定翼模型，以及两轴立装吊舱、固定支架三轴吊舱、演示世界、控制插件、网络网关和地面站。
 
 固定翼资产优先基于 PX4 已有 `advanced_plane` 模型修改，分别维护几何、质量、动力、气动与机体配置。小摩托整机总长 3.3 m、翼展 2.5 m、总质量 50 kg，目标最大可持续平飞空速 200 km/h；小蝙蝠整机总长 0.40 m、翼展 1 m、总质量 1 kg，目标最大可持续平飞空速 100 km/h。两款不考虑电池容量限制，估计参数与实际验证结果随模型记录。模型和运行入口见[小摩托说明](models/vehicles/xiaomotuo/README.md)与[小蝙蝠说明](models/vehicles/xiaobianfu/README.md)。
 
@@ -56,8 +56,8 @@ px4-gazebo-assets/
 - 启动：在仓库根目录运行 `gz sim -r worlds/geo_32_217857_119_105878/world.sdf`。运行条件、数据来源和精度限制见 [环境说明](worlds/geo_32_217857_119_105878/README.md)。
 - 场景：运行 `bash scenarios/geographic_camera/run.sh --gui`，使用上述真实地理 world 的运行副本验证立装/悬挂三轴吊舱、移动小车跟踪、NVENC 视频与 2 秒实体遮挡重捕获；不启动 PX4。目标、遮挡操作及安装方向见[场景说明](scenarios/geographic_camera/README.md)。
 - 三轴吊舱：见 [组件说明](models/gimbals/three_axis_pod/README.md)和[使用说明](models/gimbals/three_axis_pod/scripts/README.md)；功能、协议和当前限制见 [系统说明](models/gimbals/three_axis_pod/docs/system.md)，自验证结果见 [验证说明](models/gimbals/three_axis_pod/docs/validation.md)。
-- 两轴地理测试：运行 `bash scenarios/geographic_two_axis_pod/run.sh --gui`，在完整地理环境中测试标准侧装两轴吊舱、空中动态棋盘靶标、实体遮挡与 UDP/RTSP 地面站；不加载载机或 PX4，见[测试场景说明](scenarios/geographic_two_axis_pod/README.md)。
-- 两轴侧装吊舱：见[组件说明](models/gimbals/two_axis_pod/README.md)、[安装与运动学](models/gimbals/two_axis_pod/docs/mounting.md)和[验证说明](models/gimbals/two_axis_pod/docs/validation.md)。侧装外轴绕安装板法线转动，偏航 ±90°、俯仰 −45°～+90°，机械零位朝天，俯仰正值朝前。
+- 两轴地理测试：运行 `bash scenarios/geographic_two_axis_pod/run.sh --gui`，在完整地理环境中测试标准立装两轴吊舱、空中动态棋盘靶标、实体遮挡与 UDP/RTSP 地面站；不加载载机或 PX4，见[测试场景说明](scenarios/geographic_two_axis_pod/README.md)。
+- 两轴立装吊舱：见[组件说明](models/gimbals/two_axis_pod/README.md)、[安装与运动学](models/gimbals/two_axis_pod/docs/mounting.md)和[验证说明](models/gimbals/two_axis_pod/docs/validation.md)。Ø84 mm 底部圆环与地面平行，导引头整体向上高 91 mm。偏航绕竖直 +Z 轴转动，范围 ±90°；俯仰绕随动水平 +Y 轴转动，范围 −45°～+90°，机械零位朝天，正值朝前。
 - 火箭穿越机：见 [模型说明](models/vehicles/rocket_racing_quad/README.md)和[自验证说明](models/vehicles/rocket_racing_quad/tests/README.md)；采用机头朝上起飞、整机倾转加速的布局，机身轴向长度 0.45 m、对角轴距 15 英寸、桨径 10 英寸，目标为 200 km/h 巡航及 300 km/h 连续冲刺 10 秒。参数集中在模型的 `parameters.json`，修改与复测见[参数说明](models/vehicles/rocket_racing_quad/docs/parameters.md)；启动器生成独立 Gazebo 资产、PX4 机体配置和运行目录，当前验收进度见[项目状态](models/vehicles/rocket_racing_quad/docs/status.md)。
 
 空目录中的 `.gitkeep` 用于让 Git 保存目录；添加实际文件后可以移除。

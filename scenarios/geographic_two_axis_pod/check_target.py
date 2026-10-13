@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""两轴侧装在完整地理背景中的动态靶标跟踪和实体遮挡验收。"""
+"""两轴立装在完整地理背景中的动态靶标跟踪和实体遮挡验收。"""
 import argparse
 from concurrent.futures import ThreadPoolExecutor
 import json
@@ -51,7 +51,8 @@ def truth_error_deg(t, odometry):
     f=960/math.tan(math.pi/6)
     ray=rotation @ np.array([1,-(bx+bw/2-960)/f,-(by+bh/2-540)/f])
     los=np.array(t['los_mount'])
-    origin=np.array([.085,0,50])+ .037*los
+    yaw=math.radians(t['joints_deg']['yaw']['pos'])
+    origin=np.array([.015*math.cos(yaw),.015*math.sin(yaw),50.056]) + .026*los
     truth=np.array([point['x'],point['y'],point['z']])-origin
     cosine=np.dot(ray,truth)/(np.linalg.norm(ray)*np.linalg.norm(truth))
     return math.degrees(math.acos(float(np.clip(cosine,-1,1))))
@@ -105,7 +106,7 @@ class Session:
             t=json.loads(data);self.record('received',payload=t)
             if t.get('type')!='telemetry':continue
             self.latest=t;samples.append(t)
-            assert t['protocol_version']==3 and t['angle_convention']=='side_mount_joint','错误的吊舱协议'
+            assert t['protocol_version']==4 and t['angle_convention']=='upright_joint','错误的吊舱协议'
             assert -90.2<=t['joints_deg']['yaw']['pos']<=90.2 and -45.2<=t['joints_deg']['pitch']['pos']<=90.2,'机械限位越界'
             if predicate and predicate(t):return samples
             if simulation:
@@ -119,10 +120,12 @@ class Session:
         self.drive();self.send('stop');set_pose('occlusion_panel',HIDDEN_PANEL)
         set_pose('tracking_target',INITIAL)
         self.send('reset')
-        zero=lambda t:all(abs(t['joints_deg'][a]['pos'])<.3 for a in ('yaw','pitch'))
+        zero=lambda t:t['mode']=='IDLE' and all(
+            abs(t['joints_deg'][a]['pos'])<.3 and abs(t['joints_deg'][a]['vel'])<.2
+            for a in ('yaw','pitch'))
         samples=self.collect(25,zero)
         assert samples and zero(samples[-1]),'两轴回零未到位'
-        pitch=math.degrees(math.atan2(INITIAL[0]-.085,INITIAL[2]-50))
+        pitch=math.degrees(math.atan2(INITIAL[0]-.015,INITIAL[2]-50.056))
         deadline=time.monotonic()+30
         while time.monotonic()<deadline:
             t=self.latest;j=t['joints_deg'];ep=pitch-j['pitch']['pos'];ey=-j['yaw']['pos']

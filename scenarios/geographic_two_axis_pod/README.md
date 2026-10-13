@@ -1,8 +1,8 @@
-# 两轴侧装吊舱地理背景测试
+# 两轴立装吊舱地理背景测试
 
 本场景使用 `worlds/geo_32_217857_119_105878/world.sdf` 的完整运行副本，保留全部 400 块地形和影像。`prepare_world.py` 将环境资产路径解析为绝对路径，再内联 `models/gimbals/two_axis_pod/model.sdf`。原环境和组件源模型均不由本场景改写。
 
-吊舱在 `(0, 0, 50)` 固定于世界，安装姿态为单位旋转，使用已确认的标准侧装运动链 `Rx(yaw) Ry(pitch)`。俯仰零位朝天，正值朝前，限位 −45°～+90°；偏航绕安装板法线，限位 ±90°。该安装与限位下镜头无法指向安装水平以下，因此测试对象为空中夹具，不使用地面小车，也不通过转动安装方向改变可视范围。
+吊舱底部圆环在 `(0, 0, 50)` 固定于世界，Ø84 mm 圆环与地面平行，导引头整体向上高 91 mm。圆环下方的蓝色水平台面 `pod_mount_fixture` 是独立观察夹具，顶面高度 50 m，不属于吊舱外形和尺寸。安装姿态为单位旋转，使用已确认的立装运动链 `Rz(yaw) Ry(pitch)`。俯仰零位朝天，正值朝前，限位 −45°～+90°；偏航绕竖直 +Z，限位 ±90°。该安装与限位下镜头无法指向安装水平以下，因此测试对象为空中夹具，不使用地面小车，也不通过转动安装方向改变可视范围。
 
 动态靶标 `tracking_target` 的初始中心为 `(30, 0, 70)`，尺寸 `0.2 × 2.4 × 2.4 m`，关闭重力。朝 −X 和 +X 的宽面均有黑白棋盘及非对称红蓝色标，其他面为交替色条。它由 Gazebo VelocityControl 驱动，属于视觉测试夹具，不代表飞行器或飞行动力学。速度话题为 `/model/tracking_target/cmd_vel`，里程计话题为 `/model/tracking_target/odometry`。
 
@@ -30,7 +30,9 @@ GIMBAL_RUNDIR="$PWD/runs/geographic_two_axis_pod" bash models/gimbals/two_axis_p
 GIMBAL_RUNDIR="$PWD/runs/geographic_two_axis_pod" bash models/gimbals/two_axis_pod/scripts/stop_plugin_sim.sh
 ```
 
-定位标志 `POD_LOCATION_MARKER` 位于吊舱旁：橙黑相间高杆、洋红色发光球和黄色十字牌，顶部黄色箭头指向 `(0,0,50)` 附近的吊舱。标志仅用于观察，没有碰撞体；灯球及箭头在镜头下方。可在实体树中查找 `POD_LOCATION_MARKER` 定位附近区域，再选择 `two_axis_pod` 聚焦查看原尺寸外形与竖直侧装板。
+定位标志 `POD_LOCATION_MARKER` 位于吊舱旁：橙黑相间高杆、洋红色发光球和黄色十字牌，顶部黄色箭头指向 `(0,0,50)` 附近的吊舱。标志仅用于观察，没有碰撞体；灯球及箭头在镜头下方。可在实体树中查找 `POD_LOCATION_MARKER` 定位附近区域，再选择 `two_axis_pod` 聚焦查看水平底环及其上方的罩壳、支架和相机。
+
+模型内联在运行世界中；修改外形后须停止本运行目录的 Gazebo 服务端和网关，再重新运行启动命令。只重新打开 GUI 不会更新服务端已加载的模型。启动器发现已有服务时，在生成世界之前退出，避免磁盘文件与运行模型不一致。
 
 Gazebo GUI 默认从 `(-15, -35, 65)` 观察吊舱与靶标全景；近距离检查吊舱外形可在 GUI 中选择 `two_axis_pod` 并聚焦。停止服务后可手动关闭 Gazebo GUI 和地面站窗口。日志与生成的 `world.sdf` 均位于运行目录。
 
@@ -48,6 +50,8 @@ GIMBAL_PYTHON=../two_axis_pod_venv/bin/python python3 scenarios/geographic_two_a
 
 记录保存到 `runs/geographic_two_axis_pod/target.jsonl` 和 `target.summary.json`；实窗观察使用独立 `observe.jsonl`，避免覆盖验收结果。地面站截图为 `ground_station.png`。独立环境应包含组件地面站所需的 OpenCV、NumPy、Pillow、PyGObject 与 GStreamer；`GIMBAL_PYTHON` 可指定其他已有解释器。
 
+单独测试可使用 `--test moving --output runs/geographic_two_axis_pod/moving.jsonl` 和 `--test occlusion --output runs/geographic_two_axis_pod/occlusion.jsonl`，各自生成同名 `.summary.json`。实体遮挡计时期间避免并行导出完整世界等耗时服务请求，以免延迟遮挡板移除，超过默认 2.5 秒恢复窗口。
+
 实测结果及地面站截图见[两轴组件验证资料](../../models/gimbals/two_axis_pod/docs/validation.md#完整地理背景部件测试)。
 
 ## 小尺寸吊舱近景查看
@@ -63,4 +67,4 @@ GZ_PARTITION=geographic_two_axis_pod gz service \
   --timeout 3000 --req 'data: 0.1'
 ```
 
-`data: 1` 恢复原生速度；`data: 0.05` 进一步减慢。浏览相机近裁剪距离为 `0.005 m`，便于观察直径约7厘米的相机球体；该设置在加载生成的world后生效，与吊舱视频相机的裁剪参数独立。修改源配置不改变已经运行窗口的裁剪面。
+`data: 1` 恢复原生速度；`data: 0.05` 进一步减慢。浏览相机近裁剪距离为 `0.005 m`，便于观察直径 48 mm 的相机球体；该设置在加载生成的world后生效，与吊舱视频相机的裁剪参数独立。修改源配置不改变已经运行窗口的裁剪面。

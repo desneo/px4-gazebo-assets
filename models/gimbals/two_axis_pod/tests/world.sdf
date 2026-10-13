@@ -49,12 +49,12 @@
     </model>
     <model name="fixture">
       <static>true</static>
-      <pose>-0.027 0 0.75 0 0 0</pose>
+      <pose>0 0 0.75 0 0 0</pose>
       <link name="link">
-        <visual name="post">
+        <visual name="pedestal">
           <geometry>
             <box>
-              <size>0.04 0.06 1.5</size>
+              <size>0.18 0.18 1.5</size>
             </box>
           </geometry>
           <material>
@@ -66,7 +66,7 @@
     </model>
     <model name="tracking_target">
       <static>true</static>
-      <pose>0.085 0 4 0 0 0</pose>
+      <pose>0.015 0 4 0 0 0</pose>
       <link name="link">
         <visual name="panel">
           <geometry>
@@ -265,7 +265,7 @@
     </model>
     <model name="overview">
       <static>true</static>
-      <pose>0.43 -0.47 1.80 0 0.38 2.25</pose>
+      <pose>0.215 -0.235 1.65 0 0.38 2.25</pose>
       <link name="link">
         <sensor name="overview" type="camera">
           <always_on>true</always_on>
@@ -279,7 +279,7 @@
               <format>R8G8B8</format>
             </image>
             <clip>
-              <near>0.01</near>
+              <near>0.005</near>
               <far>50</far>
             </clip>
           </camera>
@@ -293,21 +293,22 @@
         <inertial>
           <mass>0.1</mass>
           <inertia>
-            <ixx>0.0004008333333333334</ixx>
-            <iyy>0.0003349666666666667</iyy>
-            <izz>6.913333333333334e-05</izz>
+            <ixx>9e-05</ixx>
+            <iyy>9e-05</iyy>
+            <izz>9e-05</izz>
             <ixy>0</ixy>
             <ixz>0</ixz>
             <iyz>0</iyz>
           </inertia>
-          <pose>0 0 -0.035 0 0 0</pose>
+          <pose>0 0 0.004 0 0 0</pose>
         </inertial>
-        <visual name="side_plate_visual">
-          <pose>0 0 -0.035 0 0 0</pose>
+        <visual name="mounting_flange_visual">
+          <pose>0 0 0.004 0 0 0</pose>
           <geometry>
-            <box>
-              <size>0.014 0.09 0.2</size>
-            </box>
+            <cylinder>
+              <radius>0.042</radius>
+              <length>0.008</length>
+            </cylinder>
           </geometry>
           <material>
             <ambient>.09 .09 .10 1</ambient>
@@ -315,64 +316,120 @@
             <specular>.35 .35 .35 1</specular>
           </material>
         </visual>
-        <collision name="side_plate_collision">
-          <pose>0 0 -0.035 0 0 0</pose>
-          <geometry>
-            <box>
-              <size>0.014 0.09 0.2</size>
-            </box>
-          </geometry>
-        </collision>
-        <visual name="bolt_0.04_visual">
-          <pose>0.008 0 0.04 0 1.5707963267948966 0</pose>
+        <collision name="mounting_flange_collision">
+          <pose>0 0 0.004 0 0 0</pose>
           <geometry>
             <cylinder>
-              <radius>0.004</radius>
-              <length>0.002</length>
+              <radius>0.042</radius>
+              <length>0.008</length>
+            </cylinder>
+          </geometry>
+        </collision>
+        <visual name="m3_hole_1_visual">
+          <pose>0.034 0.0 0.0084 0 0 0</pose>
+          <geometry>
+            <cylinder>
+              <radius>0.0015</radius>
+              <length>0.0008</length>
             </cylinder>
           </geometry>
           <material>
-            <ambient>.55 .55 .57 1</ambient>
-            <diffuse>.55 .55 .57 1</diffuse>
+            <ambient>.018 .018 .020 1</ambient>
+            <diffuse>.018 .018 .020 1</diffuse>
             <specular>.35 .35 .35 1</specular>
           </material>
         </visual>
-        <visual name="bolt_-0.11_visual">
-          <pose>0.008 0 -0.11 0 1.5707963267948966 0</pose>
+        <visual name="m3_hole_2_visual">
+          <pose>0.017000000000000005 0.029444863728670913 0.0084 0 0 0</pose>
           <geometry>
             <cylinder>
-              <radius>0.004</radius>
-              <length>0.002</length>
+              <radius>0.0015</radius>
+              <length>0.0008</length>
             </cylinder>
           </geometry>
           <material>
-            <ambient>.55 .55 .57 1</ambient>
-            <diffuse>.55 .55 .57 1</diffuse>
+            <ambient>.018 .018 .020 1</ambient>
+            <diffuse>.018 .018 .020 1</diffuse>
+            <specular>.35 .35 .35 1</specular>
+          </material>
+        </visual>
+        <visual name="m3_hole_3_visual">
+          <pose>-0.016999999999999994 0.029444863728670917 0.0084 0 0 0</pose>
+          <geometry>
+            <cylinder>
+              <radius>0.0015</radius>
+              <length>0.0008</length>
+            </cylinder>
+          </geometry>
+          <material>
+            <ambient>.018 .018 .020 1</ambient>
+            <diffuse>.018 .018 .020 1</diffuse>
+            <specular>.35 .35 .35 1</specular>
+          </material>
+        </visual>
+        <visual name="m3_hole_4_visual">
+          <pose>-0.034 4.163799117101001e-18 0.0084 0 0 0</pose>
+          <geometry>
+            <cylinder>
+              <radius>0.0015</radius>
+              <length>0.0008</length>
+            </cylinder>
+          </geometry>
+          <material>
+            <ambient>.018 .018 .020 1</ambient>
+            <diffuse>.018 .018 .020 1</diffuse>
+            <specular>.35 .35 .35 1</specular>
+          </material>
+        </visual>
+        <visual name="m3_hole_5_visual">
+          <pose>-0.017000000000000015 -0.029444863728670907 0.0084 0 0 0</pose>
+          <geometry>
+            <cylinder>
+              <radius>0.0015</radius>
+              <length>0.0008</length>
+            </cylinder>
+          </geometry>
+          <material>
+            <ambient>.018 .018 .020 1</ambient>
+            <diffuse>.018 .018 .020 1</diffuse>
+            <specular>.35 .35 .35 1</specular>
+          </material>
+        </visual>
+        <visual name="m3_hole_6_visual">
+          <pose>0.017000000000000005 -0.029444863728670913 0.0084 0 0 0</pose>
+          <geometry>
+            <cylinder>
+              <radius>0.0015</radius>
+              <length>0.0008</length>
+            </cylinder>
+          </geometry>
+          <material>
+            <ambient>.018 .018 .020 1</ambient>
+            <diffuse>.018 .018 .020 1</diffuse>
             <specular>.35 .35 .35 1</specular>
           </material>
         </visual>
       </link>
       <link name="yaw_arm_link">
-        <pose>0 0 0 0 0 0</pose>
+        <pose>0 0 0.008 0 0 0</pose>
         <inertial>
-          <mass>0.09</mass>
+          <mass>0.04</mass>
           <inertia>
-            <ixx>0.00015</ixx>
-            <iyy>0.0003</iyy>
-            <izz>0.0003</izz>
+            <ixx>4e-05</ixx>
+            <iyy>5e-05</iyy>
+            <izz>5e-05</izz>
             <ixy>0</ixy>
             <ixz>0</ixz>
             <iyz>0</iyz>
           </inertia>
-          <pose>.045 .025 0 0 0 0</pose>
+          <pose>-.012 0 0.02 0 0 0</pose>
         </inertial>
-        <visual name="yaw_motor_visual">
-          <pose>.020 0 0 0 1.5707963267948966 0</pose>
+        <visual name="carrier_ring_visual">
+          <pose>0 0 -0.008 0 0 0</pose>
           <geometry>
-            <cylinder>
-              <radius>0.023</radius>
-              <length>0.025</length>
-            </cylinder>
+            <mesh>
+              <uri>model://two_axis_pod/meshes/carrier_ring.dae</uri>
+            </mesh>
           </geometry>
           <material>
             <ambient>.09 .09 .10 1</ambient>
@@ -380,21 +437,12 @@
             <specular>.35 .35 .35 1</specular>
           </material>
         </visual>
-        <collision name="yaw_motor_collision">
-          <pose>.020 0 0 0 1.5707963267948966 0</pose>
+        <visual name="rear_shell_visual">
+          <pose>0 0 -0.008 0 0 0</pose>
           <geometry>
-            <cylinder>
-              <radius>0.023</radius>
-              <length>0.025</length>
-            </cylinder>
-          </geometry>
-        </collision>
-        <visual name="single_side_arm_visual">
-          <pose>0.052500000000000005 0.048 0 0 0 0</pose>
-          <geometry>
-            <box>
-              <size>0.065 .014 .025</size>
-            </box>
+            <mesh>
+              <uri>model://two_axis_pod/meshes/rear_shell.dae</uri>
+            </mesh>
           </geometry>
           <material>
             <ambient>.09 .09 .10 1</ambient>
@@ -402,40 +450,11 @@
             <specular>.35 .35 .35 1</specular>
           </material>
         </visual>
-        <collision name="single_side_arm_collision">
-          <pose>0.052500000000000005 0.048 0 0 0 0</pose>
-          <geometry>
-            <box>
-              <size>0.065 .014 .025</size>
-            </box>
-          </geometry>
-        </collision>
-        <visual name="arm_root_visual">
-          <pose>.026 0.024 0 0 0 0</pose>
-          <geometry>
-            <box>
-              <size>.018 0.048 .025</size>
-            </box>
-          </geometry>
-          <material>
-            <ambient>.09 .09 .10 1</ambient>
-            <diffuse>.09 .09 .10 1</diffuse>
-            <specular>.35 .35 .35 1</specular>
-          </material>
-        </visual>
-        <collision name="arm_root_collision">
-          <pose>.026 0.024 0 0 0 0</pose>
-          <geometry>
-            <box>
-              <size>.018 0.048 .025</size>
-            </box>
-          </geometry>
-        </collision>
-        <visual name="pitch_motor_visual">
-          <pose>0.085 0.048 0 1.5707963267948966 0 0</pose>
+        <visual name="yaw_drive_visual">
+          <pose>0 0 .009 0 0 0</pose>
           <geometry>
             <cylinder>
-              <radius>0.017</radius>
+              <radius>0.012</radius>
               <length>0.018</length>
             </cylinder>
           </geometry>
@@ -445,21 +464,151 @@
             <specular>.35 .35 .35 1</specular>
           </material>
         </visual>
-        <collision name="pitch_motor_collision">
-          <pose>0.085 0.048 0 1.5707963267948966 0 0</pose>
+        <collision name="yaw_drive_collision">
+          <pose>0 0 .009 0 0 0</pose>
           <geometry>
             <cylinder>
-              <radius>0.017</radius>
+              <radius>0.012</radius>
               <length>0.018</length>
+            </cylinder>
+          </geometry>
+        </collision>
+        <visual name="rear_support_visual">
+          <pose>-.025 0 0.026000000000000002 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>.010 .018 .030</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>.09 .09 .10 1</ambient>
+            <diffuse>.09 .09 .10 1</diffuse>
+            <specular>.35 .35 .35 1</specular>
+          </material>
+        </visual>
+        <collision name="rear_support_collision">
+          <pose>-.025 0 0.026000000000000002 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>.010 .018 .030</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="yoke_crossbar_visual">
+          <pose>-.003 0 0.030000000000000006 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>.036 0.056 .006</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>.09 .09 .10 1</ambient>
+            <diffuse>.09 .09 .10 1</diffuse>
+            <specular>.35 .35 .35 1</specular>
+          </material>
+        </visual>
+        <collision name="yoke_crossbar_collision">
+          <pose>-.003 0 0.030000000000000006 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>.036 0.056 .006</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="yoke_arm_right_visual">
+          <pose>0.015 -0.028 0.04 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>.008 .006 .024</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>.09 .09 .10 1</ambient>
+            <diffuse>.09 .09 .10 1</diffuse>
+            <specular>.35 .35 .35 1</specular>
+          </material>
+        </visual>
+        <collision name="yoke_arm_right_collision">
+          <pose>0.015 -0.028 0.04 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>.008 .006 .024</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="pitch_motor_right_visual">
+          <pose>0.015 -0.028 0.048 1.5707963267948966 0 0</pose>
+          <geometry>
+            <cylinder>
+              <radius>0.01</radius>
+              <length>0.006</length>
+            </cylinder>
+          </geometry>
+          <material>
+            <ambient>.09 .09 .10 1</ambient>
+            <diffuse>.09 .09 .10 1</diffuse>
+            <specular>.35 .35 .35 1</specular>
+          </material>
+        </visual>
+        <collision name="pitch_motor_right_collision">
+          <pose>0.015 -0.028 0.048 1.5707963267948966 0 0</pose>
+          <geometry>
+            <cylinder>
+              <radius>0.01</radius>
+              <length>0.006</length>
+            </cylinder>
+          </geometry>
+        </collision>
+        <visual name="yoke_arm_left_visual">
+          <pose>0.015 0.028 0.04 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>.008 .006 .024</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>.09 .09 .10 1</ambient>
+            <diffuse>.09 .09 .10 1</diffuse>
+            <specular>.35 .35 .35 1</specular>
+          </material>
+        </visual>
+        <collision name="yoke_arm_left_collision">
+          <pose>0.015 0.028 0.04 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>.008 .006 .024</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="pitch_motor_left_visual">
+          <pose>0.015 0.028 0.048 1.5707963267948966 0 0</pose>
+          <geometry>
+            <cylinder>
+              <radius>0.01</radius>
+              <length>0.006</length>
+            </cylinder>
+          </geometry>
+          <material>
+            <ambient>.09 .09 .10 1</ambient>
+            <diffuse>.09 .09 .10 1</diffuse>
+            <specular>.35 .35 .35 1</specular>
+          </material>
+        </visual>
+        <collision name="pitch_motor_left_collision">
+          <pose>0.015 0.028 0.048 1.5707963267948966 0 0</pose>
+          <geometry>
+            <cylinder>
+              <radius>0.01</radius>
+              <length>0.006</length>
             </cylinder>
           </geometry>
         </collision>
         <visual name="pitch_axle_visual">
-          <pose>0.085 0.035 0 1.5707963267948966 0 0</pose>
+          <pose>0.015 0 0.048 1.5707963267948966 0 0</pose>
           <geometry>
             <cylinder>
-              <radius>0.008</radius>
-              <length>0.014</length>
+              <radius>0.0045</radius>
+              <length>0.056</length>
             </cylinder>
           </geometry>
           <material>
@@ -468,15 +617,23 @@
             <specular>.35 .35 .35 1</specular>
           </material>
         </visual>
+        <collision name="rear_shell_collision">
+          <pose>-.028 0 0.041 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>.015 .060 .065</size>
+            </box>
+          </geometry>
+        </collision>
       </link>
       <link name="camera_link">
-        <pose>0.085 0 0 0 0 0</pose>
+        <pose>0.015 0 0.056 0 0 0</pose>
         <inertial>
           <mass>0.1</mass>
           <inertia>
-            <ixx>4.900000000000001e-05</ixx>
-            <iyy>4.900000000000001e-05</iyy>
-            <izz>4.900000000000001e-05</izz>
+            <ixx>2.3040000000000003e-05</ixx>
+            <iyy>2.3040000000000003e-05</iyy>
+            <izz>2.3040000000000003e-05</izz>
             <ixy>0</ixy>
             <ixz>0</ixz>
             <iyz>0</iyz>
@@ -486,7 +643,7 @@
           <pose>0 0 0 0 0 0</pose>
           <geometry>
             <sphere>
-              <radius>0.035</radius>
+              <radius>0.024</radius>
             </sphere>
           </geometry>
           <material>
@@ -499,16 +656,16 @@
           <pose>0 0 0 0 0 0</pose>
           <geometry>
             <sphere>
-              <radius>0.035</radius>
+              <radius>0.024</radius>
             </sphere>
           </geometry>
         </collision>
         <visual name="lens_bezel_visual">
-          <pose>0 0 0.032 0 0 0</pose>
+          <pose>0 0 0.0225 0 0 0</pose>
           <geometry>
             <cylinder>
-              <radius>0.017</radius>
-              <length>0.008</length>
+              <radius>0.013</radius>
+              <length>0.005</length>
             </cylinder>
           </geometry>
           <material>
@@ -518,10 +675,10 @@
           </material>
         </visual>
         <visual name="lens_glass_visual">
-          <pose>0 0 0.036500000000000005 0 0 0</pose>
+          <pose>0 0 0.025500000000000002 0 0 0</pose>
           <geometry>
             <cylinder>
-              <radius>0.013</radius>
+              <radius>0.0105</radius>
               <length>0.001</length>
             </cylinder>
           </geometry>
@@ -532,7 +689,7 @@
           </material>
         </visual>
         <sensor name="camera" type="camera">
-          <pose>0 0 0.037000000000000005 3.141592653589793 -1.5707963267948966 0</pose>
+          <pose>0 0 0.026000000000000002 3.141592653589793 -1.5707963267948966 0</pose>
           <always_on>true</always_on>
           <update_rate>30</update_rate>
           <camera>
@@ -553,7 +710,7 @@
         <parent>mount_link</parent>
         <child>yaw_arm_link</child>
         <axis>
-          <xyz>1 0 0</xyz>
+          <xyz>0 0 1</xyz>
           <limit>
             <lower>-1.5707963267948966</lower>
             <upper>1.5707963267948966</upper>
@@ -587,6 +744,7 @@
         <mount_link>mount_link</mount_link>
         <camera_link>camera_link</camera_link>
         <camera_sensor>camera</camera_sensor>
+        <mount_mode>upright</mount_mode>
         <command_topic>/two_axis_pod/command</command_topic>
         <telemetry_topic>/two_axis_pod/telemetry</telemetry_topic>
         <command_result_topic>/two_axis_pod/command_result</command_result_topic>

@@ -1,6 +1,6 @@
 # 两轴吊舱启动与停止
 
-在仓库根目录执行以下命令。演示世界 `tests/world.sdf` 使用固定侧装两轴吊舱和测试目标，世界名为 `two_axis_pod_demo`。
+在仓库根目录执行以下命令。演示世界 `tests/world.sdf` 使用固定立装两轴吊舱和测试目标，世界名为 `two_axis_pod_demo`。
 
 ```bash
 cmake -S models/gimbals/two_axis_pod/controller -B models/gimbals/two_axis_pod/controller/build
@@ -28,4 +28,4 @@ bash models/gimbals/two_axis_pod/scripts/stop_bridge.sh
 bash models/gimbals/two_axis_pod/scripts/stop_plugin_sim.sh
 ```
 
-停止脚本只处理同一运行目录记录的服务进程组。Gazebo GUI 和地面站窗口另行关闭。启动脚本仅检查进程存活，遥测与图像就绪使用地面站在线自检验证，见[地面站说明](../ground_station/README.md)。侧装机械角度和运动链见[安装说明](../docs/mounting.md)。
+停止脚本只处理同一运行目录记录的服务进程组。Gazebo GUI 和地面站窗口另行关闭。启动脚本仅检查进程存活，遥测与图像就绪使用地面站在线自检验证，见[地面站说明](../ground_station/README.md)。立装机械角度和运动链见[安装说明](../docs/mounting.md)。

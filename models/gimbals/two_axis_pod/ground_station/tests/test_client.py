@@ -91,8 +91,8 @@ class ClientTests(unittest.TestCase):
         self.assertTrue(self.client.find_result(cmd="reset_axis", seq=8)["ok"])
 
     def confirm_public_angles(self):
-        self.receive({"type": "hello", "version": 3, "angle_convention": "side_mount_joint"})
-        self.receive({"type": "telemetry", "angle_convention": "side_mount_joint", "attitude_deg": {
+        self.receive({"type": "hello", "version": 4, "angle_convention": "upright_joint"})
+        self.receive({"type": "telemetry", "angle_convention": "upright_joint", "attitude_deg": {
             axis: {"pos": 0.0, "vel": 0.0, "acc": 0.0} for axis in ("yaw", "pitch")}})
 
     def test_public_control_requires_both_version_and_valid_public_telemetry(self):
@@ -122,11 +122,11 @@ class ClientTests(unittest.TestCase):
         self.assertEqual(len(self.packets), 2)
 
     def test_marker_alone_or_malformed_public_attitude_cannot_enable_control(self):
-        self.receive({"type": "hello", "version": 3, "angle_convention": "side_mount_joint"})
+        self.receive({"type": "hello", "version": 4, "angle_convention": "upright_joint"})
         for attitude in ({}, {axis: {"pos": 0., "vel": 0., "acc": float("nan")} for axis in ("yaw", "pitch")}):
-            self.receive({"type": "telemetry", "angle_convention": "side_mount_joint", "attitude_deg": attitude})
+            self.receive({"type": "telemetry", "angle_convention": "upright_joint", "attitude_deg": attitude})
             self.assertFalse(self.client.public_angles_ready)
-        self.receive({"type": "telemetry", "angle_convention": "side_mount_joint"})
+        self.receive({"type": "telemetry", "angle_convention": "upright_joint"})
         self.assertFalse(self.client.public_angles_ready)
 
     def test_singular_view_keeps_joint_control_valid(self):

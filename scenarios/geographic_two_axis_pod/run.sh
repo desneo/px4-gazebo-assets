@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 完整地理背景中的两轴侧装部件测试；无需载机和 PX4。
+# 完整地理背景中的两轴立装部件测试；无需载机和 PX4。
 set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJ="$(cd "$HERE/../.." && pwd)"
@@ -12,6 +12,17 @@ while (($#)); do
     --gui) SHOW_GUI=true; shift ;;
     *) BRIDGE_ARGS+=("$1"); shift ;;
   esac
+done
+# 运行模型已内联到服务端；已有服务时不可覆盖运行世界后继续复用旧进程。
+for service in gz_plugin bridge; do
+  pid_file="$GIMBAL_RUNDIR/$service.pid"
+  if [[ -f "$pid_file" ]]; then
+    recorded_pid="$(cat "$pid_file")"
+    if [[ "$recorded_pid" =~ ^[0-9]+$ ]] && kill -0 "$recorded_pid" 2>/dev/null; then
+      echo "场景服务仍在运行：$pid_file。模型变更后请先停止服务端和网关，再重新启动；只打开GUI不会更新模型。" >&2
+      exit 1
+    fi
+  fi
 done
 mkdir -p "$GIMBAL_RUNDIR"
 python3 "$HERE/prepare_world.py" --output "$GIMBAL_RUNDIR/world.sdf"

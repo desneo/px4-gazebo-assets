@@ -3,8 +3,8 @@
 """云台侧网络网关（gz-transport -> IP:端口）。
 
 把 Gazebo 内 `gz-two-axis-pod-controller` 插件暴露的 gz-transport 话题，桥接成地面站可用的
-UDP + RTSP 接口，对外协议与 `models/gimbals/two_axis_pod/docs/system.md`（控制/遥测）、
-`models/gimbals/two_axis_pod/docs/system.md`（遥测字段）一致。视频仍为 RTSP/RTP over UDP。
+UDP + RTSP 接口，对外控制和遥测协议见
+`models/gimbals/two_axis_pod/docs/control-protocol.md`。视频为 RTSP/RTP over UDP。
 
 gz-transport 侧（与插件对接）：
 - 订阅 ``/two_axis_pod/telemetry``（StringMsg，JSON 遥测）
@@ -12,7 +12,7 @@ gz-transport 侧（与插件对接）：
 - 发布 ``/two_axis_pod/command``（StringMsg，JSON 指令）-> 插件
 - 复用 ``gz_source.py`` 的 ``GzSource``：相机图像 + 仿真时钟 -> 单调时钟映射
 
-网络侧（面向地面站，见 models/gimbals/two_axis_pod/docs/system.md）：
+网络侧（面向地面站，见 models/gimbals/two_axis_pod/docs/control-protocol.md）：
 - UDP ``udp://<host>:8766``：一条数据报 = 一条 UTF-8 JSON；服务端按客户端地址登记并
   以 ``--telemetry-hz`` 广播 ``telemetry``；指令经 ``seq`` 幂等去重后转插件。
 - RTSP ``rtsp://<host>:8555/two_axis_pod``：H.264（复用 ``video.py``）
@@ -49,9 +49,9 @@ TELEMETRY_TOPIC = "/two_axis_pod/telemetry"
 COMMAND_TOPIC = "/two_axis_pod/command"
 RESULT_TOPIC = "/two_axis_pod/command_result"
 
-# 单条数据报上限（models/gimbals/two_axis_pod/docs/system.md：8 KiB），超过不发送/丢弃
+# 单条数据报上限（docs/control-protocol.md：8 KiB），超过不发送/丢弃
 MAX_DATAGRAM = 8 * 1024
-# 接收缓冲区（models/gimbals/two_axis_pod/docs/system.md：建议 >= 64 KiB）
+# UDP 接收缓冲区，足以接收任意合法数据报。
 RECV_BUFFER = 65535
 SEQ_WINDOW = 1024
 MAX_PENDING = 4096
@@ -87,7 +87,7 @@ def _as_int(value):
 
 
 class _Client:
-    """一个已登记客户端地址的会话状态（models/gimbals/two_axis_pod/docs/system.md§6）。"""
+    """一个已登记客户端地址的会话状态，见 docs/control-protocol.md。"""
 
     __slots__ = ("addr", "last_seen", "highest_seq", "last_control_seq", "seen", "results")
 
@@ -130,7 +130,7 @@ class GimbalBridge:
         self.video: VideoStreamer | None = None
         self._video_error: str | None = None
 
-        # UDP 控制/遥测服务端（models/gimbals/two_axis_pod/docs/system.md）
+        # UDP 控制/遥测服务端（docs/control-protocol.md）
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         try:
@@ -244,7 +244,7 @@ class GimbalBridge:
             "dropped": self.video.frames_dropped if self.video else 0,
             "clients": self.video.clients if self.video else 0,
         }
-        # 便于地面站做时钟/存活判断（models/gimbals/two_axis_pod/docs/system.md；插件未提供）
+        # 便于地面站做时钟/存活判断（docs/control-protocol.md；插件未提供）
         out["ts_wall"] = round(time.time(), 6)
         out["server_uptime"] = round(time.time() - self._t_start, 1)
         return out
@@ -308,8 +308,8 @@ class GimbalBridge:
             hello = {
                 "type": "hello",
                 "proto": "gimbal-udp",
-                "version": 3,
-                "angle_convention": "side_mount_joint",
+                "version": 4,
+                "angle_convention": "upright_joint",
                 "clock_domain": self.clock_domain,
                 "telemetry_hz": self.args.telemetry_hz,
                 "video_rtsp_path": self.args.mount,
@@ -318,7 +318,7 @@ class GimbalBridge:
             print(f"[udp] 客户端登记 {addr}，当前 {len(self.clients)} 个", flush=True)
         self._handle_command(cl, msg)
 
-    # ---------------- 指令处理（models/gimbals/two_axis_pod/docs/system.md§6） ----------------
+    # ---------------- 指令处理（docs/control-protocol.md） ----------------
     def _handle_command(self, cl: _Client, msg: dict):
         # 与插件回调、会话过期共用锁，先登记关联再发布。
         with self.clients_lock:
@@ -568,7 +568,7 @@ def main():
     parser.add_argument("--udp-host", default="0.0.0.0")
     parser.add_argument("--udp-port", type=int, default=8766)
     parser.add_argument("--client-timeout", type=float, default=5.0,
-                        help="客户端登记超时（秒，models/gimbals/two_axis_pod/docs/system.md）")
+                        help="客户端登记超时（秒，见 docs/control-protocol.md）")
     parser.add_argument("--rtsp-port", type=int, default=8555)
     parser.add_argument("--rtp-port", type=int, default=5602,
                         help="本机编码器与 RTSP 中继之间的 RTP 端口；并行实例须使用不同端口")

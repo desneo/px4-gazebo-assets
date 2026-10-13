@@ -17,7 +17,9 @@ int main()
   a = Los(0, 90 * d);
   Check(std::abs(a.x - 1) < 1e-9, "pitch+90朝前");
   a = Los(90 * d, 0);
-  Check(std::abs(a.y + 1) < 1e-9, "yaw+90朝-Y");
+  Check(std::abs(a.z - 1) < 1e-9, "朝天时yaw不改变视线");
+  a = Los(90 * d, 90 * d);
+  Check(std::abs(a.y - 1) < 1e-9, "yaw+90时前向转到+Y");
 // 有限差分验证图像控制 Jacobian，包括大角度和退化位形。
   for (double yaw :
        {
@@ -37,10 +39,10 @@ int main()
     };
     Vec3 dy{(ly.x - l.x) / 1e-6, (ly.y - l.y) / 1e-6, (ly.z - l.z) / 1e-6};
     Vec3 dp{(lp.x - l.x) / 1e-6, (lp.y - l.y) / 1e-6, (lp.z - l.z) / 1e-6};
-    Check(std::abs(dot(dy, right) + std::cos(pitch)) < 1e-5, "yaw Jacobian");
+    Check(std::abs(dot(dy, right) - std::sin(pitch)) < 1e-5, "yaw Jacobian");
     Check(std::abs(dot(dp, down) + 1) < 1e-5, "pitch Jacobian");
   }
-  auto rates = ImageRates(M_PI / 2, 100, 20);
+  auto rates = ImageRates(0, 100, 20);
   Check(std::isfinite(rates[0]) && std::abs(rates[0]) < 1e-8, "退化时yaw速度有限且为零");
   // 距硬限位0.7°时，80°/s持续0.012s会越界。
   // 保护必须在加速度平滑之后生效，并且保留向内退出的能力。

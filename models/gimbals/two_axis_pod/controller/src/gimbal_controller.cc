@@ -89,7 +89,7 @@ private:
   std::string commandTopic_{"/two_axis_pod/command"};
   std::string telemetryTopic_{"/two_axis_pod/telemetry"};
   std::string resultTopic_{"/two_axis_pod/command_result"};
-  std::string mountMode_{"side"};
+  std::string mountMode_{"upright"};
   Mat3 mountWorldRotation_;
   double controlHz_{100.0};
   double telemetryHz_{50.0};
@@ -163,9 +163,9 @@ void GimbalController::Configure(
   telemetryHz_ = std::max(1.0, getDouble("telemetry_rate", telemetryHz_));
 
   mountMode_ = getStr("mount_mode", mountMode_);
-  if (mountMode_ != "side")
+  if (mountMode_ != "upright")
   {
-    gzerr << "[two_axis] mount_mode 必须为 side\n";
+    gzerr << "[two_axis] mount_mode 必须为 upright\n";
     return;
   }
   // 固定安装外参包括嵌套模型姿态；初始化后保持不变。
@@ -678,7 +678,7 @@ void GimbalController::PublishTelemetry(double _now, const JointSample &_js,
   }
   os << "}";
 
-  os << ",\"protocol_version\":3,\"angle_convention\":\"side_mount_joint\",\"singular\":" << (singular ? "true" : "false")
+  os << ",\"protocol_version\":4,\"angle_convention\":\"upright_joint\",\"singular\":" << (singular ? "true" : "false")
      << ",\"los_mount\":[" << Num(los.x, 6) << "," << Num(los.y, 6) << "," << Num(los.z, 6) << "]";
   const double positions[2] = {_js.yaw, _js.pitch}, velocities[2] = {_js.yaw_vel, _js.pitch_vel};
   const char *names[2] = {"yaw", "pitch"};

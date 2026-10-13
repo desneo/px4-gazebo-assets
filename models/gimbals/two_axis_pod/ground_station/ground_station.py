@@ -8,7 +8,7 @@
 功能：
 - RTSP 硬解播放（默认 ``nvh264dec``，可配置/自动回退 ``avdec_h264``）；
 - 鼠标拖拽画框，松开自动提交 ``track``（归一化到整帧 0..1）；
-- 显示实时跟踪框、跟踪状态、稳定性、两轴 两轴机械姿态/角速度、限位/饱和、
+- 显示实时跟踪框、跟踪状态、稳定性、两轴机械姿态/角速度、限位/饱和、
   目标中心角误差、端到端时延（用 ``frame_table``）、显示帧率与丢帧率；
 - 按钮与快捷键：复位 reset / 停止 stop / 朝天 home / 清故障 reset_fault，
   二维 yaw/pitch 虚拟摇杆，方向键手动指向；
@@ -294,9 +294,9 @@ class UdpClient(threading.Thread):
             hello = self.hello or {}
             tele = self.telemetry or {}
             fresh = time.monotonic() - getattr(self, "last_telemetry_mono", 0.0) <= self.client_timeout
-            return bool(self.connected and fresh and type(hello.get("version")) is int and hello.get("version") == 3
-                        and hello.get("angle_convention") == "side_mount_joint"
-                        and tele.get("angle_convention") == "side_mount_joint"
+            return bool(self.connected and fresh and type(hello.get("version")) is int and hello.get("version") == 4
+                        and hello.get("angle_convention") == "upright_joint"
+                        and tele.get("angle_convention") == "upright_joint"
                         and self._valid_attitude(tele.get("attitude_deg")))
 
     @staticmethod
@@ -1060,7 +1060,7 @@ class GroundStation:
         if tele:
             t = tele.get("tracking") or {}
             s = tele.get("stability") or {}
-            ready = (self.tele.public_angles_ready and tele.get("angle_convention") == "side_mount_joint"
+            ready = (self.tele.public_angles_ready and tele.get("angle_convention") == "upright_joint"
                      and UdpClient._valid_attitude(tele.get("attitude_deg")))
             j = tele.get("attitude_deg") or {}
             def angle_line(axis):
@@ -1078,11 +1078,11 @@ class GroundStation:
             colors = [(0, 255, 255)] * len(lines)
             colors[0] = (0, 255, 255)
             mode = (tele.get("mount") or {}).get("mode")
-            mounting = {"side": "侧装（板法线偏航）"}.get(mode, "未知")
-            lines.append(f"安装: {mounting}   机械角度: {'侧装机械角度' if ready else '未确认，角度控制禁用'}")
+            mounting = {"upright": "立装（竖直偏航）"}.get(mode, "未知")
+            lines.append(f"安装: {mounting}   机械角度: {'立装机械角度' if ready else '未确认，角度控制禁用'}")
             colors.append((0, 255, 255))
             if ready and tele.get("singular", False):
-                lines.append("视线退化：偏航转动画面，机械控制仍可用")
+                lines.append("视线退化：镜头朝天时偏航不改变视线，机械控制仍可用")
                 colors.append((0, 165, 255))
             if limits.get("saturated") or any(limits.get(k) for k in ("yaw", "pitch")):
                 lines.append(f"限位/饱和: {limits}")
@@ -1447,7 +1447,7 @@ def run_selftest(cfg: dict, args) -> int:
         elif manual_mode_seen and manual_max > 0.1:
             print("[selftest] manual 指令：已生效（遥测证据 mode=MANUAL, "
                   f"机械 pitch 角速度峰值={manual_max:.1f}°/s；"
-                  "该插件对 manual 不返回 command_result，属对端设计）")
+                  "UDP 网关不转发 manual 成功回执）")
         else:
             print("[selftest] 失败：发送 manual 后既无 command_result 也无遥测生效证据")
             rc = 6

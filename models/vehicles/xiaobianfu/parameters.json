@@ -1,0 +1,37 @@
+{
+  "name": "xiaobianfu",
+  "dimensions": {
+    "length_m": 0.4,
+    "span_m": 1.0
+  },
+  "mass_kg": 1.0,
+  "inertia_kg_m2": [
+    0.045,
+    0.009,
+    0.051
+  ],
+  "aerodynamics": {
+    "area_m2": 0.19,
+    "mac_m": 0.22,
+    "CL0": 0.12,
+    "CLa": 4.5,
+    "CD0": 0.035,
+    "Cem0": 0.012,
+    "Cema": -0.25,
+    "Cemq": -5.0,
+    "Cellp": -0.5,
+    "Cenr": -0.12
+  },
+  "motor": {
+    "max_rad_s": 1000,
+    "thrust_coefficient": 3.16e-06,
+    "diameter_m": 0.14
+  },
+  "launch": {
+    "speed_m_s": 14,
+    "upward_m_s": 2,
+    "height_m": 1.6
+  },
+  "target_airspeed_m_s": 27.7777777778,
+  "parameter_basis": "尺寸、总质量、速度来自用户；惯量、气动系数、推力、桨径与手抛条件为仿真估计，不是实机测量。电源无容量衰减；无云台。"
+}

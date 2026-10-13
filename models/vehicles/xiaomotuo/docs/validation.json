@@ -1,0 +1,111 @@
+{
+  "validator_sha256": "1e9ac81d663073355da4900db56c8c27e9dda26a8586800be73298700619e042",
+  "test_settings": {
+    "landing_timeout_sim_s": 200
+  },
+  "test_settings_sha256": "f35e51c5f137eb5ff86acccf3bb954a71fe9ad2a658979caa5c7a21d2d54f59e",
+  "passed": true,
+  "parameters": {
+    "name": "xiaomotuo",
+    "length_m": 3.3,
+    "span_m": 2.5,
+    "mass_kg": 50.0,
+    "wing_area_m2": 1.625,
+    "mean_chord_m": 0.65,
+    "target_airspeed_m_s": 55.55555556,
+    "inertia_kg_m2": [
+      18.0,
+      32.0,
+      42.0
+    ],
+    "propeller_diameter_m": 0.7,
+    "motor_max_rad_s": 1100.0,
+    "motor_constant": 9.3e-05,
+    "aero": {
+      "CL0": 0.15188,
+      "CLa": 5.015,
+      "CD0": 0.035,
+      "eff": 0.85,
+      "Cema": -0.7,
+      "Cemq": -15.0,
+      "Cem0": 0.0
+    },
+    "parameter_basis": "尺寸、总重、速度来自用户；惯量、动力和气动为仿真估计，不考虑电池容量",
+    "wheel_axle_friction_nm": 1.5,
+    "px4": {
+      "FW_LND_USETER": 0,
+      "SIM_BAT_MIN_PCT": 100,
+      "FW_BAT_SCALE_EN": 0,
+      "FW_LND_FL_TIME": 4,
+      "FW_LND_FLALT": 15,
+      "FW_LND_FL_PMIN": 6
+    }
+  },
+  "config_sha256": "6fbb753e99df77ecd38a3e1ea60aeeadb4e068458f3246a71c1c38fd84126865",
+  "model_sha256": "54f4ee9b8ccdc82864e1ea4ff9e6bf41acc65d8719052193b552198d20af389f",
+  "criteria": {
+    "target_m_s": 55.55555556,
+    "true_speed_interval_m_s": [
+      55.55555556,
+      56.666666671200005
+    ],
+    "altitude_tolerance_m": 2,
+    "continuous_sim_seconds": 30,
+    "max_sample_gap_s": 0.35
+  },
+  "takeoff_passed": true,
+  "landing_passed": true,
+  "cruise": {
+    "passed": true,
+    "start_t": 131.152,
+    "end_t": 161.248,
+    "min_true_speed_m_s": 55.5578317012925,
+    "max_true_speed_m_s": 55.820932821107576,
+    "max_true_alt_error_m": 0.8341063120885224,
+    "max_estimator_alt_error_m": 2.5180803734468498
+  },
+  "verified_runtime_parameters": {
+    "FW_LND_USETER": 0.0,
+    "SIM_BAT_MIN_PCT": 100.0,
+    "FW_BAT_SCALE_EN": 0.0,
+    "FW_LND_FL_TIME": 4.0,
+    "FW_LND_FLALT": 15.0,
+    "FW_LND_FL_PMIN": 6.0
+  },
+  "startup_airframe_sha256": "a7fcb496eb790067832cf872d2a4866779b2666dca9ecdf1ebe6d627f03fb2a0",
+  "landing_mission_items": [
+    {
+      "command": 189,
+      "latitude_int": 473853328,
+      "longitude_int": 86216111,
+      "altitude_msl_m": 103.0968021141695
+    },
+    {
+      "command": 16,
+      "latitude_int": 473838996,
+      "longitude_int": 86264886,
+      "altitude_msl_m": 103.47181272859251
+    },
+    {
+      "command": 21,
+      "latitude_int": 473797791,
+      "longitude_int": 86405116,
+      "altitude_msl_m": 4.689859941809532
+    }
+  ],
+  "touchdown": {
+    "first_contact_t": 248.352,
+    "contact_climb_m_s": -1.5171113118704616,
+    "min_climb_m_s": -1.5882585252080235,
+    "max_abs_roll_deg": 0.07626251052831043,
+    "min_pitch_deg": 3.927420671346685,
+    "max_pitch_deg": 3.9488691728878176,
+    "passed": true
+  },
+  "stopped_seconds": 3.0,
+  "startup_airframe_matches_current": true,
+  "validator_matches_current": true,
+  "test_settings_match_current": true,
+  "visual_accepted_matches_current": true,
+  "current_config_matches": true
+}

@@ -1,0 +1,19 @@
+{
+  "status": "accepted",
+  "date": "2026-10-13",
+  "confirmation": "现在的造型可以",
+  "confirmed_by": "user",
+  "scope": "Gazebo 当前小摩托三角翼美术外形；不包含实机工程或型号性能确认",
+  "visual_xml_sha256": "b382c826adf07da376fae6dcd022fbd4ca369f28330d0023c50e33843a642a43",
+  "meshes": {
+    "black_window.dae": "9e525d503aaf31346d6ebd0ace71a541c94cef9afa87cd70ff242b64efdec835",
+    "blended_delta.dae": "5f10e62edcd7b9e2552bfaeb44bb883291323669be2485e7e91d93ebc5d0a919",
+    "decorative_panel_lines.dae": "54d04ed10efc797b196ec0d1fcc4118c7beea0f2c8d6b43119ca16c6014cfe37",
+    "decorative_propeller.dae": "edbb93f6b9255bda67766ab1776f2507462060682371371a8ae5cd53dc0d5d4d",
+    "rounded_body.dae": "cb5950a52728d37065e1ef7529b930a5317ecc45f326a2cf6320d5205e75b294",
+    "tail_fairing.dae": "b01c28a6e31345be83863b5c673a311ea23c31aebf2207d3021f5d078c68f08d",
+    "window_frame.dae": "79759337e2ad2af40ec638220b9028d14b21f24b91cb36d1d5cd61ff03b7e7d5",
+    "wingtip_fins.dae": "0075e05177cb7d7ec830e1ee5dc9814a70077a716a67172db42fbe2ed80db054"
+  },
+  "model_sdf_sha256": "54f4ee9b8ccdc82864e1ea4ff9e6bf41acc65d8719052193b552198d20af389f"
+}

@@ -1,0 +1,10 @@
+{
+  "status": "用户已在Gazebo中确认外形",
+  "date": "2026-10-13",
+  "confirmation": "小蝙蝠的造型可以",
+  "visual_sha256": "57c55fdddce250e170af445a301821f89df5aef6630321d3083be54c2bfb0a5f",
+  "mesh_sha256": {
+    "wing_-1.stl": "f0a9b8f3c1622f0c9a8cfb5d47c328c46f9b5f0b32df8ac1c8aa2bcf916f4629",
+    "wing_1.stl": "3040893c9a8754af9937c8b16294de2185e027886298fabb144c713321a65f7d"
+  }
+}

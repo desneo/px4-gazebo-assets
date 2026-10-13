@@ -1,0 +1,36 @@
+{
+  "name": "xiaomotuo",
+  "length_m": 3.3,
+  "span_m": 2.5,
+  "mass_kg": 50.0,
+  "wing_area_m2": 1.625,
+  "mean_chord_m": 0.65,
+  "target_airspeed_m_s": 55.55555556,
+  "inertia_kg_m2": [
+    18.0,
+    32.0,
+    42.0
+  ],
+  "propeller_diameter_m": 0.7,
+  "motor_max_rad_s": 1100.0,
+  "motor_constant": 9.3e-05,
+  "aero": {
+    "CL0": 0.15188,
+    "CLa": 5.015,
+    "CD0": 0.035,
+    "eff": 0.85,
+    "Cema": -0.7,
+    "Cemq": -15.0,
+    "Cem0": 0.0
+  },
+  "parameter_basis": "尺寸、总重、速度来自用户；惯量、动力和气动为仿真估计，不考虑电池容量",
+  "wheel_axle_friction_nm": 1.5,
+  "px4": {
+    "FW_LND_USETER": 0,
+    "SIM_BAT_MIN_PCT": 100,
+    "FW_BAT_SCALE_EN": 0,
+    "FW_LND_FL_TIME": 4,
+    "FW_LND_FLALT": 15,
+    "FW_LND_FL_PMIN": 6
+  }
+}

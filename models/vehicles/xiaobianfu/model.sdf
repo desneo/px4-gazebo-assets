@@ -1,0 +1,465 @@
+<?xml version='1.0' encoding='utf-8'?>
+<sdf version="1.9">
+  <model name="xiaobianfu">
+    <link name="base_link">
+      <inertial>
+        <mass>0.984</mass>
+        <inertia>
+          <ixx>0.045</ixx>
+          <iyy>0.009</iyy>
+          <izz>0.051</izz>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyz>0</iyz>
+        </inertia>
+      </inertial>
+      <sensor name="imu_sensor" type="imu">
+        <gz_frame_id>base_link</gz_frame_id>
+        <always_on>1</always_on>
+        <update_rate>250</update_rate>
+        <imu>
+          <angular_velocity>
+            <x>
+              <noise type="gaussian">
+                <mean>0</mean>
+                <stddev>0.0003394</stddev>
+                <dynamic_bias_stddev>3.8785e-05</dynamic_bias_stddev>
+                <dynamic_bias_correlation_time>1000</dynamic_bias_correlation_time>
+              </noise>
+            </x>
+            <y>
+              <noise type="gaussian">
+                <mean>0</mean>
+                <stddev>0.0003394</stddev>
+                <dynamic_bias_stddev>3.8785e-05</dynamic_bias_stddev>
+                <dynamic_bias_correlation_time>1000</dynamic_bias_correlation_time>
+              </noise>
+            </y>
+            <z>
+              <noise type="gaussian">
+                <mean>0</mean>
+                <stddev>0.0003394</stddev>
+                <dynamic_bias_stddev>3.8785e-05</dynamic_bias_stddev>
+                <dynamic_bias_correlation_time>1000</dynamic_bias_correlation_time>
+              </noise>
+            </z>
+          </angular_velocity>
+          <linear_acceleration>
+            <x>
+              <noise type="gaussian">
+                <mean>0</mean>
+                <stddev>0.004</stddev>
+                <dynamic_bias_stddev>0.006</dynamic_bias_stddev>
+                <dynamic_bias_correlation_time>300</dynamic_bias_correlation_time>
+              </noise>
+            </x>
+            <y>
+              <noise type="gaussian">
+                <mean>0</mean>
+                <stddev>0.004</stddev>
+                <dynamic_bias_stddev>0.006</dynamic_bias_stddev>
+                <dynamic_bias_correlation_time>300</dynamic_bias_correlation_time>
+              </noise>
+            </y>
+            <z>
+              <noise type="gaussian">
+                <mean>0</mean>
+                <stddev>0.004</stddev>
+                <dynamic_bias_stddev>0.006</dynamic_bias_stddev>
+                <dynamic_bias_correlation_time>300</dynamic_bias_correlation_time>
+              </noise>
+            </z>
+          </linear_acceleration>
+        </imu>
+      </sensor>
+      <sensor name="air_pressure_sensor" type="air_pressure">
+        <gz_frame_id>base_link</gz_frame_id>
+        <always_on>1</always_on>
+        <update_rate>50</update_rate>
+        <air_pressure>
+          <pressure>
+            <noise type="gaussian">
+              <mean>0</mean>
+              <stddev>0.01</stddev>
+            </noise>
+          </pressure>
+        </air_pressure>
+      </sensor>
+      <sensor name="magnetometer_sensor" type="magnetometer">
+        <gz_frame_id>base_link</gz_frame_id>
+        <always_on>1</always_on>
+        <update_rate>100</update_rate>
+        <magnetometer>
+          <x>
+            <noise type="gaussian">
+              <stddev>0.0001</stddev>
+            </noise>
+          </x>
+          <y>
+            <noise type="gaussian">
+              <stddev>0.0001</stddev>
+            </noise>
+          </y>
+          <z>
+            <noise type="gaussian">
+              <stddev>0.0001</stddev>
+            </noise>
+          </z>
+        </magnetometer>
+      </sensor>
+      <sensor name="navsat_sensor" type="navsat">
+        <gz_frame_id>base_link</gz_frame_id>
+        <always_on>1</always_on>
+        <update_rate>30</update_rate>
+      </sensor>
+      <visual name="wing_-1">
+        <geometry>
+          <mesh>
+            <uri>model://xiaobianfu/meshes/wing_-1.stl</uri>
+          </mesh>
+        </geometry>
+        <material>
+          <ambient>0.95 0.96 0.92 1</ambient>
+          <diffuse>0.95 0.96 0.92 1</diffuse>
+        </material>
+      </visual>
+      <visual name="stripe_-1">
+        <pose>0.005 -0.27 .014 0 0 0.43</pose>
+        <geometry>
+          <box>
+            <size>0.045 0.42 .003</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.03 0.6 0.03 1</ambient>
+          <diffuse>0.03 0.6 0.03 1</diffuse>
+        </material>
+      </visual>
+      <visual name="winglet_-1">
+        <pose>-0.115 -0.492 .045 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>0.13 .012 .10</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.03 0.6 0.03 1</ambient>
+          <diffuse>0.03 0.6 0.03 1</diffuse>
+        </material>
+      </visual>
+      <collision name="wing_collision_-1">
+        <pose>-0.04 -0.27 0 0 0 0.28</pose>
+        <geometry>
+          <box>
+            <size>0.12 0.43 .022</size>
+          </box>
+        </geometry>
+        <surface>
+          <friction>
+            <ode>
+              <mu>0.65</mu>
+              <mu2>0.65</mu2>
+            </ode>
+          </friction>
+        </surface>
+      </collision>
+      <visual name="wing_1">
+        <geometry>
+          <mesh>
+            <uri>model://xiaobianfu/meshes/wing_1.stl</uri>
+          </mesh>
+        </geometry>
+        <material>
+          <ambient>0.95 0.96 0.92 1</ambient>
+          <diffuse>0.95 0.96 0.92 1</diffuse>
+        </material>
+      </visual>
+      <visual name="stripe_1">
+        <pose>0.005 0.27 .014 0 0 -0.43</pose>
+        <geometry>
+          <box>
+            <size>0.045 0.42 .003</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.03 0.6 0.03 1</ambient>
+          <diffuse>0.03 0.6 0.03 1</diffuse>
+        </material>
+      </visual>
+      <visual name="winglet_1">
+        <pose>-0.115 0.492 .045 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>0.13 .012 .10</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.03 0.6 0.03 1</ambient>
+          <diffuse>0.03 0.6 0.03 1</diffuse>
+        </material>
+      </visual>
+      <collision name="wing_collision_1">
+        <pose>-0.04 0.27 0 0 0 -0.28</pose>
+        <geometry>
+          <box>
+            <size>0.12 0.43 .022</size>
+          </box>
+        </geometry>
+        <surface>
+          <friction>
+            <ode>
+              <mu>0.65</mu>
+              <mu2>0.65</mu2>
+            </ode>
+          </friction>
+        </surface>
+      </collision>
+      <visual name="central_pod">
+        <pose>0.025 0 .012 0 0 0</pose>
+        <geometry>
+          <ellipsoid>
+            <radii>0.175 0.075 .04</radii>
+          </ellipsoid>
+        </geometry>
+        <material>
+          <ambient>0.03 0.6 0.03 1</ambient>
+          <diffuse>0.03 0.6 0.03 1</diffuse>
+        </material>
+      </visual>
+      <visual name="canopy">
+        <pose>0.07 0 .047 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>0.13 0.07 .022</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.08 0.10 0.12 1</ambient>
+          <diffuse>0.08 0.10 0.12 1</diffuse>
+        </material>
+      </visual>
+      <collision name="belly_collision">
+        <pose>0 0 -.02 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>0.28 0.1 .04</size>
+          </box>
+        </geometry>
+        <surface>
+          <friction>
+            <ode>
+              <mu>0.65</mu>
+              <mu2>0.65</mu2>
+            </ode>
+          </friction>
+        </surface>
+      </collision>
+    </link>
+    <link name="elevon_0">
+      <pose>-0.14 0.3 0 0 0 0</pose>
+      <inertial>
+        <mass>0.005</mass>
+        <inertia>
+          <ixx>1e-05</ixx>
+          <iyy>1e-05</iyy>
+          <izz>1e-05</izz>
+        </inertia>
+      </inertial>
+      <visual name="surface">
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>0.045 0.3 .012</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.08 0.10 0.12 1</ambient>
+          <diffuse>0.08 0.10 0.12 1</diffuse>
+        </material>
+      </visual>
+    </link>
+    <joint name="servo_0" type="revolute">
+      <parent>base_link</parent>
+      <child>elevon_0</child>
+      <axis>
+        <xyz>0 1 0</xyz>
+        <limit>
+          <lower>-0.5</lower>
+          <upper>0.5</upper>
+        </limit>
+        <dynamics>
+          <damping>0.01</damping>
+        </dynamics>
+      </axis>
+    </joint>
+    <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
+      <joint_name>servo_0</joint_name>
+      <sub_topic>servo_0</sub_topic>
+      <p_gain>0.1</p_gain>
+      <d_gain>0.001</d_gain>
+      <cmd_max>0.02</cmd_max>
+      <cmd_min>-0.02</cmd_min>
+    </plugin>
+    <link name="elevon_1">
+      <pose>-0.14 -0.3 0 0 0 0</pose>
+      <inertial>
+        <mass>0.005</mass>
+        <inertia>
+          <ixx>1e-05</ixx>
+          <iyy>1e-05</iyy>
+          <izz>1e-05</izz>
+        </inertia>
+      </inertial>
+      <visual name="surface">
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>0.045 0.3 .012</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.08 0.10 0.12 1</ambient>
+          <diffuse>0.08 0.10 0.12 1</diffuse>
+        </material>
+      </visual>
+    </link>
+    <joint name="servo_1" type="revolute">
+      <parent>base_link</parent>
+      <child>elevon_1</child>
+      <axis>
+        <xyz>0 1 0</xyz>
+        <limit>
+          <lower>-0.5</lower>
+          <upper>0.5</upper>
+        </limit>
+        <dynamics>
+          <damping>0.01</damping>
+        </dynamics>
+      </axis>
+    </joint>
+    <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
+      <joint_name>servo_1</joint_name>
+      <sub_topic>servo_1</sub_topic>
+      <p_gain>0.1</p_gain>
+      <d_gain>0.001</d_gain>
+      <cmd_max>0.02</cmd_max>
+      <cmd_min>-0.02</cmd_min>
+    </plugin>
+    <link name="rotor_pusher">
+      <pose>-0.196 0 .025 0 1.57079632679 0</pose>
+      <inertial>
+        <mass>0.006</mass>
+        <inertia>
+          <ixx>1e-05</ixx>
+          <iyy>1e-05</iyy>
+          <izz>1e-05</izz>
+        </inertia>
+      </inertial>
+      <visual name="two_blade_propeller">
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>.014 0.14 0.008</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.08 0.10 0.12 1</ambient>
+          <diffuse>0.08 0.10 0.12 1</diffuse>
+        </material>
+      </visual>
+    </link>
+    <joint name="rotor_pusher_joint" type="revolute">
+      <parent>base_link</parent>
+      <child>rotor_pusher</child>
+      <axis>
+        <xyz>0 0 1</xyz>
+      </axis>
+    </joint>
+    <plugin filename="gz-sim-advanced-lift-drag-system" name="gz::sim::systems::AdvancedLiftDrag">
+      <a0>0.0</a0>
+      <CL0>0.12</CL0>
+      <AR>5.2631578947368425</AR>
+      <eff>0.97</eff>
+      <CLa>4.5</CLa>
+      <CD0>0.035</CD0>
+      <Cem0>0.012</Cem0>
+      <Cema>-0.25</Cema>
+      <CYb>-0.258244</CYb>
+      <Cellb>-0.039250</Cellb>
+      <Cenb>0.100826</Cenb>
+      <CDp>0.0</CDp>
+      <CYp>0.065861</CYp>
+      <CLp>0.0</CLp>
+      <Cellp>-0.5</Cellp>
+      <Cemp>0.0</Cemp>
+      <Cenp>-0.040416</Cenp>
+      <CDq>0.055166</CDq>
+      <CYq>0.0</CYq>
+      <CLq>7.971792</CLq>
+      <Cellq>0.0</Cellq>
+      <Cemq>-5.0</Cemq>
+      <Cenq>0.0</Cenq>
+      <CDr>0.0</CDr>
+      <CYr>0.230299</CYr>
+      <CLr>0.0</CLr>
+      <Cellr>0.078165</Cellr>
+      <Cemr>0.0</Cemr>
+      <Cenr>-0.12</Cenr>
+      <alpha_stall>0.3391428111</alpha_stall>
+      <CLa_stall>-3.85</CLa_stall>
+      <CDa_stall>-0.9233984055</CDa_stall>
+      <Cema_stall>0</Cema_stall>
+      <cp>0 0 0</cp>
+      <area>0.19</area>
+      <mac>0.22</mac>
+      <air_density>1.2041</air_density>
+      <forward>1 0 0</forward>
+      <upward>0 0 1</upward>
+      <link_name>base_link</link_name>
+      <num_ctrl_surfaces>2</num_ctrl_surfaces>
+      <control_surface>
+        <name>servo_0</name>
+        <index>0</index>
+        <direction>1</direction>
+        <CD_ctrl>0.0001</CD_ctrl>
+        <CY_ctrl>0</CY_ctrl>
+        <CL_ctrl>-0.005</CL_ctrl>
+        <Cell_ctrl>-0.003</Cell_ctrl>
+        <Cem_ctrl>0.006</Cem_ctrl>
+        <Cen_ctrl>0</Cen_ctrl>
+      </control_surface>
+      <control_surface>
+        <name>servo_1</name>
+        <index>1</index>
+        <direction>1</direction>
+        <CD_ctrl>0.0001</CD_ctrl>
+        <CY_ctrl>0</CY_ctrl>
+        <CL_ctrl>-0.005</CL_ctrl>
+        <Cell_ctrl>0.003</Cell_ctrl>
+        <Cem_ctrl>0.006</Cem_ctrl>
+        <Cen_ctrl>0</Cen_ctrl>
+      </control_surface>
+    </plugin>
+    <plugin filename="gz-sim-multicopter-motor-model-system" name="gz::sim::systems::MulticopterMotorModel">
+      <jointName>rotor_pusher_joint</jointName>
+      <linkName>rotor_pusher</linkName>
+      <turningDirection>cw</turningDirection>
+      <timeConstantUp>0.0125</timeConstantUp>
+      <timeConstantDown>0.025</timeConstantDown>
+      <maxRotVelocity>1000</maxRotVelocity>
+      <motorConstant>3.16e-06</motorConstant>
+      <momentConstant>0.002</momentConstant>
+      <commandSubTopic>command/motor_speed</commandSubTopic>
+      <motorNumber>0</motorNumber>
+      <rotorDragCoefficient>1e-05</rotorDragCoefficient>
+      <rollingMomentCoefficient>1e-06</rollingMomentCoefficient>
+      <rotorVelocitySlowdownSim>10</rotorVelocitySlowdownSim>
+      <motorType>velocity</motorType>
+    </plugin>
+    <plugin filename="libHandLaunch.so" name="assets::HandLaunch">
+      <speed>14</speed>
+      <upward>2</upward>
+      <mass>1.0</mass>
+    </plugin>
+  </model>
+</sdf>

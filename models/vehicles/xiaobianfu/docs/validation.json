@@ -1,0 +1,92 @@
+{
+  "passed": true,
+  "parameters": {
+    "name": "xiaobianfu",
+    "dimensions": {
+      "length_m": 0.4,
+      "span_m": 1.0
+    },
+    "mass_kg": 1.0,
+    "inertia_kg_m2": [
+      0.045,
+      0.009,
+      0.051
+    ],
+    "aerodynamics": {
+      "area_m2": 0.19,
+      "mac_m": 0.22,
+      "CL0": 0.12,
+      "CLa": 4.5,
+      "CD0": 0.035,
+      "Cem0": 0.012,
+      "Cema": -0.25,
+      "Cemq": -5.0,
+      "Cellp": -0.5,
+      "Cenr": -0.12
+    },
+    "motor": {
+      "max_rad_s": 1000,
+      "thrust_coefficient": 3.16e-06,
+      "diameter_m": 0.14
+    },
+    "launch": {
+      "speed_m_s": 14,
+      "upward_m_s": 2,
+      "height_m": 1.6
+    },
+    "target_airspeed_m_s": 27.7777777778,
+    "parameter_basis": "尺寸、总质量、速度来自用户；惯量、气动系数、推力、桨径与手抛条件为仿真估计，不是实机测量。电源无容量衰减；无云台。"
+  },
+  "config_sha256": "12d215abb09cf0993e153d71663f70a7390e3e46c273adc471e6349065958dd5",
+  "model_sha256": "30d8e2730b0e25d91f2b6aeff0b23d5a2db06b66bbbb2801c128e3b0bcde967d",
+  "world_sha256": "3d80bb1299bab99ef0aff7c0d52460d178e5d4dabf78e49908e24c216e8e593f",
+  "airframe_sha256": "93faefe0001c39dd35161139108eb2b9676d9586843cc5855bea29f10518c0c8",
+  "validator_sha256": "4ca595df7636a4ce02d7e79bb033c576adf139e3dd26859d3d034ee75d151519",
+  "criteria": {
+    "target_m_s": 27.7777777778,
+    "maximum_speed_upper_ratio": 1.02,
+    "altitude_tolerance_m": 2,
+    "continuous_sim_seconds": 30,
+    "max_sample_gap_s": 0.35,
+    "touchdown_max_descent_m_s": 1.8,
+    "touchdown_max_bank_deg": 15,
+    "touchdown_pitch_range_deg": [
+      -2,
+      20
+    ]
+  },
+  "takeoff_passed": true,
+  "landing_passed": true,
+  "cruise": {
+    "passed": true,
+    "start_t": 65.916,
+    "end_t": 95.922,
+    "min_true_speed_m_s": 28.046703139732852,
+    "max_true_speed_m_s": 28.22693161942988,
+    "max_true_alt_error_m": 1.9904792930607158
+  },
+  "touchdown": {
+    "truth": {
+      "t": 163.318,
+      "alt_m": 0.1865092148266615,
+      "speed_m_s": 10.281830078397045,
+      "climb_m_s": -0.821743889073772,
+      "age_s": 0.00604731599742081
+    },
+    "bank_deg": 0.00814063833551639,
+    "pitch_deg": 4.26386298325682,
+    "passed": true
+  },
+  "landing_stop_sim_seconds": 3.0060000000000002,
+  "appearance_status": "用户已在Gazebo中确认外形",
+  "appearance": {
+    "status": "用户已在Gazebo中确认外形",
+    "date": "2026-10-13",
+    "confirmation": "小蝙蝠的造型可以",
+    "visual_sha256": "57c55fdddce250e170af445a301821f89df5aef6630321d3083be54c2bfb0a5f",
+    "mesh_sha256": {
+      "wing_-1.stl": "f0a9b8f3c1622f0c9a8cfb5d47c328c46f9b5f0b32df8ac1c8aa2bcf916f4629",
+      "wing_1.stl": "3040893c9a8754af9937c8b16294de2185e027886298fabb144c713321a65f7d"
+    }
+  }
+}

@@ -1,0 +1,112 @@
+<?xml version='1.0' encoding='utf-8'?>
+<sdf version="1.9">
+  <model name="delta_wing_display">
+    <static>true</static>
+    <link name="artwork">
+      <visual name="rounded_body">
+        <geometry>
+          <mesh>
+            <uri>model://delta_wing_display/meshes/rounded_body.dae</uri>
+          </mesh>
+        </geometry>
+        <material>
+          <ambient>.86 .87 .88 1</ambient>
+          <diffuse>.86 .87 .88 1</diffuse>
+          <specular>.3 .3 .3 1</specular>
+          <shininess>65</shininess>
+        </material>
+      </visual>
+      <visual name="blended_delta">
+        <geometry>
+          <mesh>
+            <uri>model://delta_wing_display/meshes/blended_delta.dae</uri>
+          </mesh>
+        </geometry>
+        <material>
+          <ambient>.87 .88 .89 1</ambient>
+          <diffuse>.87 .88 .89 1</diffuse>
+          <specular>.3 .3 .3 1</specular>
+          <shininess>65</shininess>
+        </material>
+      </visual>
+      <visual name="wingtip_fins">
+        <geometry>
+          <mesh>
+            <uri>model://delta_wing_display/meshes/wingtip_fins.dae</uri>
+          </mesh>
+        </geometry>
+        <material>
+          <ambient>.86 .87 .88 1</ambient>
+          <diffuse>.86 .87 .88 1</diffuse>
+          <specular>.3 .3 .3 1</specular>
+          <shininess>65</shininess>
+        </material>
+      </visual>
+      <visual name="decorative_panel_lines">
+        <geometry>
+          <mesh>
+            <uri>model://delta_wing_display/meshes/decorative_panel_lines.dae</uri>
+          </mesh>
+        </geometry>
+        <material>
+          <ambient>.28 .30 .33 1</ambient>
+          <diffuse>.28 .30 .33 1</diffuse>
+          <specular>.3 .3 .3 1</specular>
+          <shininess>65</shininess>
+        </material>
+      </visual>
+      <visual name="window_frame">
+        <geometry>
+          <mesh>
+            <uri>model://delta_wing_display/meshes/window_frame.dae</uri>
+          </mesh>
+        </geometry>
+        <material>
+          <ambient>.15 .17 .19 1</ambient>
+          <diffuse>.15 .17 .19 1</diffuse>
+          <specular>.3 .3 .3 1</specular>
+          <shininess>65</shininess>
+        </material>
+      </visual>
+      <visual name="black_window">
+        <geometry>
+          <mesh>
+            <uri>model://delta_wing_display/meshes/black_window.dae</uri>
+          </mesh>
+        </geometry>
+        <material>
+          <ambient>.012 .022 .032 1</ambient>
+          <diffuse>.012 .022 .032 1</diffuse>
+          <specular>.3 .3 .3 1</specular>
+          <shininess>65</shininess>
+        </material>
+      </visual>
+      <visual name="decorative_propeller">
+        <geometry>
+          <mesh>
+            <uri>model://delta_wing_display/meshes/decorative_propeller.dae</uri>
+          </mesh>
+        </geometry>
+        <material>
+          <ambient>.10 .12 .14 1</ambient>
+          <diffuse>.10 .12 .14 1</diffuse>
+          <specular>.3 .3 .3 1</specular>
+          <shininess>65</shininess>
+        </material>
+      </visual>
+      <visual name="tail_fairing">
+        <geometry>
+          <mesh>
+            <uri>model://delta_wing_display/meshes/tail_fairing.dae</uri>
+          </mesh>
+        </geometry>
+        <material>
+          <ambient>.26 .28 .30 1</ambient>
+          <diffuse>.26 .28 .30 1</diffuse>
+          <specular>.3 .3 .3 1</specular>
+          <shininess>65</shininess>
+        </material>
+      </visual>
+    </link>
+  </model>
+</sdf>

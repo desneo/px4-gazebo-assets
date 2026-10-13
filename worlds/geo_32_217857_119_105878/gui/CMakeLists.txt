@@ -1,0 +1,25 @@
+cmake_minimum_required(VERSION 3.17)
+project(MapCenter LANGUAGES CXX)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTORCC ON)
+find_package(gz-gui8 REQUIRED)
+find_package(gz-transport13 REQUIRED)
+find_package(gz-msgs10 REQUIRED)
+find_package(Qt5 REQUIRED COMPONENTS Concurrent)
+add_library(MapCenter SHARED MapCenter.cc MapCenter.hh MapCenter.qrc)
+target_link_libraries(MapCenter PRIVATE gz-gui8::gz-gui8
+  gz-transport13::gz-transport13 gz-msgs10::gz-msgs10 Qt5::Concurrent)
+install(TARGETS MapCenter LIBRARY DESTINATION plugins)
+
+include(CTest)
+if(BUILD_TESTING)
+  find_package(Qt5 REQUIRED COMPONENTS Test)
+  add_executable(MapCenter_test MapCenter_test.cc)
+  target_link_libraries(MapCenter_test PRIVATE MapCenter gz-gui8::gz-gui8
+    gz-transport13::gz-transport13 gz-msgs10::gz-msgs10 Qt5::Test)
+  add_test(NAME MapCenter COMMAND MapCenter_test)
+  set_tests_properties(MapCenter PROPERTIES ENVIRONMENT
+    "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;GZ_GUI_PLUGIN_PATH=$<TARGET_FILE_DIR:MapCenter>;GZ_PARTITION=map_center_test")
+endif()

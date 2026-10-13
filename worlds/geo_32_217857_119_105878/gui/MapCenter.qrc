@@ -1,0 +1,5 @@
+<RCC>
+  <qresource prefix="/MapCenter">
+    <file>MapCenter.qml</file>
+  </qresource>
+</RCC>

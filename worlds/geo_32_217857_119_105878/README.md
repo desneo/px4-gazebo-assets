@@ -33,12 +33,37 @@ gz sim -s -r worlds/geo_32_217857_119_105878/world.sdf
 
 资源路径相对于 `world.sdf` 所在目录解析，移动环境时应保留 `assets/` 与 `world.sdf` 的相对位置。连接 PX4 时需另行加载无人机及云台模型。云台相机的远裁剪距离需覆盖目标观察距离；地理背景检查使用过 20 km 的远裁剪距离。
 
+## 回到地图中心
+
+Gazebo 3D 视图右上角提供“回到地图中心”按钮。点击后退出浏览相机的跟随模式，将视角移到地图中心 `(0, 0, 200)` 米，垂直俯视、北向上；对应地理中心为 `(32.21785737811048, 119.1058778440883)`。按钮只改变 Gazebo 浏览视角，不修改飞机、云台、目标或仿真状态。
+
+按钮由 `gui/` 下的原生 Gazebo GUI 插件提供，调用 Gazebo 自带的 `CameraTracking` 相机定位服务。相机尚未就绪或服务不可用时，按钮显示重试提示。返回位置与朝向由 `world.sdf` 中 `MapCenter` 插件的 `center_pose` 配置，单位为米和弧度。
+
+首次使用按钮时，需要 CMake、C++17 编译器、Gazebo GUI 8 / Transport 13 / Msgs 10 和 Qt 5 的开发库。在仓库根目录构建并安装到当前用户的 Gazebo GUI 插件目录：
+
+```bash
+cmake -S worlds/geo_32_217857_119_105878/gui \
+  -B worlds/geo_32_217857_119_105878/gui/build \
+  -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$HOME/.gz/gui"
+cmake --build worlds/geo_32_217857_119_105878/gui/build -j4
+cmake --install worlds/geo_32_217857_119_105878/gui/build
+```
+
+安装后使用上面的 `gz sim` 命令启动即可显示按钮，已打开的 GUI 需要重新启动。复制该 world 的 GUI 配置到综合场景时，也会保留此按钮。插件源码随 world 保存，编译产物不入库；不需要 Python，也不改变静态地形资源的加载方式。无界面仿真不加载此 GUI 插件。
+
+按钮测试覆盖 QML 点击、中心位置与朝向、重复点击和相机服务不可用的情况：
+
+```bash
+ctest --test-dir worlds/geo_32_217857_119_105878/gui/build --output-on-failure
+```
+
 ## 静态文件
 
 - `world.sdf`：地形布局、碰撞、天空、光照、地理原点和 Gazebo 系统插件配置。
 - `assets/tile_*.dae`：地形网格。
 - `assets/imagery_*.jpg`：共享的真实地表影像贴图，北向上。
 - [metadata.json](metadata.json)：数据来源、源请求地址、源文件 SHA-256、中心高程及采样参数。
+- `gui/`：地图中心按钮的 C++ / QML 插件源码和构建配置，不参与地形数据生成。
 
 ## 资源与数据来源
 

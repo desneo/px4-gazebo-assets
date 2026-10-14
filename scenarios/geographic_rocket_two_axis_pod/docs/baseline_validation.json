@@ -1,0 +1,53 @@
+{
+  "scope": "当前基础火箭模型的起飞、短悬停、低速航段与降落；不验证200/300km/h性能目标",
+  "passed": true,
+  "landing_confirmed": true,
+  "source_parameters_sha256": "b641f294b25c52236fa959e0c7421a5195333aa98cda88672e4d240004499373",
+  "source_physical_parameters_unchanged": true,
+  "settings": {
+    "endpoint": "udpin:0.0.0.0:14540",
+    "setpoint_rate_hz": 20,
+    "telemetry_timeout_s": 2,
+    "heartbeat_timeout_s": 5,
+    "command_timeout_s": 8,
+    "phase_wall_timeout_s": 120,
+    "takeoff_altitude_m": 10,
+    "climb_speed_m_s": 2,
+    "altitude_tolerance_m": 2,
+    "hover_seconds": 5,
+    "hover_drift_limit_m": 1,
+    "cruise_speed_km_h": 20,
+    "cruise_seconds": 5,
+    "sprint_speed_km_h": 20,
+    "sprint_seconds": 5,
+    "ramp_seconds": 5,
+    "speed_setpoint_margin_km_h": 15,
+    "speed_acquire_timeout_s": 20,
+    "deceleration_m_s2": 4,
+    "landing_timeout_s": 120
+  },
+  "results": {
+    "hover": {
+      "max_drift_m": 0.031975991528693515,
+      "max_altitude_error_m": 0.5649802319668193,
+      "passed": true
+    },
+    "cruise": {
+      "required_speed_km_h": 20,
+      "required_continuous_s": 5,
+      "longest_continuous_s": 5.0,
+      "max_altitude_error_m": 0.03242071947416392,
+      "peak_speed_km_h": 35.6917297958635,
+      "passed": true
+    },
+    "sprint": {
+      "required_speed_km_h": 20,
+      "required_continuous_s": 5,
+      "longest_continuous_s": 5.0,
+      "max_altitude_error_m": 0.06881282848252113,
+      "peak_speed_km_h": 35.080706995881116,
+      "passed": true
+    }
+  },
+  "raw_report": "tests/results/baseline_flight.json.gz"
+}

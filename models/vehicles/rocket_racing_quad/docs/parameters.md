@@ -30,7 +30,7 @@
 
 | 字段（motor） | 默认值与单位 | 修改影响 |
 | --- | --- | --- |
-| `max_velocity_rad_s` / `idle_velocity_rad_s` | 1250 / 0 rad/s | 最大/空闲转速；同步生成Gazebo电机限制和PX4输出映射 |
+| `max_velocity_rad_s` / `idle_velocity_rad_s` | 1250 / 50 rad/s | 最大/解锁怠速；未解锁输出为0，解锁后最低转速为50 rad/s |
 | `thrust_constant` | 1.9×10⁻⁵ N·s²/rad² | 静态单桨推力 `T=kω²`，增大后相同转速推力增大 |
 | `moment_constant_m` | 0.02 m | 反扭矩/推力比；同步PX4转子力矩系数及旋转方向符号 |
 | `time_constant_up_s` / `time_constant_down_s` | 0.0125 / 0.025 s | 转速上升/下降响应时间 |
@@ -46,7 +46,7 @@
 
 | 参数 | 默认值 | 用途 |
 | --- | --- | --- |
-| `MPC_THR_HOVER` | 约0.112236 | 归一化悬停推力，按当前质量与静态峰值推力比计算 |
+| `MPC_THR_HOVER` | 约0.0944385 | 归一化悬停推力，按当前质量、正怠速与PX4输出映射计算 |
 | `MPC_THR_MAX` | 0.9 | 最大归一化推力，保留推力裕量 |
 | `MPC_THR_MIN` | 0.03 | 最小归一化推力，必须低于悬停推力，保留下降控制余量 |
 | `MPC_THR_MAX` | 0.9 | 最大归一化推力，须高于悬停推力，保留爬升与高速高度控制余量 |
@@ -60,7 +60,9 @@
 | `NAV_DLL_ACT` | 2 | 数据链丢失动作枚举，含义以当前PX4版本为准 |
 | `EKF2_BCOEF_X` / `EKF2_BCOEF_Y` / `EKF2_MCOEF` | 0 / 0 / 0.12 | PX4估计器阻力模型设置，不是Gazebo阻力系数 |
 
-当前Gazebo推力满足 `T=kω²`；`idle_velocity_rad_s=0` 配合 `THR_MDL_FAC=1`，使PX4归一化推力经开方后映射到转速，得到与归一化命令线性的静态推力。`MPC_THR_HOVER=mg/(4kωmax²)`，其中 `g=9.8 m/s²`。`MPC_THR_MIN` 必须满足 `0 ≤ MPC_THR_MIN < MPC_THR_HOVER < MPC_THR_MAX ≤ 1`，当前上下限显式配置为0.03和0.9；悬停上下都需保留控制余量，才能爬升、下降并稳定高度。质量、推力系数或最大转速变化时，应同步重算悬停推力并核对上下限；改变空闲转速或推力映射时，也需重新核对控制关系。
+当前Gazebo推力满足 `T=kω²`；`idle_velocity_rad_s=50` 保证解锁后四个电机即使分配命令为零也具有正转速，通过ESC解锁转速检查；`SIM_GZ_EC_DIS1` 至 `DIS4` 为0，未解锁时停转。ESC检查保持启用。`THR_MDL_FAC=1` 时，PX4先将归一化推力开方，再将输出映射到 `[ωidle, ωmax]`。因此实际转速为 `ω=ωidle+(ωmax−ωidle)√u`，悬停应使用 `MPC_THR_HOVER=((√(mg/(4k))−ωidle)/(ωmax−ωidle))²`，其中 `g=9.8 m/s²`。当前总质量1.36 kg，对应悬停转速约418.770 rad/s；50 rad/s解锁怠速的四桨静态总推力为0.19 N，远小于重力。
+
+`MPC_THR_MIN` 必须满足 `0 ≤ MPC_THR_MIN < MPC_THR_HOVER < MPC_THR_MAX ≤ 1`，当前上下限显式配置为0.03和0.9。质量、推力系数、最大转速或解锁怠速变化时，应同步重算悬停推力、检查控制余量并重新试飞。
 
 原生参数只改变飞控行为；例如提高 `MPC_XY_VEL_MAX` 不会增加电机推力。反过来，修改Gazebo动力也不会自动整定PX4。`param set-default` 不会覆盖同一rootfs中的已保存参数；启动器每次创建新rootfs以隔离实验。飞行期间经控制台临时改参不会写回JSON，应在复测前同步配置并重启。
 

@@ -183,6 +183,22 @@ class ModelChecks(unittest.TestCase):
         self.assertAlmostEqual(params['CA_ROTOR0_PX'], config['geometry']['diagonal_wheelbase_m'] / (2 * math.sqrt(2)), places=8)
         self.assertEqual(params['MPC_XY_VEL_MAX'], config['px4']['parameters']['MPC_XY_VEL_MAX'])
 
+    def test_armed_idle_and_hover_mapping(self):
+        params = px4_parameters(next((self.output / 'px4').glob('*')).read_text())
+        motor = self.config['motor']
+        self.assertGreater(motor['idle_velocity_rad_s'], 0)
+        # PX4 将推力命令开方，再将输出映射到解锁 MIN/MAX；检查物理悬停推力。
+        self.assertEqual(params['THR_MDL_FAC'], 1)
+        for channel in range(1, 5):
+            idle, maximum = params[f'SIM_GZ_EC_MIN{channel}'], params[f'SIM_GZ_EC_MAX{channel}']
+            self.assertGreater(int(idle * 60 / (2 * math.pi)), 0, 'ESC 转速量化后仍需非零')
+            self.assertEqual(params[f'SIM_GZ_EC_DIS{channel}'], 0, '未解锁时必须停转')
+            velocity = idle + (maximum-idle) * math.sqrt(params['MPC_THR_HOVER'])
+            total_mass = self.config['mass']['body_kg'] + 4 * (
+                self.config['mass']['nacelle_kg'] + self.config['mass']['propeller_kg'])
+            self.assertAlmostEqual(4 * motor['thrust_constant'] * velocity**2,
+                                   total_mass * 9.8, places=7)
+
     def test_bad_configuration_is_rejected(self):
         cases = [('simulation', key, bad) for key in self.config['simulation']
                  for bad in (float('nan'), float('inf'), True)]

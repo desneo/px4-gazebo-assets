@@ -226,7 +226,7 @@ def airframe(config):
                       f'CA_ROTOR{i}_PZ': -g['rotor_z_m'],
                       f'CA_ROTOR{i}_KM': motor['moment_constant_m'] * (1 if i < 2 else -1),
                       f'SIM_GZ_EC_FUNC{i+1}': 101 + i, f'SIM_GZ_EC_MIN{i+1}': motor['idle_velocity_rad_s'],
-                      f'SIM_GZ_EC_MAX{i+1}': motor['max_velocity_rad_s']}
+                      f'SIM_GZ_EC_MAX{i+1}': motor['max_velocity_rad_s'], f'SIM_GZ_EC_DIS{i+1}': 0}
         lines += [f'param set-default {key} {value:.10g}' for key, value in parameters.items()]
     lines += [f'param set-default {key} {value:.10g}' for key, value in px4['parameters'].items()]
     return '\n'.join(lines) + '\n'

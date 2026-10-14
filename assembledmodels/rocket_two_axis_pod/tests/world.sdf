@@ -1,0 +1,104 @@
+<?xml version='1.0' encoding='utf-8'?>
+<sdf version="1.9">
+  <world name="rocket_two_axis_pod_preview">
+    <gravity>0 0 -9.8</gravity>
+    <physics name="physics" type="ignored">
+      <max_step_size>.004</max_step_size>
+      <real_time_factor>1</real_time_factor>
+    </physics>
+    <plugin filename="gz-sim-physics-system" name="gz::sim::systems::Physics" />
+    <plugin filename="gz-sim-user-commands-system" name="gz::sim::systems::UserCommands" />
+    <plugin filename="gz-sim-scene-broadcaster-system" name="gz::sim::systems::SceneBroadcaster" />
+    <scene>
+      <ambient>.7 .7 .7 1</ambient>
+      <background>.84 .88 .93 1</background>
+      <grid>false</grid>
+      <shadows>true</shadows>
+    </scene>
+    <gui fullscreen="false">
+      <plugin filename="MinimalScene" name="3D View">
+        <engine>ogre2</engine>
+        <scene>scene</scene>
+        <camera_pose>0.75 -0.9 0.6 0.0 0.29 2.2655</camera_pose>
+        <camera_clip>
+          <near>0.005</near>
+          <far>100.0</far>
+        </camera_clip>
+      </plugin>
+      <plugin filename="GzSceneManager" name="Scene Manager" />
+      <plugin filename="InteractiveViewControl" name="Interactive view control" />
+      <plugin filename="CameraTracking" name="Camera Tracking" />
+      <plugin filename="EntityTree" name="Entity tree" />
+      <plugin filename="WorldControl" name="World control" />
+    </gui>
+    <light name="sun" type="directional">
+      <pose>0 0 3 0 0 0</pose>
+      <diffuse>.8 .8 .8 1</diffuse>
+      <specular>.3 .3 .3 1</specular>
+      <direction>-.4 .5 -1</direction>
+    </light>
+    <include>
+      <uri>model://rocket_two_axis_pod</uri>
+      <name>ROCKET_TWO_AXIS_POD</name>
+      <pose>0 0 .24 0 0 0</pose>
+    </include>
+    <model name="preview_floor">
+      <static>true</static>
+      <link name="floor">
+        <visual name="floor">
+          <geometry>
+            <plane>
+              <normal>0 0 1</normal>
+              <size>4 4</size>
+            </plane>
+          </geometry>
+          <material>
+            <ambient>.72 .74 .77 1</ambient>
+            <diffuse>.72 .74 .77 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <model name="ROCKET_POD_LOCATION_MARKER">
+      <static>true</static>
+      <link name="arrow">
+        <visual name="shaft">
+          <pose>-.20 0 .41 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>.12 .009 .009</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>1 .35 .02 1</ambient>
+            <diffuse>1 .35 .02 1</diffuse>
+          </material>
+        </visual>
+        <visual name="head_upper">
+          <pose>-.125 0 .42 0 .7853981634 0</pose>
+          <geometry>
+            <box>
+              <size>.04 .009 .009</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>1 .35 .02 1</ambient>
+            <diffuse>1 .35 .02 1</diffuse>
+          </material>
+        </visual>
+        <visual name="head_lower">
+          <pose>-.125 0 .40 0 -.7853981634 0</pose>
+          <geometry>
+            <box>
+              <size>.04 .009 .009</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>1 .35 .02 1</ambient>
+            <diffuse>1 .35 .02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+  </world>
+</sdf>

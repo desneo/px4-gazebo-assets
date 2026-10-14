@@ -2,6 +2,7 @@ models/gimbals/three_axis_pod/controller/build/
 __pycache__/
 *.pyc
 runs/
+assembledmodels/rocket_two_axis_pod/runtime/
 
 # spec-kit 产物不入库
 .specify/

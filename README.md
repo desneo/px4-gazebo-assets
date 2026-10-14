@@ -24,7 +24,9 @@ px4-gazebo-assets/
 │   ├── mounts/                # 独立安装座、支架
 │   └── props/                 # 建筑、树木、障碍物与静态美术展示
 │       └── delta_wing_display/ # 小摩托外观所用的平滑三角翼独立美术展示
-├── assemblies/                # 多个 model 组合完成的复杂模型
+├── assembledmodels/           # 由基础 model 组合的复杂模型
+│   └── rocket_two_axis_pod/   # 450 mm 火箭机与顶部两轴吊舱的造型与动态装配
+├── assemblies/                # 已有固定支架三轴吊舱装配
 ├── worlds/                    # 静态环境定义、专用资源和说明
 └── scenarios/                 # 大型综合测试场景的配置、启动和辅助脚本(组件自己用的测试跟model放一起)
     ├── geographic_two_axis_pod/ # 完整地理背景中的两轴立装部件测试
@@ -34,7 +36,7 @@ px4-gazebo-assets/
 ## 文件归属规则
 
 - 基础模型按类别放入 `models/`，每个模型使用独立目录，其网格、材质、纹理和专用说明随模型保存。
-- 多个 model 组合完成的复杂模型放入 `assemblies/`，每个装配模型使用独立目录。
+- 多个 model 组合完成的新增复杂模型放入 `assembledmodels/`，每个装配模型使用独立目录；已有固定支架三轴吊舱保留在 `assemblies/three_axis_pod_stand/`。
 - 可复用的静态环境使用独立的 `worlds/<环境名称>/` 目录，静态环境定义保存为 `world.sdf`，环境专用的网格、纹理等资源放入该目录下的 `assets/`，环境专用的原生 GUI 插件源码放入该目录下的 `gui/`，参数、数据来源和使用方法维护在该目录的 `README.md` 中。
 - `scenarios/` 只放置大型综合测试场景，每个场景使用独立的 `scenarios/<场景名称>/` 目录，其 `README.md` 明确描述使用哪个 world。实验专用配置、启动和辅助脚本按需放入该目录；环境自身的内容归属对应的 world。
 - 场景可以使用 `run.sh` 作为启动入口；需要配置文件时，由对应脚本读取。自定义配置文件不视为 PX4 或 Gazebo 原生支持的格式。
@@ -59,6 +61,7 @@ px4-gazebo-assets/
 - 两轴地理测试：运行 `bash scenarios/geographic_two_axis_pod/run.sh --gui`，在完整地理环境中测试标准立装两轴吊舱、空中动态棋盘靶标、实体遮挡与 UDP/RTSP 地面站；不加载载机或 PX4，见[测试场景说明](scenarios/geographic_two_axis_pod/README.md)。
 - 两轴立装吊舱：见[组件说明](models/gimbals/two_axis_pod/README.md)、[安装与运动学](models/gimbals/two_axis_pod/docs/mounting.md)和[验证说明](models/gimbals/two_axis_pod/docs/validation.md)。Ø84 mm 底部圆环与地面平行，导引头整体向上高 91 mm。偏航绕竖直 +Z 轴转动，范围 ±90°；俯仰绕随动水平 +Y 轴转动，范围 −45°～+90°，机械零位朝天，正值朝前。网关可配置额外的 UDP JSON 状态接收地址和频率，默认 20 Hz，与 station 会话独立。
 - 火箭穿越机：见 [模型说明](models/vehicles/rocket_racing_quad/README.md)和[自验证说明](models/vehicles/rocket_racing_quad/tests/README.md)；采用机头朝上起飞、整机倾转加速的布局，机身轴向长度 0.45 m、对角轴距 15 英寸、桨径 10 英寸，目标为 200 km/h 巡航及 300 km/h 连续冲刺 10 秒。参数集中在模型的 `parameters.json`，修改与复测见[参数说明](models/vehicles/rocket_racing_quad/docs/parameters.md)；启动器生成独立 Gazebo 资产、PX4 机体配置和运行目录，当前验收进度见[项目状态](models/vehicles/rocket_racing_quad/docs/status.md)。
+- 火箭机与顶部两轴吊舱：组合资产位于 `assembledmodels/rocket_two_axis_pod/`，以 91 mm 高的吊舱替换原机头顶部，整体轴向长 450 mm，吊舱各轴与机体同名轴对齐。静态组合造型已通过人工确认；整机及近景入口见[装配说明](assembledmodels/rocket_two_axis_pod/README.md)。
 
 空目录中的 `.gitkeep` 用于让 Git 保存目录；添加实际文件后可以移除。
 

@@ -30,6 +30,8 @@ bash models/gimbals/two_axis_pod/ground_station/run.sh
 
 运行依赖与网络地址见[启动说明](scripts/README.md)、[网关说明](controller/service/README.md)和[地面站说明](ground_station/README.md)。演示世界不启动 PX4。相机为 1920×1080@30Hz、水平视场 60°。
 
+网关支持向配置的 IP/端口额外发送 UDP JSON 状态副本，默认关闭、默认频率 20 Hz。配置文件为 `controller/service/status_udp.json`；该独立输出不改变 station 原有遥测和控制，见[主动上报配置](controller/service/README.md#额外-udp-json-状态上报)。
+
 ## 参数与资料
 
 - `parameters.json`：尺寸、机械限位、最大速度/加速度与相机参数。

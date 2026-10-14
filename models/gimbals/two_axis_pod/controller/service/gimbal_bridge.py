@@ -16,10 +16,12 @@ gz-transport 侧（与插件对接）：
 - UDP ``udp://<host>:8766``：一条数据报 = 一条 UTF-8 JSON；服务端按客户端地址登记并
   以 ``--telemetry-hz`` 广播 ``telemetry``；指令经 ``seq`` 幂等去重后转插件。
 - RTSP ``rtsp://<host>:8555/two_axis_pod``：H.264（复用 ``video.py``）
+- 配置的 IP/端口：独立 UDP socket 主动发送一份相同字段的状态 JSON，无需登记。
 
 线程模型：``video_thread`` 只取最新帧投递；
 ``telemetry_thread`` 负责 UDP 遥测广播；主线程阻塞在 UDP 接收循环；gz-transport
 回调线程只更新共享状态（``command_result`` 按唯一请求 ID 关联 ``seq`` 后转发）。
+可选的 ``status_udp`` 发送线程按独立配置取样，不改变 station 广播循环和会话。
 """
 from __future__ import annotations
 
@@ -42,6 +44,7 @@ from gz.msgs10.stringmsg_pb2 import StringMsg  # noqa: E402
 from gz_source import GzSource  # noqa: E402
 import video as video_mod  # noqa: E402
 from video import VideoStreamer  # noqa: E402
+from status_udp import DEFAULT_CONFIG, StatusUdpPublisher, load_status_config  # noqa: E402
 
 STAMP_MASK = 0xFFFFFF
 
@@ -113,6 +116,7 @@ class GimbalBridge:
 
         self.lock = threading.RLock()
         self._latest_tel = None                 # 插件遥测 JSON -> dict
+        self._latest_tel_received = None        # 接收单调时钟时间，供额外上报判断时效
         self._frame = None                      # (seq,w,h,sim_stamp,t_arrive,t0,data)
         self._img_counter = 0
         self.frame_registry = deque(maxlen=600)  # (seq24, t0_mono)
@@ -151,6 +155,7 @@ class GimbalBridge:
                      f"{args.camera_link}/sensor/{args.camera_sensor}/image")
         self.source.node.subscribe(Image, img_topic, self._on_image)
         print(f"[bridge] 订阅图像 {img_topic}")
+        self.status_publisher = StatusUdpPublisher(args.status_config)
 
     # ---------------- gz-transport 回调（非主线程） ----------------
     def _on_telemetry(self, msg):
@@ -162,6 +167,11 @@ class GimbalBridge:
             return
         with self.lock:
             self._latest_tel = tel
+            self._latest_tel_received = time.monotonic()
+
+    def status_snapshot(self):
+        with self.lock:
+            return self.snapshot(), self._latest_tel_received
 
     def _on_command_result(self, msg):
         try:
@@ -552,6 +562,7 @@ class GimbalBridge:
 
     def close(self):
         self._running = False
+        self.status_publisher.close()
         try:
             self.sock.close()
         except OSError:
@@ -576,9 +587,19 @@ def main():
     parser.add_argument("--video-bitrate", type=int, default=8000,
                         help="H.264 码率（kbps）")
     parser.add_argument("--telemetry-hz", type=int, default=50)
+    parser.add_argument("--status-config", type=Path, default=DEFAULT_CONFIG,
+                        help="额外 UDP JSON 状态上报配置文件（默认 status_udp.json）")
+    parser.add_argument("--status-ip", help="额外状态接收 IP；须同时指定 --status-port")
+    parser.add_argument("--status-port", type=int, help="额外状态接收端口")
+    parser.add_argument("--status-hz", type=float, help="覆盖额外状态发送频率，默认 20 Hz")
     parser.add_argument("--encoder", choices=["nvenc", "x264"], default="nvenc",
                         help="视频编码器：nvenc(nvcudah264enc，默认) / x264 软编降级")
     args = parser.parse_args()
+    try:
+        args.status_config = load_status_config(args.status_config, ip=args.status_ip,
+                                                port=args.status_port, hz=args.status_hz)
+    except ValueError as exc:
+        parser.error(str(exc))
 
     try:
         import faulthandler
@@ -589,6 +610,7 @@ def main():
     bridge = GimbalBridge(args)
     threading.Thread(target=bridge.video_thread, daemon=True).start()
     threading.Thread(target=bridge.telemetry_thread, daemon=True).start()
+    bridge.status_publisher.start(bridge.status_snapshot)
     try:
         bridge.udp_rx_loop()
     except KeyboardInterrupt:

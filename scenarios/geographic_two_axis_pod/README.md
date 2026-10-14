@@ -22,6 +22,8 @@ bash models/gimbals/two_axis_pod/ground_station/run.sh --udp-port 8766 --rtsp-po
 
 默认 partition 为 `geographic_two_axis_pod`，运行目录为 `runs/geographic_two_axis_pod/`，UDP 为 `8766`，RTSP 为 `8555`，RTP 为 `5602`，RTSP 挂载点为 `/two_axis_pod`。默认采用 x264 编码，可通过 `--encoder nvenc` 切换。`GZ_PARTITION` 和 `GIMBAL_RUNDIR` 环境变量可覆盖默认值；其余参数传给组件网关。修改端口后，应给地面站和检查脚本传入一致端口。
 
+额外 UDP JSON 状态副本可在组件 `controller/service/status_udp.json` 中启用，也可传入 `--status-ip 192.168.1.100 --status-port 9000 --status-hz 20`。此输出使用独立 socket 和发送循环，无需接收端登记，不改变原 station 服务，见[网关配置](../../models/gimbals/two_axis_pod/controller/service/README.md#额外-udp-json-状态上报)。
+
 ```bash
 # 完整视觉检查；不要同时运行其他 UDP 控制客户端。
 GZ_PARTITION=geographic_two_axis_pod python3 scenarios/geographic_two_axis_pod/check_target.py

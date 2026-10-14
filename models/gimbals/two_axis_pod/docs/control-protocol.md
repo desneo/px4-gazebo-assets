@@ -40,8 +40,14 @@
 - `mount.mode=upright`、`mount.static=true`：立装和固定安装参考，插件不执行动态载机补偿。
 - `mount.quat_world`：固定安装参考系相对世界的四元数，顺序 wxyz。
 - `mode`：IDLE/MANUAL/HOME/TRACK；`tracking.state`、`target`、`stability`：跟踪状态、选框和中心误差。
-- `frame`、网关时间戳、视频信息：供视频与时延显示。网关补充帧尺寸和RTSP地址。
+- `frame`、`frame_table`、`ts_wall`、`server_uptime`、`video`：供视频、时序和网关状态显示。RTSP 挂载点由 station 登记时收到的 `hello.video_rtsp_path` 提供。
 
 俯仰 0° 时偏航轴与视线方向平行，偏航仍可机械转动，球心和画面方向随支架变化，但无法改变镜头朝天方向。视觉伺服以阻尼最小二乘处理该处退化；机械可达范围与两轴结构约束仍然存在。视频断流时停止追踪速度，持续丢失后需重新选框。
 
 Gazebo 专用话题为 `/two_axis_pod/command`、`/two_axis_pod/telemetry` 和 `/two_axis_pod/command_result`，消息均为 `gz.msgs.StringMsg` 中的 JSON。插件执行结果携带 `cmd`、`ok`、`message` 与网关生成的 `request_id`。
+
+## 额外主动状态副本
+
+网关可通过独立 UDP socket 将上述遥测 JSON 额外发送到配置的 IP/端口。默认频率 20 Hz，可配置；station 原有默认 50 Hz 广播与控制会话保持独立。报文仍为 `type:"telemetry"`、协议 v4，沿用原字段，不添加外层封装。接收端无需 ping 或登记，不会收到 hello 或控制回执。
+
+默认不开启，启用、目标地址和发送频率见[网关配置](../controller/service/README.md#额外-udp-json-状态上报)。尚无插件遥测或超过配置时效时暂停额外发送；接收端应按配置频率自行判断连续报文缺失。目标接收端口与 station 控制端口分别配置。

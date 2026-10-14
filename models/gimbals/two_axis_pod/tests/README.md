@@ -18,6 +18,8 @@ gz sdf -k models/gimbals/two_axis_pod/model.sdf
 gz sdf -k models/gimbals/two_axis_pod/tests/world.sdf
 ```
 
+网络与地面站测试包含 60 项，使用 Python 标准库。其中 `ground_station/tests/test_status_udp.py` 使用本机 UDP 回环验证额外状态输出：配置读取和覆盖、默认关闭、20 Hz 独立发送、原 station 50 Hz 遥测与 ping、字段完整保留、遥测过期暂停、发送异常恢复、关闭额外输出后 station 继续工作。不会向外部 IP 发送测试数据。
+
 ## 在线验证
 
 ```bash

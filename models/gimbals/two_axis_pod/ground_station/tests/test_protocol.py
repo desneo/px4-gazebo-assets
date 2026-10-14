@@ -8,6 +8,7 @@ import contextlib
 import io
 import json
 import math
+import socket
 import uuid
 from pathlib import Path
 import threading
@@ -36,7 +37,7 @@ BRIDGE = load_definitions(
     {"_as_int", "_Client", "GimbalBridge"},
     {"time": time, "threading": threading, "json": json, "math": math, "uuid": uuid,
      "SEQ_WINDOW": 1024, "MAX_PENDING": 4096, "RESULT_TIMEOUT": 30.,
-     "SESSION_RETENTION": 60., "MAX_DATAGRAM": 8192,
+     "SESSION_RETENTION": 60., "MAX_DATAGRAM": 8192, "RECV_BUFFER": 65535, "socket": socket,
      "StringMsg": type("StringMsg", (), {}),
      "PASSTHROUGH_CMDS": {"track", "stop", "home", "reset", "reset_axis", "manual", "reset_fault"}})
 CLIENT = load_definitions(

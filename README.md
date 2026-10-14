@@ -31,6 +31,7 @@ px4-gazebo-assets/
 └── scenarios/                 # 大型综合测试场景的配置、启动和辅助脚本(组件自己用的测试跟model放一起)
     ├── geographic_two_axis_pod/ # 完整地理背景中的两轴立装部件测试
     ├── geographic_rocket_two_axis_pod/ # 火箭机机载两轴吊舱的往返飞行与空中目标跟踪
+    ├── rocket_speed_comparison/ # 当前单机与组合体的最高稳定平飞速度对照
     └── common/                # 多个场景共用的辅助脚本
 ```
 
@@ -61,6 +62,7 @@ px4-gazebo-assets/
 - 三轴吊舱：见 [组件说明](models/gimbals/three_axis_pod/README.md)和[使用说明](models/gimbals/three_axis_pod/scripts/README.md)；功能、协议和当前限制见 [系统说明](models/gimbals/three_axis_pod/docs/system.md)，自验证结果见 [验证说明](models/gimbals/three_axis_pod/docs/validation.md)。
 - 两轴地理测试：运行 `bash scenarios/geographic_two_axis_pod/run.sh --gui`，在完整地理环境中测试标准立装两轴吊舱、空中动态棋盘靶标、实体遮挡与 UDP/RTSP 地面站；不加载载机或 PX4，见[测试场景说明](scenarios/geographic_two_axis_pod/README.md)。
 - 火箭机机载两轴场景：`scenarios/geographic_rocket_two_axis_pod/` 使用现有地理 world、动态组合模型和 PX4，提供 80 m 相对起飞高度、15 m/s、300 m 航段的往返飞行入口及空中纹理靶标；当前配置通过两次完整往返、降落及 70 仿真秒真实图像跟踪自动检查，场景效果已通过人工确认，见[场景说明](scenarios/geographic_rocket_two_axis_pod/README.md)与[验收结果](scenarios/geographic_rocket_two_axis_pod/docs/validation.md)。
+- 火箭机速度对照：`scenarios/rocket_speed_comparison/` 在同一无风地理世界顺序运行当前单机和组合体，比较80 m高度下连续10秒的最高稳定平飞速度。实测单机340.53 km/h、组合体340.44 km/h，均在95 m/s控制上限的设定容差内并正常降落；当前相同简化阻力配置下组合体达到单机速度水平，见[场景说明](scenarios/rocket_speed_comparison/README.md)和[实测结果](scenarios/rocket_speed_comparison/docs/validation.md)。
 - 两轴立装吊舱：见[组件说明](models/gimbals/two_axis_pod/README.md)、[安装与运动学](models/gimbals/two_axis_pod/docs/mounting.md)和[验证说明](models/gimbals/two_axis_pod/docs/validation.md)。Ø84 mm 底部圆环与地面平行，导引头整体向上高 91 mm。偏航绕竖直 +Z 轴转动，范围 ±90°；俯仰绕随动水平 +Y 轴转动，范围 −45°～+90°，机械零位朝天，正值朝前。网关可配置额外的 UDP JSON 状态接收地址和频率，默认 20 Hz，与 station 会话独立。
 - 火箭穿越机：见 [模型说明](models/vehicles/rocket_racing_quad/README.md)和[自验证说明](models/vehicles/rocket_racing_quad/tests/README.md)；采用机头朝上起飞、整机倾转加速的布局，机身轴向长度 0.45 m、对角轴距 15 英寸、桨径 10 英寸，目标为 200 km/h 巡航及 300 km/h 连续冲刺 10 秒。参数集中在模型的 `parameters.json`，修改与复测见[参数说明](models/vehicles/rocket_racing_quad/docs/parameters.md)；启动器生成独立 Gazebo 资产、PX4 机体配置和运行目录，当前验收进度见[项目状态](models/vehicles/rocket_racing_quad/docs/status.md)。
 - 火箭机与顶部两轴吊舱：组合资产位于 `assembledmodels/rocket_two_axis_pod/`，以 91 mm 高的吊舱替换原机头顶部，整体轴向长 450 mm，吊舱各轴与机体同名轴对齐。静态组合造型已通过人工确认；整机及近景入口见[装配说明](assembledmodels/rocket_two_axis_pod/README.md)。

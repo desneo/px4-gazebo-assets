@@ -92,6 +92,8 @@ python3 models/vehicles/rocket_racing_quad/tools/render_views.py
 
 当前模型采用[外形参考图](docs/reference.png)所示的低位电机、下置桨和长三角翼面布局。静态检查与SDF校验通过；80 mm 动力舱外形已通过人工验收，当前配置完整飞行验收待复测，结果见[验证说明](docs/validation.md)。当前状态见[项目状态](docs/status.md)。
 
+当前配置在完整地理场景通过80 m起飞、95 m/s控制上限容差内的连续10秒稳定平飞、减速与降落；单机窗口均值94.5924 m/s，组合体94.5675 m/s，见[速度对照结果](../../../scenarios/rocket_speed_comparison/docs/validation.md)。该结果只适用于当前简化仿真，且不替代默认完整飞行自验证。
+
 ## 参数与验证证据
 
 - [参数说明](docs/parameters.md)：字段单位、依赖关系、修改与复测方法。

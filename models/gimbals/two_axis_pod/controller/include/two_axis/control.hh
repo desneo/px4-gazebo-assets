@@ -21,6 +21,7 @@ struct ControlConfig
   double yaw_min_deg{-90}, yaw_max_deg{90}, pitch_min_deg{-45}, pitch_max_deg{90};
   double manual_timeout_s{.5}, frame_stop_timeout_s{.5}, occlusion_timeout_s{2.5};
   Mat3 mount_world_rotation, sensor_rotation{CamSensorRot()};
+  Vec3 mount_angular_velocity;
 };
 class GimbalControl
 {

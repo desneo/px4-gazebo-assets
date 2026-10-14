@@ -44,6 +44,27 @@ int main()
   }
   auto rates = ImageRates(0, 100, 20);
   Check(std::isfinite(rates[0]) && std::abs(rates[0]) < 1e-8, "退化时yaw速度有限且为零");
+  auto angular = MountAngularVelocity(Identity(), Rz(.003), .01);
+  Check(std::abs(angular.z - .3) < 1e-8 && std::abs(angular.x) < 1e-8,
+        "动态安装姿态差分角速度");
+  Check(MountAngularVelocity(Identity(), Rz(1), .01).z == 0,
+        "姿态瞬移不生成补偿冲击");
+  Check(MountAngularVelocity(Identity(), Rz(.003), 0).z == 0,
+        "无效时间间隔不生成角速度");
+  // 独立积分载机旋转与机械轴补偿，检查世界视线的一阶漂移。
+  for (double yaw : {-.7, .2, .8})
+    for (double pitch : {-.6, .5, 1.2})
+  {
+    Vec3 omega{.2, -.3, .4};
+    auto feed = StabilizationRates(yaw, pitch, omega);
+    const double dt = 1e-5;
+    auto nextMount = MatMul(Rz(omega.z * dt), MatMul(Ry(omega.y * dt), Rx(omega.x * dt)));
+    auto nextLos = MatVec(nextMount, Los(yaw + feed[0]*d*dt, pitch + feed[1]*d*dt));
+    auto before = Los(yaw, pitch);
+    const double drift = std::sqrt(std::pow(nextLos.x-before.x, 2) +
+      std::pow(nextLos.y-before.y, 2) + std::pow(nextLos.z-before.z, 2)) / dt;
+    Check(drift < .01, "动态补偿保持世界视线，阻尼误差有界");
+  }
   // 距硬限位0.7°时，80°/s持续0.012s会越界。
   // 保护必须在加速度平滑之后生效，并且保留向内退出的能力。
   GimbalControl predictive;
@@ -101,10 +122,22 @@ int main()
   Check(c.StartTracking(im, {.3, .3, .25, .25}, 320, 240).first, "CSRT选框");
   c.Step(1, true, im, 320, 240, {}, 30);
   Check(c.track_state() == TrackState::TRACK && c.target_valid(), "CSRT持续跟踪");
+  Check(c.client_message().find("视线退化") != std::string::npos,
+        "CSRT仍识别目标时明确报告视线退化");
   cmd = c.Step(1.6, false, im, 320, 240, {}, 30.6);
   Check(cmd[0] == 0 && cmd[1] == 0 && !c.target_valid(), "断帧立即停止");
   c.Step(4.2, false, im, 320, 240, {}, 33.2);
   Check(c.track_state() == TrackState::LOST, "长期断帧进入丢失");
+  c.Stop();
+  Check(c.client_message().empty(), "停止后清除已失效的跟踪约束提示");
+  Check(c.StartTracking(im, {.65, .35, .2, .2}, 320, 240).first,
+        "机械边界图像选框有效");
+  JointSample trackedLimit{89.9*d, 45*d, 0, 0};
+  c.Step(4.3, true, im, 320, 240, trackedLimit, 33.3);
+  Check(c.track_state() == TrackState::TRACK && c.limit_flags()[0] &&
+        c.client_message().find("机械限位") != std::string::npos &&
+        c.stability() == Stability::UNSTABLE,
+        "图像识别正常但机械不可继续向外时不能宣称稳定锁定");
   c.Stop();
   JointSample invalid;
   invalid.yaw = std::nan("");

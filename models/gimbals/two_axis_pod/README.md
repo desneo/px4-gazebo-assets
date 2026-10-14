@@ -15,6 +15,8 @@
 
 运动学、示意与边界见[安装说明](docs/mounting.md)。控制协议使用 `protocol_version=4`、`angle_convention=upright_joint`，与三轴组件的 PX4 FRD 角度定义不同。
 
+机载装配可通过插件 `mount_dynamic=true` 启用实际安装姿态更新和跟踪中的载机转动补偿；机械轴随载机变化，零位仍沿安装 +Z。组合模型的参数、质量估计与运行入口属于对应装配和场景目录，不改变本组件的固定立装演示。
+
 ## 构建与运行
 
 在仓库根目录执行：

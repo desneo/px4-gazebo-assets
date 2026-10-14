@@ -37,14 +37,17 @@
 - `cmd_dps.yaw/pitch`：关节速度指令；`limits.yaw/pitch/saturated`：限位与饱和。
 - `los_mount`：安装系镜头单位方向；`singular`：俯仰接近 0°、视线朝天时偏航视线控制退化，不禁止机械手动或回零。
 - `camera.quat_body/quat_world`：实际光学系的四元数，顺序 wxyz；`rpy_body_deg/rpy_world_deg` 是光学姿态的诊断表示，与机械角不同。
-- `mount.mode=upright`、`mount.static=true`：立装和固定安装参考，插件不执行动态载机补偿。
-- `mount.quat_world`：固定安装参考系相对世界的四元数，顺序 wxyz。
+- `mount.mode=upright`：立装机械结构。默认 `mount.static=true`；装配插件设置 `mount_dynamic=true` 时为 `false`，每步更新安装系实际世界姿态，TRACK 中以载机角速度前馈抵消载机转动。
+- `mount.quat_world`：安装参考系相对世界的四元数，顺序 wxyz；动态模式随载机变化。
+- `tracking.constraint`：`NONE`、`SINGULAR`（偏航视线退化）、`LIMITED`（机械限位）、`RATE_LIMITED`（速度输出饱和）。`tracking.state=TRACK` 表示图像跟踪器仍识别选框，不等于所有轴均可稳定指向；应同时检查中心误差、稳定性和约束。
 - `mode`：IDLE/MANUAL/HOME/TRACK；`tracking.state`、`target`、`stability`：跟踪状态、选框和中心误差。
 - `frame`、`frame_table`、`ts_wall`、`server_uptime`、`video`：供视频、时序和网关状态显示。RTSP 挂载点由 station 登记时收到的 `hello.video_rtsp_path` 提供。
 
 俯仰 0° 时偏航轴与视线方向平行，偏航仍可机械转动，球心和画面方向随支架变化，但无法改变镜头朝天方向。视觉伺服以阻尼最小二乘处理该处退化；机械可达范围与两轴结构约束仍然存在。视频断流时停止追踪速度，持续丢失后需重新选框。
 
 Gazebo 专用话题为 `/two_axis_pod/command`、`/two_axis_pod/telemetry` 和 `/two_axis_pod/command_result`，消息均为 `gz.msgs.StringMsg` 中的 JSON。插件执行结果携带 `cmd`、`ok`、`message` 与网关生成的 `request_id`。
+
+组合模型可以在插件 SDF 中配置上述话题和 `image_topic`。网关的 `--topic-prefix` 与 `--image-topic` 必须对应装配配置；未指定时沿用独立组件的话题。动态补偿不使用目标世界坐标，也不提供第三轴画面水平稳定；平移、目标运动与模型误差由图像反馈修正。
 
 ## 额外主动状态副本
 

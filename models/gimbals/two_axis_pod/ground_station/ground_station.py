@@ -1034,8 +1034,9 @@ class GroundStation:
                            color, cv2.MARKER_CROSS, 14, 2)
 
         # 操作按钮
+        dynamic_mount = ((tele or {}).get("mount") or {}).get("static") is False
         button_defs = [("复位", "reset"), ("停止", "stop"),
-                       ("朝天", "home"), ("清故障", "reset_fault")]
+                       ("回零" if dynamic_mount else "朝天", "home"), ("清故障", "reset_fault")]
         bw, bh = 86, 34
         x0 = dw - len(button_defs) * (bw + 8) - 12
         self.buttons = []
@@ -1079,10 +1080,12 @@ class GroundStation:
             colors[0] = (0, 255, 255)
             mode = (tele.get("mount") or {}).get("mode")
             mounting = {"upright": "立装（竖直偏航）"}.get(mode, "未知")
+            if dynamic_mount and mode == "upright":
+                mounting = "机载立装（偏航绕机体 +Z）"
             lines.append(f"安装: {mounting}   机械角度: {'立装机械角度' if ready else '未确认，角度控制禁用'}")
             colors.append((0, 255, 255))
             if ready and tele.get("singular", False):
-                lines.append("视线退化：镜头朝天时偏航不改变视线，机械控制仍可用")
+                lines.append("视线退化：镜头沿安装 +Z 时偏航不改变方向，机械控制仍可用")
                 colors.append((0, 165, 255))
             if limits.get("saturated") or any(limits.get(k) for k in ("yaw", "pitch")):
                 lines.append(f"限位/饱和: {limits}")
@@ -1090,6 +1093,9 @@ class GroundStation:
             if t.get("fault"):
                 lines.append(f"故障: {t.get('fault')}  {t.get('message') or ''}")
                 colors.append((0, 0, 255))
+            elif t.get("message"):
+                lines.append(f"跟踪提示: {t['message']}")
+                colors.append((0, 165, 255))
             if self.last_cmd:
                 lines.append(self.last_cmd)
                 colors.append((0, 255, 0))

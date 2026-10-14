@@ -146,13 +146,15 @@ class GimbalBridge:
         self.sock.settimeout(0.5)               # 便于 _running 翻转后及时退出
 
         # gz-transport：订阅插件遥测/结果，发布指令
-        self._cmd_pub = self.source.node.advertise(COMMAND_TOPIC, StringMsg)
-        self.source.node.subscribe(StringMsg, TELEMETRY_TOPIC, self._on_telemetry)
-        self.source.node.subscribe(StringMsg, RESULT_TOPIC, self._on_command_result)
+        prefix = getattr(args, "topic_prefix", "/two_axis_pod").rstrip("/")
+        self._cmd_pub = self.source.node.advertise(f"{prefix}/command", StringMsg)
+        self.source.node.subscribe(StringMsg, f"{prefix}/telemetry", self._on_telemetry)
+        self.source.node.subscribe(StringMsg, f"{prefix}/command_result", self._on_command_result)
         # 相机图像：话题名可配（GzSource 内部固定订阅默认 link/sensor，
         # 这里按参数重新订阅，保证 --camera-link/--camera-sensor 生效）
-        img_topic = (f"/world/{args.world}/model/{args.gimbal_model}/link/"
-                     f"{args.camera_link}/sensor/{args.camera_sensor}/image")
+        img_topic = getattr(args, "image_topic", None) or (
+            f"/world/{args.world}/model/{args.gimbal_model}/link/"
+            f"{args.camera_link}/sensor/{args.camera_sensor}/image")
         self.source.node.subscribe(Image, img_topic, self._on_image)
         print(f"[bridge] 订阅图像 {img_topic}")
         self.status_publisher = StatusUdpPublisher(args.status_config)
@@ -576,6 +578,9 @@ def main():
     parser.add_argument("--gimbal-model", default="two_axis_pod")
     parser.add_argument("--camera-link", default="camera_link")
     parser.add_argument("--camera-sensor", default="camera")
+    parser.add_argument("--topic-prefix", default="/two_axis_pod",
+                        help="插件 command/telemetry/command_result 的话题前缀")
+    parser.add_argument("--image-topic", help="覆盖完整 Gazebo 相机图像话题")
     parser.add_argument("--udp-host", default="0.0.0.0")
     parser.add_argument("--udp-port", type=int, default=8766)
     parser.add_argument("--client-timeout", type=float, default=5.0,

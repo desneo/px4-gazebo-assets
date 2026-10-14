@@ -10,6 +10,8 @@ bash models/gimbals/two_axis_pod/ground_station/run.sh --decoder avdec
 
 `H` 回零朝天，`R` 停止跟踪并回零朝天，`S` 停止跟踪，`M` 清除故障，`Esc` 退出。底部提供 yaw 和 pitch 单轴复位按钮。可靠命令保留 seq 重传和回执；手动流持续发送。收到协议版本 4、`upright_joint` 标记及新鲜有效机械角度遥测后才启用手动和单轴复位。没有滚转控制或滚转遥测。
 
+机载装配遥测 `mount.static=false` 时，安装说明显示“机载立装（偏航绕机体 +Z）”，“朝天”按钮改为“回零”；此时回零朝安装 +Z，火箭机上对应机头方向，未必是世界天空。跟踪提示显示机械限位、速度饱和及视线退化，失去目标时显示 TEMP_LOST/LOST；CSRT TRACK 状态需结合误差和稳定性判断。
+
 依赖 Python 3、NumPy、OpenCV、Pillow、PyGObject、GStreamer；硬解需要对应 NVIDIA 插件，`--decoder avdec` 选择软件解码。中文字体可通过配置指定。查看全部参数：
 
 ```bash

@@ -58,6 +58,7 @@ void GimbalControl::Stop()
   manual_ = {};
   valid_ = false;
   has_box_ = false;
+  message_.clear();
   stability_ = Stability::UNDETERMINED;
   stable_time_ = -1;
 }
@@ -80,6 +81,7 @@ void GimbalControl::ResetFault()
 }
 void GimbalControl::Manual(double y, double p, double now)
 {
+  message_.clear();
   mode_ = Mode::MANUAL;
   state_ = TrackState::IDLE;
   valid_ = false;
@@ -212,7 +214,12 @@ std::array<double, 2> GimbalControl::Step(double now, bool fresh, const cv::Mat 
       return cmd_;
     }
     if (valid_ && watch - frame_time_ < cfg_.frame_stop_timeout_s)
+    {
       raw = ImageRates(j.pitch, cfg_.kp * image_error_[0], cfg_.kp * image_error_[1]);
+      const auto stabilization = StabilizationRates(j.yaw, j.pitch, cfg_.mount_angular_velocity);
+      raw[0] += stabilization[0];
+      raw[1] += stabilization[1];
+    }
     else
     {
       cmd_ = {};
@@ -252,6 +259,26 @@ std::array<double, 2> GimbalControl::Step(double now, bool fresh, const cv::Mat 
       saturated_ = true;
     }
     cmd_[i] = safe;
+  }
+  if (mode_ == Mode::TRACK && valid_)
+  {
+    if (Singular(j.pitch))
+    {
+      message_ = "视线退化：偏航无法独立调整视线方向";
+      stability_ = Stability::UNDETERMINED;
+    }
+    else if (limits_[0] || limits_[1])
+    {
+      message_ = "机械限位：目标方向可能不可达";
+      stability_ = Stability::UNSTABLE;
+    }
+    else if (saturated_)
+    {
+      message_ = "角速度受限：正在追赶目标";
+      stability_ = Stability::UNSTABLE;
+    }
+    else
+      message_.clear();
   }
   return cmd_;
 }

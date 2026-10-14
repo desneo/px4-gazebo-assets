@@ -23,6 +23,8 @@ export GZ_SIM_SYSTEM_PLUGIN_PATH=models/gimbals/two_axis_pod/controller/build/li
 
 跟踪采用 OpenCV CSRT，短时遮挡采用模板匹配重捕获。像素误差转换为图像右/下方向角误差，经比例增益（默认 4）及阻尼最小二乘 Jacobian 转换为关节速度，再施加速度、加速度和机械限位约束；不使用目标仿真真值。图像断帧超过 0.5 秒立即停止，超过默认 2.5 秒恢复窗口进入 LOST，需要重新选框。连续 1 秒中心误差小于 1° 标记稳定，误差大于 2° 标记不稳定。无效关节采样进入 FAULT，恢复采样后可用 reset_fault 清除。
 
+`mount_dynamic` 默认为 false，沿用固定安装参考。机载装配设置为 true 时，每步读取 `mount_link` 世界姿态，更新安装四元数和相机世界姿态；TRACK 中把载机角速度对视线的影响投影到实际两轴 Jacobian，加入反向前馈。目标平移和载机平移仍由图像误差闭环修正，不读取目标世界坐标。大于 0.5 rad 的单步姿态跳变不转换为角速度前馈。进入机械限位、输出速度受限或视线退化时明确报告约束，不能将 CSRT 仍识别选框解释为稳定锁定。
+
 `pitch = 0°` 时视线方向与 yaw 轴平行，yaw 不能改变朝天方向；球心随支架移动，画面方向随偏航旋转。此时不具备完整的二维视线方向控制能力。控制器通过阻尼抑制退化附近的 yaw 速度，遥测在 `abs(sin(pitch)) < 0.05` 时报告 `singular: true`。机械手动控制与回零仍有效。
 
 ## Gazebo Transport
@@ -31,8 +33,10 @@ export GZ_SIM_SYSTEM_PLUGIN_PATH=models/gimbals/two_axis_pod/controller/build/li
 - 回执：`/two_axis_pod/command_result`，包含 `type/cmd/ok/message/request_id`，request_id 在请求携带时原样返回。
 - 遥测：`/two_axis_pod/telemetry`，默认 50 Hz；控制默认 100 Hz。
 
+三个话题可用 SDF 的 `command_topic/telemetry_topic/command_result_topic` 配置。图像默认订阅由世界、模型、link、sensor 名拼接的完整路径，可用 `image_topic` 对应相机显式 topic。
+
 命令支持 track（归一化 `box:[x,y,w,h]`）、manual（`yaw/pitch` 机械速度）、stop、home、reset、reset_axis（axis 为 yaw/pitch）、reset_fault、ping。任何 manual 的 roll 字段均拒绝，包括零值。
 
 遥测 `protocol_version:4`、`angle_convention:"upright_joint"`；`attitude_deg`、`joints_deg` 只有 yaw/pitch 的 pos/vel/acc，`cmd_dps` 只有 yaw/pitch。`limits` 包含 yaw/pitch/saturated，`los_mount` 是安装系单位视线，顶层 `singular` 表示视线退化。`camera` 包含相机传感器相对安装系/世界的四元数与欧拉姿态及帧序号，不将机械轴角误称为世界偏航/俯仰。tracking、target、stability、frame 保留配套网关所需信息。网络接口见 [网关说明](service/README.md)。
 
-测试覆盖旋转链、有限差分 Jacobian、退化、手动超时、双轴限位、单轴回零、CSRT 跟踪及断帧丢失保护。
+测试覆盖旋转链、有限差分 Jacobian、退化、动态安装角速度估计与独立积分后的世界视线漂移、手动超时、双轴限位、单轴回零、CSRT 跟踪及断帧丢失保护。

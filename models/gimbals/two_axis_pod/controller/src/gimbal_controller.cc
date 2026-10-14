@@ -90,11 +90,14 @@ private:
   std::string telemetryTopic_{"/two_axis_pod/telemetry"};
   std::string resultTopic_{"/two_axis_pod/command_result"};
   std::string mountMode_{"upright"};
+  bool mountDynamic_{false};
+  bool hasMountSample_{false};
   Mat3 mountWorldRotation_;
   double controlHz_{100.0};
   double telemetryHz_{50.0};
 
   gz::sim::Entity modelEntity_{gz::sim::kNullEntity};
+  gz::sim::Entity mountEntity_{gz::sim::kNullEntity};
   std::array<gz::sim::Entity, 2> jointEntities_
   {
     gz::sim::kNullEntity, gz::sim::kNullEntity};
@@ -163,14 +166,17 @@ void GimbalController::Configure(
   telemetryHz_ = std::max(1.0, getDouble("telemetry_rate", telemetryHz_));
 
   mountMode_ = getStr("mount_mode", mountMode_);
+  mountDynamic_ = _sdf->HasElement("mount_dynamic") &&
+    _sdf->Get<bool>("mount_dynamic");
   if (mountMode_ != "upright")
   {
     gzerr << "[two_axis] mount_mode 必须为 upright\n";
     return;
   }
-  // 固定安装外参包括嵌套模型姿态；初始化后保持不变。
+  // 安装外参包括模型姿态；动态载机在每步仿真中更新。
   gz::sim::Model model(this->modelEntity_);
   const auto mountEntity = model.LinkByName(_ecm, mountLinkName_);
+  mountEntity_ = mountEntity;
   if (mountEntity == gz::sim::kNullEntity)
   {
     gzerr << "[gimbal] 未找到安装 link [" << mountLinkName_ << "]，插件禁用\n";
@@ -242,9 +248,9 @@ void GimbalController::Configure(
   if (auto *n = _ecm.Component<gz::sim::components::Name>(this->modelEntity_))
     modelName = n->Data();
 
-  const std::string imageTopic =
+  const std::string imageTopic = getStr("image_topic",
     "/world/" + worldName + "/model/" + modelName + "/link/" + linkName_ +
-    "/sensor/" + sensorName_ + "/image";
+    "/sensor/" + sensorName_ + "/image");
 
   this->node_.Subscribe(imageTopic, &GimbalController::OnImage, this);
   this->node_.Subscribe(commandTopic_, &GimbalController::OnCommand, this);
@@ -506,6 +512,18 @@ void GimbalController::PreUpdate(const gz::sim::UpdateInfo &_info,
 
   {
     std::lock_guard<std::mutex> lock(this->ctrlMutex_);
+    if (this->mountDynamic_)
+    {
+      const auto rotation = gz::sim::worldPose(this->mountEntity_, _ecm).Rot();
+      const auto current = MatMul(Rz(rotation.Yaw()),
+        MatMul(Ry(rotation.Pitch()), Rx(rotation.Roll())));
+      this->cfg_.mount_angular_velocity = this->hasMountSample_ ?
+        MountAngularVelocity(this->mountWorldRotation_, current, dt) : Vec3{};
+      this->hasMountSample_ = true;
+      this->mountWorldRotation_ = current;
+      this->cfg_.mount_world_rotation = this->mountWorldRotation_;
+      this->control_.Configure(this->cfg_);
+    }
     this->latestJointSample_ = js;
     this->hasJointSample_ = true;
   }
@@ -636,7 +654,8 @@ void GimbalController::PublishTelemetry(double _now, const JointSample &_js,
 
   std::ostringstream os;
   os << "{\"type\":\"telemetry\",\"source\":\"gazebo_plugin\""
-     << ",\"mount\":{\"mode\":\"" << mountMode_ << "\",\"static\":true,\"quat_world\":["
+     << ",\"mount\":{\"mode\":\"" << mountMode_ << "\",\"static\":"
+     << (mountDynamic_ ? "false" : "true") << ",\"quat_world\":["
      << Num(qMount[0], 6) << "," << Num(qMount[1], 6) << ","
      << Num(qMount[2], 6) << "," << Num(qMount[3], 6) << "]}"
      << ",\"ts_mono\":" << Num(_now, 6)
@@ -654,7 +673,11 @@ void GimbalController::PublishTelemetry(double _now, const JointSample &_js,
   else
     os << "\"" << json::Escape(c.client_message()) << "\"";
   os << ",\"valid_frames\":" << c.valid_frames()
-     << ",\"invalid_frames\":" << c.invalid_frames() << "}";
+     << ",\"invalid_frames\":" << c.invalid_frames();
+  const char *constraint = c.mode() != Mode::TRACK ? "NONE" :
+    singular ? "SINGULAR" : (lf[0] || lf[1]) ? "LIMITED" :
+    c.saturated() ? "RATE_LIMITED" : "NONE";
+  os << ",\"constraint\":\"" << constraint << "\"}";
 
   os << ",\"stability\":{\"state\":\"" << ToString(c.stability())
      << "\",\"center_err_deg\":" << Num(c.center_err_deg(), 3) << "}";

@@ -96,6 +96,7 @@ DEFAULT_CONFIG_VALUES = {
     "udp_port": 8766,
     "rtsp_port": 8555,
     "rtsp_mount": "/two_axis_pod",
+    "aircraft_id": 1,
     "display_scale": 0.5,
     "decoder": "nvenc",
     "window_title": "Gimbal Ground Station",
@@ -113,6 +114,7 @@ CLI_TO_CONFIG = [
     ("udp_port", "udp_port"),
     ("rtsp_port", "rtsp_port"),
     ("mount", "rtsp_mount"),
+    ("aircraft_id", "aircraft_id"),
     ("display_scale", "display_scale"),
     ("decoder", "decoder"),
     ("window_title", "window_title"),
@@ -155,10 +157,11 @@ def udp_endpoint(cfg: dict) -> str:
 
 
 def rtsp_url(cfg: dict) -> str:
-    mount = str(cfg.get("rtsp_mount") or "/two_axis_pod")
-    if not mount.startswith("/"):
-        mount = "/" + mount
-    return f"rtsp://{cfg['gimbal_host']}:{cfg['rtsp_port']}{mount}"
+    mount = "/" + str(cfg.get("rtsp_mount") or "/two_axis_pod").strip("/")
+    aircraft_id = cfg.get("aircraft_id", 1)
+    if type(aircraft_id) is not int or aircraft_id < 0:
+        raise ValueError("aircraft_id 必须为非负整数")
+    return f"rtsp://{cfg['gimbal_host']}:{cfg['rtsp_port']}{mount}_{aircraft_id}"
 
 
 def find_font(cfg: dict):
@@ -191,8 +194,11 @@ class UdpClient(threading.Thread):
 
     def __init__(self, host, port, on_log=None, *, client_timeout=5.0,
                  retry_interval=0.2, retry_max=5, ping_interval=1.0,
-                 bind_host="0.0.0.0"):
+                 bind_host="0.0.0.0", aircraft_id=1):
         super().__init__(daemon=True)
+        if type(aircraft_id) is not int or aircraft_id < 0:
+            raise ValueError("aircraft_id 必须为非负整数")
+        self.aircraft_id = aircraft_id
         self.host = host
         self.port = int(port)
         self.target = (host, int(port))
@@ -245,6 +251,10 @@ class UdpClient(threading.Thread):
             return self._seq
 
     def _raw_send(self, payload: dict) -> bool:
+        with self.lock:
+            return self._raw_send_locked(payload)
+
+    def _raw_send_locked(self, payload: dict) -> bool:
         if not self._public_command_allowed(payload):
             return False
         if self.sock is None:
@@ -266,13 +276,14 @@ class UdpClient(threading.Thread):
     def send_once(self, cmd: str, **extra) -> int:
         """无回执指令（manual / reset_fault / status / bye）；返回 seq。"""
         seq = self.next_seq()
-        self._raw_send(dict(cmd=cmd, seq=seq, **extra))
+        if not self._raw_send(dict(cmd=cmd, seq=seq, **extra)):
+            return -1
         return seq
 
     def send_reliable(self, cmd: str, **extra) -> int:
         """有回执指令（track / stop / home / reset / reset_axis）：带 seq 发送并按需重传。"""
         if not self._public_command_allowed(dict(cmd=cmd, **extra)):
-            self.on_log(f"[udp] 公共姿态未就绪或处于奇异点，拒绝 {cmd}")
+            self.on_log(f"[udp] 拒绝 {cmd}: {self.identity_error or '机械姿态未就绪或指令参数非法'}")
             return -1
         seq = self.next_seq()
         payload = dict(cmd=cmd, seq=seq, **extra)
@@ -288,13 +299,34 @@ class UdpClient(threading.Thread):
         return self.send_once("manual", yaw=float(yaw), pitch=float(pitch))
 
     @property
+    def identity_error(self):
+        """身份来自当前会话 hello；仅收到 pong 或遥测不能解除控制锁定。"""
+        with self.lock:
+            hello = getattr(self, "hello", None) or {}
+            expected = getattr(self, "aircraft_id", 1)
+            actual = hello.get("aircraft_id")
+            if not hello:
+                return f"等待飞机 {expected} 的 hello 身份确认，控制禁用"
+            if type(actual) is not int or actual < 0:
+                return f"网关未提供有效飞机 ID，期望 {expected}，控制禁用"
+            if actual != expected:
+                return f"飞机 ID 不一致：期望 {expected}，网关 {actual}，控制禁用"
+            if not self.connected:
+                return "身份会话已超时，等待重新登记，控制禁用"
+            return None
+
+    @property
+    def identity_ready(self):
+        return self.identity_error is None
+
+    @property
     def public_angles_ready(self):
         """仅在版本、角度标记和新鲜公共姿态均确认后允许角度控制。"""
         with self.lock:
             hello = self.hello or {}
             tele = self.telemetry or {}
             fresh = time.monotonic() - getattr(self, "last_telemetry_mono", 0.0) <= self.client_timeout
-            return bool(self.connected and fresh and type(hello.get("version")) is int and hello.get("version") == 4
+            return bool(self.identity_ready and fresh and type(hello.get("version")) is int and hello.get("version") == 4
                         and hello.get("angle_convention") == "upright_joint"
                         and tele.get("angle_convention") == "upright_joint"
                         and self._valid_attitude(tele.get("attitude_deg")))
@@ -315,6 +347,8 @@ class UdpClient(threading.Thread):
 
     def _public_command_allowed(self, payload):
         cmd = payload.get("cmd")
+        if cmd not in ("ping", "status", "bye") and not self.identity_ready:
+            return False
         if "roll" in payload or (cmd == "reset_axis" and payload.get("axis") not in ("yaw", "pitch")):
             return False
         sensitive = cmd == "reset_axis" or (cmd == "manual" and any(payload.get(axis, 0) != 0 for axis in ("yaw", "pitch")))
@@ -425,6 +459,10 @@ class UdpClient(threading.Thread):
             return None
 
     def _on_datagram(self, data: bytes, addr=None):
+        with self.lock:
+            self._on_datagram_locked(data, addr)
+
+    def _on_datagram_locked(self, data: bytes, addr=None):
         if addr is not None and addr != self.target:
             return
         if len(data) > MAX_DATAGRAM:
@@ -468,6 +506,11 @@ class UdpClient(threading.Thread):
                         or type(entry[1]) not in (int, float)
                         or not 0 <= entry[1] < float("inf")):
                     return
+        with self.lock:
+            if (getattr(self, "hello", None) is not None
+                    and not self.connected):
+                self.hello = None
+                self._pending.clear()
         self.last_rx_mono = time.monotonic()
         if mtype == "telemetry":
             with self.lock:
@@ -483,8 +526,12 @@ class UdpClient(threading.Thread):
         elif mtype == "hello":
             with self.lock:
                 self.hello = msg
+                if not self.identity_ready:
+                    self._pending.clear()
             self.on_log(f"[udp] 收到 hello: telemetry_hz={msg.get('telemetry_hz')} "
-                        f"video_rtsp_path={msg.get('video_rtsp_path')} -> 已登记")
+                        f"video_rtsp_path={msg.get('video_rtsp_path')} "
+                        f"aircraft_id={msg.get('aircraft_id')} -> "
+                        f"{self.identity_error or '身份已确认，可控制'}")
         elif mtype == "command_result":
             seq = msg.get("seq")
             with self.lock:
@@ -539,7 +586,9 @@ class UdpClient(threading.Thread):
                     if self.last_rx_mono else None)
             return {
                 "connected": self.connected,
-                "registered": self.hello is not None,
+                "registered": self.registered,
+                "identity_ready": self.identity_ready,
+                "identity_error": self.identity_error,
                 "messages": self.messages,
                 "pongs": self.pongs,
                 "pings_sent": self.pings_sent,
@@ -727,7 +776,8 @@ class GroundStation:
             on_log=lambda s: print(s, flush=True),
             client_timeout=float(cfg.get("client_timeout", 5.0)),
             retry_interval=float(cfg.get("retry_interval", 0.2)),
-            retry_max=int(cfg.get("retry_max", 5)))
+            retry_max=int(cfg.get("retry_max", 5)),
+            aircraft_id=cfg.get("aircraft_id", 1))
         self.manual = ManualController(self.tele)
         self.pipeline = None
         self.sink = None
@@ -1122,6 +1172,9 @@ class GroundStation:
             lines = [f"等待遥测...   连接: {conn}   ({udp_endpoint(self.cfg)})"]
             colors = [(0, 0, 255)]
 
+        lines.insert(0, st["identity_error"] or f"飞机 {self.tele.aircraft_id} 身份已确认")
+        colors.insert(0, (0, 0, 255) if st["identity_error"] else (0, 255, 0))
+
         if self.font is not None:
             top = min(dh, 8 + 30 * (len(lines) + 1) + 10)
             top = max(top, 60)
@@ -1344,7 +1397,8 @@ def run_selftest(cfg: dict, args) -> int:
         on_log=lambda s: print(s, flush=True),
         client_timeout=float(cfg.get("client_timeout", 5.0)),
         retry_interval=float(cfg.get("retry_interval", 0.2)),
-        retry_max=int(cfg.get("retry_max", 5)))
+        retry_max=int(cfg.get("retry_max", 5)),
+        aircraft_id=cfg.get("aircraft_id", 1))
     if client.bind_error:
         print(f"[selftest] 本地 UDP 套接字创建失败: {client.bind_error}")
         return 2
@@ -1431,6 +1485,9 @@ def run_selftest(cfg: dict, args) -> int:
                   f"seq={r.get('seq')} message={r.get('message')}")
 
     rc = 0
+    if not st["identity_ready"]:
+        print(f"[selftest] 失败：{st['identity_error']}")
+        rc = 8
     if last is None or n_tel == 0:
         print("[selftest] 失败：未收到任何遥测")
         rc = 1
@@ -1577,7 +1634,8 @@ def build_parser() -> argparse.ArgumentParser:
     ap.add_argument("--ws-port", type=int, default=None,
                     help="已弃用：映射为 --udp-port（兼容旧脚本）")
     ap.add_argument("--rtsp-port", type=int, default=None, help="RTSP 端口")
-    ap.add_argument("--mount", default=None, help="RTSP 挂载点（如 /two_axis_pod）")
+    ap.add_argument("--aircraft-id", type=int, default=None, help="飞机 ID，默认 1")
+    ap.add_argument("--mount", default=None, help="RTSP 路径前缀（末尾自动追加 _飞机ID）")
     ap.add_argument("--display-scale", type=float, default=None,
                     help="显示缩放（0.05..2.0）")
     ap.add_argument("--decoder", choices=["nvenc", "avdec"], default=None,

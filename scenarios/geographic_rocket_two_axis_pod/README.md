@@ -24,7 +24,7 @@ GIMBAL_PYTHON=../two_axis_pod_venv/bin/python \
 # 另一个终端打开吊舱地面站
 GIMBAL_PYTHON=../two_axis_pod_venv/bin/python \
   bash models/gimbals/two_axis_pod/ground_station/run.sh \
-  --udp-port 8770 --rtsp-port 8558 --decoder avdec
+  --udp-port 8770 --rtsp-port 8555 --aircraft-id 1 --decoder avdec
 
 # 有限飞行检查：两次完整往返后自动降落并停止服务
 bash scenarios/geographic_rocket_two_axis_pod/run.sh --cycles 2 \
@@ -35,7 +35,7 @@ bash scenarios/geographic_rocket_two_axis_pod/stop.sh \
   "$PWD/runs/geographic_rocket_two_axis_pod"
 ```
 
-默认运行目录为 `runs/geographic_rocket_two_axis_pod/`，可用 `--run-dir` 设置。每次启动生成独立 Gazebo 分区、动态资产、PX4 `etc` 与新的 rootfs；不修改相邻 PX4 源码。实际分区保存在运行目录 `gz_partition.txt`。同一个运行目录有活跃进程时拒绝重复启动。PX4/MAVLink 端口不由 Gazebo 分区隔离，端口占用时拒绝启动。场景使用 UDP 8770、RTSP 8558、内部 RTP 5608；额外主动状态 UDP 在本场景配置中关闭。
+默认运行目录为 `runs/geographic_rocket_two_axis_pod/`，可用 `--run-dir` 设置。每次启动生成独立 Gazebo 分区、动态资产、PX4 `etc` 与新的 rootfs；不修改相邻 PX4 源码。实际分区保存在运行目录 `gz_partition.txt`。同一个运行目录有活跃进程时拒绝重复启动。PX4/MAVLink 端口不由 Gazebo 分区隔离，端口占用时拒绝启动。场景使用 UDP 8770、共享 RTSP 8555、自动分配的内部 RTP 端口，默认视频路径 `/two_axis_pod_1`；可用 `run.sh --aircraft-id ID` 修改视频与上报 ID，地面站配置相同 ID。此参数不修改 PX4 SYSID 或 MAVLink 端口，本场景仍为单载机飞行入口；额外主动状态 UDP 在本场景配置中关闭。
 
 飞机起飞并达到巡航高度后，在吊舱地面站用两轴摇杆寻找空中棋盘靶标，再在实际视频中拖框选择它。观察来回航段及减速、反向时目标是否保持居中，并检查限制提示。只有一个客户端应操作吊舱；检查脚本自动初始化时，不要同时人工控制。
 

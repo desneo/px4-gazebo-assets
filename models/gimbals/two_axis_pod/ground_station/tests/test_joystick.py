@@ -44,7 +44,7 @@ class JoystickTests(unittest.TestCase):
         self.client.on_log = lambda message: None
         self.client._stop = threading.Event()
         self.client._pending = {}
-        self.client.hello = {"version": 4, "angle_convention": "upright_joint"}
+        self.client.hello = {"aircraft_id": 1, "version": 4, "angle_convention": "upright_joint"}
         self.client.telemetry = {"angle_convention": "upright_joint", "attitude_deg": {axis: {"pos": 0., "vel": 0., "acc": 0.} for axis in ("yaw", "pitch")}}
         self.client.last_rx_mono = self.client.last_telemetry_mono = time.monotonic()
         self.client.client_timeout = 5.0
@@ -114,7 +114,7 @@ class JoystickTests(unittest.TestCase):
         self.assertEqual(self.manual.axes["yaw"][0], 30.0)
 
     def test_old_protocol_disables_joystick_keys_and_axis_reset(self):
-        self.client.hello = {"version": 1}
+        self.client.hello = {"aircraft_id": 1, "version": 1}
         cx, cy, radius = self.gs._joystick_geometry()[0]
         self.mouse(cv2.EVENT_LBUTTONDOWN, cx - radius, cy)
         self.gs._manual("yaw", 30.0)

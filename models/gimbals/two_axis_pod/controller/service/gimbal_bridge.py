@@ -15,7 +15,7 @@ gz-transport 侧（与插件对接）：
 网络侧（面向地面站，见 models/gimbals/two_axis_pod/docs/control-protocol.md）：
 - UDP ``udp://<host>:8766``：一条数据报 = 一条 UTF-8 JSON；服务端按客户端地址登记并
   以 ``--telemetry-hz`` 广播 ``telemetry``；指令经 ``seq`` 幂等去重后转插件。
-- RTSP ``rtsp://<host>:8555/two_axis_pod``：H.264（复用 ``video.py``）
+- RTSP ``rtsp://<host>:8555/two_axis_pod_<aircraft_id>``：H.264（复用 ``video.py``）
 - 配置的 IP/端口：独立 UDP socket 主动发送一份相同字段的状态 JSON，无需登记。
 
 线程模型：``video_thread`` 只取最新帧投递；
@@ -43,6 +43,7 @@ from gz.msgs10.stringmsg_pb2 import StringMsg  # noqa: E402
 
 from gz_source import GzSource  # noqa: E402
 import video as video_mod  # noqa: E402
+from rtsp_relay import aircraft_mount
 from video import VideoStreamer  # noqa: E402
 from status_udp import DEFAULT_CONFIG, StatusUdpPublisher, load_status_config  # noqa: E402
 
@@ -250,6 +251,8 @@ class GimbalBridge:
             return None
         out = dict(tel)  # 插件遥测所有字段
         out.setdefault("type", "telemetry")
+        out["aircraft_id"] = getattr(self.args, "aircraft_id", 1)
+        out["video_rtsp_path"] = self.args.mount
         out["frame_table"] = [[int(s), round(t0, 6)] for (s, t0) in table]
         out["video"] = {
             "pushed": self.video.frames_pushed if self.video else 0,
@@ -325,6 +328,7 @@ class GimbalBridge:
                 "clock_domain": self.clock_domain,
                 "telemetry_hz": self.args.telemetry_hz,
                 "video_rtsp_path": self.args.mount,
+                "aircraft_id": getattr(self.args, "aircraft_id", 1),
             }
             self._send_json(addr, hello)
             print(f"[udp] 客户端登记 {addr}，当前 {len(self.clients)} 个", flush=True)
@@ -586,9 +590,10 @@ def main():
     parser.add_argument("--client-timeout", type=float, default=5.0,
                         help="客户端登记超时（秒，见 docs/control-protocol.md）")
     parser.add_argument("--rtsp-port", type=int, default=8555)
-    parser.add_argument("--rtp-port", type=int, default=5602,
-                        help="本机编码器与 RTSP 中继之间的 RTP 端口；并行实例须使用不同端口")
-    parser.add_argument("--mount", default="/two_axis_pod")
+    parser.add_argument("--rtp-port", type=int, default=None,
+                        help="内部 RTP 端口；默认自动分配，显式指定时并行实例须不同")
+    parser.add_argument("--mount", default="/two_axis_pod", help="RTSP 路径前缀，末尾自动追加 _飞机ID")
+    parser.add_argument("--aircraft-id", type=int, default=1, help="非负整数飞机 ID，默认 1；同一 RTSP 服务内必须唯一")
     parser.add_argument("--video-bitrate", type=int, default=8000,
                         help="H.264 码率（kbps）")
     parser.add_argument("--telemetry-hz", type=int, default=50)
@@ -601,6 +606,11 @@ def main():
                         help="视频编码器：nvenc(nvcudah264enc，默认) / x264 软编降级")
     args = parser.parse_args()
     try:
+        args.mount = aircraft_mount(args.mount, args.aircraft_id)
+        if not 1 <= args.rtsp_port <= 65535:
+            raise ValueError("rtsp-port 必须为 1～65535")
+        if args.rtp_port is not None and not 1 <= args.rtp_port <= 65535:
+            raise ValueError("rtp-port 必须为 1～65535")
         args.status_config = load_status_config(args.status_config, ip=args.status_ip,
                                                 port=args.status_port, hz=args.status_hz)
     except ValueError as exc:

@@ -1,6 +1,6 @@
 # 两轴吊舱地面站
 
-地面站显示 RTSP 视频、机械 yaw/pitch 角度和角速度、跟踪状态及限位状态，并支持鼠标画框跟踪。默认连接本机 UDP 8766 和 `rtsp://127.0.0.1:8555/two_axis_pod`；可修改 `config.json` 或命令行参数。
+地面站显示 RTSP 视频、机械 yaw/pitch 角度和角速度、跟踪状态及限位状态，并支持鼠标画框跟踪。默认连接本机 UDP 8766 和 `rtsp://127.0.0.1:8555/two_axis_pod_1`；可修改 `config.json` 或命令行参数。
 
 ```bash
 bash models/gimbals/two_axis_pod/ground_station/run.sh --decoder avdec
@@ -26,3 +26,7 @@ python3 -m unittest discover -s models/gimbals/two_axis_pod/ground_station/tests
 ```bash
 GIMBAL_PYTHON=../two_axis_pod_venv/bin/python bash models/gimbals/two_axis_pod/ground_station/run.sh --decoder avdec
 ```
+
+多机视频路径为 `/two_axis_pod_<aircraft_id>`。在 `config.json` 设置 `aircraft_id`（默认 1），或用 `--aircraft-id 2` 选择飞机 2；`rtsp_mount` / `--mount` 是路径前缀，末尾自动追加 ID。各机共用 RTSP 8555，UDP 控制端口仍需配置为对应网关端口；配置示例见[网关说明](../controller/service/README.md#多机共享-rtsp)。
+
+地面站按配置的 `aircraft_id` 核对当前网关 `hello.aircraft_id`，必须是相同的非负整数。尚未确认、缺失/非法 ID、ID 不符或连接超时时禁止所有控制（含停止、零速度、回零、跟踪和清故障），仅允许 ping、status、bye。身份不符时清除待重传控制，界面和日志显示期望 ID 与网关 ID；连接超时后仅收到 pong 或遥测不会恢复控制，须重新收到匹配 hello。GUI 与 `--selftest` 均使用相同校验，自检身份未确认时返回非零退出码。旧网关缺少 ID 时须升级网关，不能跳过校验。

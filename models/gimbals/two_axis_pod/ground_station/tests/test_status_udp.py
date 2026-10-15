@@ -130,7 +130,7 @@ class PublisherTests(unittest.TestCase):
         self.addCleanup(station.close)
         bridge = BRIDGE["GimbalBridge"].__new__(BRIDGE["GimbalBridge"])
         bridge.args = types.SimpleNamespace(telemetry_hz=50, client_timeout=5,
-                                           mount="/two_axis_pod", udp_host="127.0.0.1", udp_port=0)
+                                           mount="/two_axis_pod_23", aircraft_id=23, udp_host="127.0.0.1", udp_port=0)
         bridge.lock = threading.RLock()
         bridge.clients_lock = threading.RLock()
         bridge.clients = {}
@@ -169,6 +169,8 @@ class PublisherTests(unittest.TestCase):
                         if sock is station and payload["type"] == "pong":
                             got_pong = payload["seq"] == 7
                         if payload["type"] == "telemetry":
+                            self.assertEqual(payload["aircraft_id"], 23)
+                            self.assertEqual(payload["video_rtsp_path"], "/two_axis_pod_23")
                             counts["station" if sock is station else "extra"] += 1
                             self.assertEqual(payload["attitude_deg"], self.snapshot["attitude_deg"])
                 self.assertTrue(got_pong)

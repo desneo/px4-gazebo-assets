@@ -8,6 +8,7 @@ CONFIG="$HERE/config.json"
 CYCLES=0
 SHOW_GUI=false
 VIEW=overall
+AIRCRAFT_ID=1
 require_value() {
   [[ $# -ge 2 && -n "$2" && "$2" != --* ]] || { echo "参数 $1 缺少值" >&2; exit 2; }
 }
@@ -15,17 +16,19 @@ while (($#)); do
   case "$1" in
     --gui) SHOW_GUI=true; shift ;;
     --close) SHOW_GUI=true; VIEW=close; shift ;;
+    --aircraft-id) require_value "$@"; AIRCRAFT_ID="$2"; shift 2 ;;
     --cycles) require_value "$@"; CYCLES="$2"; shift 2 ;;
     --run-dir) require_value "$@"; RUN_DIR="$2"; shift 2 ;;
     --config) require_value "$@"; CONFIG="$2"; shift 2 ;;
     --help|-h)
-      echo '用法：bash run.sh [--gui|--close] [--cycles N] [--run-dir PATH] [--config PATH]'
+      echo '用法：bash run.sh [--gui|--close] [--cycles N] [--aircraft-id ID] [--run-dir PATH] [--config PATH]'
       echo '默认持续往返；--cycles 2 完成两次往返、降落并停止。'
       exit 0 ;;
     *) echo "未知参数：$1" >&2; exit 2 ;;
   esac
 done
 [[ "$CYCLES" =~ ^[0-9]+$ ]] || { echo '--cycles 必须为非负整数' >&2; exit 2; }
+[[ "$AIRCRAFT_ID" =~ ^[0-9]+$ ]] || { echo '--aircraft-id 必须为非负整数' >&2; exit 2; }
 RUN_DIR="$(realpath -m "$RUN_DIR")"
 CONFIG="$(realpath "$CONFIG")"
 PX4_ROOT="${PX4_ROOT:-$PROJ/../PX4-Autopilot}"
@@ -50,7 +53,7 @@ done
 # PX4 instance0 的本地 MAVLink 端口不会由 GZ_PARTITION 隔离。
 python3 - <<'PY_PORTS'
 import socket
-ports = [(socket.SOCK_DGRAM, p) for p in (14540,14580,14280,13030,18570,8770,5608)] + [(socket.SOCK_STREAM,8558)]
+ports = [(socket.SOCK_DGRAM, p) for p in (14540,14580,14280,13030,18570,8770)]
 held=[]
 try:
     for kind, port in ports:
@@ -161,7 +164,7 @@ start_service px4 env PX4_SIM_MODEL=gz_rocket_two_axis_pod PX4_GZ_STANDALONE=1 \
 start_service bridge "$BRIDGE_PYTHON" -u "$PROJ/models/gimbals/two_axis_pod/controller/service/gimbal_bridge.py" \
   --world geographic_rocket_two_axis_pod --gimbal-model rocket_two_axis_pod \
   --topic-prefix /rocket_two_axis_pod --image-topic /rocket_two_axis_pod/image \
-  --udp-port 8770 --rtsp-port 8558 --rtp-port 5608 --encoder x264 --status-config "$HERE/status_udp.json"
+  --udp-port 8770 --rtsp-port 8555 --aircraft-id "$AIRCRAFT_ID" --encoder x264 --status-config "$HERE/status_udp.json"
 if "$SHOW_GUI"; then
   start_service gui gz sim -g -v2
   SENSITIVITY="${GZ_VIEW_SENSITIVITY:-$SENSITIVITY}"
@@ -182,7 +185,7 @@ start_service flight "$FLIGHT_PYTHON" -u "$HERE/flight_patrol.py" --config "$CON
   --model-config "$GENERATED/parameters.json" --cycles "$CYCLES" --log "$RUN_DIR/flight_result.json"
 FLIGHT_PID="$LAST_PID"
 echo "实际往返飞行已启动，日志：$RUN_DIR/flight.log"
-echo "吊舱地面站：bash models/gimbals/two_axis_pod/ground_station/run.sh --udp-port 8770 --rtsp-port 8558 --decoder avdec"
+echo "吊舱地面站：bash models/gimbals/two_axis_pod/ground_station/run.sh --udp-port 8770 --rtsp-port 8555 --aircraft-id $AIRCRAFT_ID --decoder avdec"
 echo "停止并降落：bash scenarios/geographic_rocket_two_axis_pod/stop.sh '$RUN_DIR'"
 while python3 "$HERE/process_state.py" live "$RUN_DIR/flight.pid"; do
   for service in gazebo px4 bridge; do

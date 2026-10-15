@@ -38,3 +38,11 @@ bash models/gimbals/two_axis_pod/scripts/stop_plugin_sim.sh
 RTSP 解码和地面站自检需具备 OpenCV Python 等依赖；可用 `GIMBAL_PYTHON` 指定独立环境。`--selftest` 会实际运动模型；应在关节在线检查完成后执行。测试目录中的离线网络/UI测试不启动图形窗口。
 
 完整400块地理背景中的动态靶标与实体遮挡验收见[地理部件测试场景](../../../../scenarios/geographic_two_axis_pod/README.md)，使用同一两轴模型与协议。
+
+多机视频验证（无需 Gazebo 或 PX4，需要 GStreamer、GstRtspServer、x264 与 avdec_h264）：
+
+```bash
+python3 models/gimbals/two_axis_pod/controller/service/tests/test_rtsp_multi.py
+```
+
+测试使用临时 RTSP 端口，启动独立编码进程验证同端口不同 ID 后缀的视频隔离、重复路径拒绝、单路退出、租约过期和中继重启恢复。测试中继在全部视频退出后空闲约 30 秒自动退出。

@@ -46,3 +46,5 @@ bash models/gimbals/two_axis_pod/ground_station/run.sh
 修改参数后在仓库根目录运行 `python3 models/gimbals/two_axis_pod/tools/generate_model.py` 并重新验证。控制插件直接读取模型中的限位参数；相机姿态和实际关节轴必须与安装说明一致。
 
 外廓尺寸按设计资料设置，48 mm 相机球采用提供的实物尺寸。罩壳曲面、支架、球心位置、孔位分布和碰撞体为外观与运动仿真近似，质量和惯量未做实物标定。
+
+视频网关支持多机共用 RTSP 8555，URL 为 `rtsp://<host>:8555/two_axis_pod_<aircraft_id>`。网关与地面站使用相同 `--aircraft-id`，默认 1；多路隔离、运行方式与测试见[网关说明](controller/service/README.md#多机共享-rtsp)。

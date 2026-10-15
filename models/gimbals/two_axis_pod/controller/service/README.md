@@ -2,15 +2,37 @@
 
 `gimbal_bridge.py` 将 `/two_axis_pod/command`、`telemetry`、`command_result` 三个 Gazebo StringMsg 话题桥接为 UDP 控制与遥测，并提供 RTSP 视频。跟踪和机械控制在 C++ 插件内执行，网关不重复计算姿态。
 
-默认世界为 `two_axis_pod_demo`，模型为 `two_axis_pod`，图像来自 `camera_link/camera`。默认 UDP 8766、RTSP 8555 `/two_axis_pod`、内部 RTP 5602，与三轴组件使用独立端口。使用入口见[启动说明](../../scripts/README.md)。
+默认世界为 `two_axis_pod_demo`，模型为 `two_axis_pod`，图像来自 `camera_link/camera`。默认 UDP 8766、共享 RTSP 8555 `/two_axis_pod_1`；内部 RTP 端口自动分配。使用入口见[启动说明](../../scripts/README.md)。
 
-组合模型可用 `--topic-prefix /rocket_two_axis_pod` 对应插件的 command、telemetry、command_result 话题，用 `--image-topic /rocket_two_axis_pod/image` 指定完整图像话题；未指定时保持独立组件默认值。`--world`、`--gimbal-model`、UDP/RTSP/RTP 端口分别配置，Gazebo 分区只隔离 Gazebo Transport，不隔离网络端口。
+组合模型可用 `--topic-prefix /rocket_two_axis_pod` 对应插件的 command、telemetry、command_result 话题，用 `--image-topic /rocket_two_axis_pod/image` 指定完整图像话题；未指定时保持独立组件默认值。`--world`、`--gimbal-model`、UDP 端口分别配置，RTSP 端口同机共享，内部 RTP 默认自动分配；Gazebo 分区只隔离 Gazebo Transport，不隔离网络端口。
 
 首次有效请求收到 `hello`，`version=4`，`angle_convention=upright_joint`。`manual` 只接受 yaw、pitch 机械角速度，单位 °/s；任何 roll 字段均拒绝。`reset_axis` 仅接受 yaw 或 pitch。视线奇异点不禁止机械控制；俯仰 0°、镜头朝天时，偏航转动不改变视线。
 
 每个客户端地址具有独立会话。带 seq 请求按 1024 项窗口去重；同 seq 不同内容拒绝，乱序控制拒绝。可靠命令通过唯一 request_id 关联插件回执和客户端 seq。超时、发布失败与过期会话明确返回失败，不自动再次执行。客户端应持续发送 ping 续期，默认 5 秒过期。数据报上限 8 KiB。
 
 视频默认 NVENC，也可显式指定 `--encoder x264`。初始化失败仍保留控制与遥测服务；视频帧烧录序号，遥测增加 frame_table 和视频计数。同机 boot_id 相符时可测单调时钟端到端时延。
+
+## 多机共享 RTSP
+
+飞机 ID 由网关参数 `--aircraft-id` 配置，为非负整数，默认 1；与实际载机 ID 保持一致，不从 Gazebo 模型名推断。默认 URL 为 `rtsp://<host>:8555/two_axis_pod_<aircraft_id>`，例如 `/two_axis_pod_1`、`/two_axis_pod_2`。`--mount` 配置路径前缀，末尾始终追加 `_飞机ID`；地面站使用相同的 `--aircraft-id` 与 `--mount`。
+
+同一主机、同一系统用户和同一 RTSP 端口的网关自动共用 `rtsp_relay.py` 中继进程。每路独立编码、独立内部 RTP 端口；无需手工启动中继。内部端口默认自动分配，显式 `--rtp-port` 时必须唯一。重复路径或内部 RTP 端口注册被拒绝，不覆盖已有视频；失败网关保留控制与遥测，视频错误写入日志，修正配置后重启该网关。
+
+中继使用用户私有的临时目录 `two-axis-rtsp-<UID>/` 保存每端口的 `.sock`、`.lock`、`.log`，本地注册不对网络开放。RTSP 对外监听所配置端口；该端口被其他服务占用时启动失败。正常停止网关立即撤销本路，其他路继续工作；异常退出后 10 秒租约过期清理。所有路退出后中继空闲约 30 秒自动退出，不属于单个网关的进程组。中继重启后存活网关自动尝试重新注册；已有播放器断线时需重新连接。
+
+每路网关的 `hello`、station 遥测和额外 UDP 状态副本包含 `aircraft_id`、`video_rtsp_path`，表示当前网关 ID 与完整视频路径。控制协议版本仍为 4。地面站核对 `hello.aircraft_id` 与所选 ID，未确认、缺失/非法 ID 或不一致时禁止控制并清除待重传指令；断线后须重新通过 hello 核验。UDP 控制端口、插件话题与图像话题必须分别隔离；飞机 ID 只区分视频路径和上报身份，不自动配置 PX4 SYSID 或 Gazebo 话题。
+
+以下示例假定仿真已分别提供 `/uav_1`、`/uav_2` 插件话题和对应图像话题：
+
+```bash
+GIMBAL_RUNDIR="$PWD/runs/pod_1" bash models/gimbals/two_axis_pod/scripts/run_bridge.sh \
+  --aircraft-id 1 --udp-port 8766 --topic-prefix /uav_1 --image-topic /uav_1/image --encoder x264
+GIMBAL_RUNDIR="$PWD/runs/pod_2" bash models/gimbals/two_axis_pod/scripts/run_bridge.sh \
+  --aircraft-id 2 --udp-port 8767 --topic-prefix /uav_2 --image-topic /uav_2/image --encoder x264
+bash models/gimbals/two_axis_pod/ground_station/run.sh --aircraft-id 2 --udp-port 8767 --decoder avdec
+```
+
+两路视频共用 8555，分别为 `rtsp://127.0.0.1:8555/two_axis_pod_1` 与 `rtsp://127.0.0.1:8555/two_axis_pod_2`。测试入口为 `python3 models/gimbals/two_axis_pod/controller/service/tests/test_rtsp_multi.py`，需要 GstRtspServer、x264 与软件 H.264 解码器，验证双进程同端口拉流、颜色隔离、重复路径拒绝、独立停止、租约过期和中继重启恢复。
 
 ## 额外 UDP JSON 状态上报
 

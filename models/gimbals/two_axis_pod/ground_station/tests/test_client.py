@@ -65,7 +65,7 @@ class ClientTests(unittest.TestCase):
                     {"type": "telemetry", "frame_table": [[[], 1]]},
                     {"type": "command_result", "seq": [], "cmd": "home", "ok": True},
                     {"type": "command_result", "seq": 1, "cmd": "home", "ok": "false"},
-                    {"type": "hello", "clock_domain": []}]:
+                    {"type": "hello", "aircraft_id": 1, "clock_domain": []}]:
             self.receive(msg)
         self.assertEqual(self.client.last_rx_mono, 0.)
         self.assertEqual(self.client.messages, 0)
@@ -91,7 +91,7 @@ class ClientTests(unittest.TestCase):
         self.assertTrue(self.client.find_result(cmd="reset_axis", seq=8)["ok"])
 
     def confirm_public_angles(self):
-        self.receive({"type": "hello", "version": 4, "angle_convention": "upright_joint"})
+        self.receive({"type": "hello", "aircraft_id": 1, "version": 4, "angle_convention": "upright_joint"})
         self.receive({"type": "telemetry", "angle_convention": "upright_joint", "attitude_deg": {
             axis: {"pos": 0.0, "vel": 0.0, "acc": 0.0} for axis in ("yaw", "pitch")}})
 
@@ -109,7 +109,7 @@ class ClientTests(unittest.TestCase):
     def test_stale_or_downgraded_protocol_blocks_even_retransmission_but_allows_zero(self):
         self.confirm_public_angles()
         seq = self.client.send_reliable("reset_axis", axis="yaw")
-        self.receive({"type": "hello", "version": 1})
+        self.receive({"type": "hello", "aircraft_id": 1, "version": 1})
         self.assertFalse(self.client._raw_send(self.client._pending[seq]["payload"]))
         self.client.send_manual(yaw=10.0)
         self.client.send_manual()
@@ -122,7 +122,7 @@ class ClientTests(unittest.TestCase):
         self.assertEqual(len(self.packets), 2)
 
     def test_marker_alone_or_malformed_public_attitude_cannot_enable_control(self):
-        self.receive({"type": "hello", "version": 4, "angle_convention": "upright_joint"})
+        self.receive({"type": "hello", "aircraft_id": 1, "version": 4, "angle_convention": "upright_joint"})
         for attitude in ({}, {axis: {"pos": 0., "vel": 0., "acc": float("nan")} for axis in ("yaw", "pitch")}):
             self.receive({"type": "telemetry", "angle_convention": "upright_joint", "attitude_deg": attitude})
             self.assertFalse(self.client.public_angles_ready)
@@ -138,14 +138,70 @@ class ClientTests(unittest.TestCase):
         self.assertEqual(self.packets[0]["yaw"], 20.0)
         self.assertNotIn("roll", self.packets[0])
 
+    def test_unconfirmed_identity_blocks_all_control_but_allows_queries(self):
+        commands = [("manual", {"yaw": 0, "pitch": 0}), ("manual", {"yaw": 10}),
+                    ("home", {}), ("reset", {}), ("stop", {}), ("reset_fault", {}),
+                    ("reset_axis", {"axis": "yaw"}), ("track", {"box": [0, 0, .2, .2]})]
+        for bad in (None, "1", True, 1.0, -1, 2):
+            with self.subTest(aircraft_id=bad):
+                self.receive({"type": "hello", "aircraft_id": bad})
+                self.assertFalse(self.client.identity_ready)
+                for cmd, extra in commands:
+                    self.assertEqual(self.client.send_once(cmd, **extra), -1)
+                    self.assertEqual(self.client.send_reliable(cmd, **extra), -1)
+                    self.assertFalse(self.client._raw_send(dict(cmd=cmd, seq=10, **extra)))
+                self.assertFalse(self.client._pending)
+        self.assertFalse(self.packets)
+        for cmd in ("ping", "status", "bye"):
+            self.assertGreater(self.client.send_once(cmd), 0)
+        self.assertEqual([p["cmd"] for p in self.packets], ["ping", "status", "bye"])
+
+    def test_matching_identity_unlocks_expected_aircraft(self):
+        self.client.aircraft_id = 23
+        self.receive({"type": "hello", "aircraft_id": 1})
+        self.assertIn("期望 23", self.client.identity_error)
+        self.assertEqual(self.client.send_reliable("home"), -1)
+        self.receive({"type": "hello", "aircraft_id": 23})
+        self.assertTrue(self.client.identity_ready)
+        self.assertGreater(self.client.send_reliable("home"), 0)
+        self.assertEqual(self.packets[-1]["cmd"], "home")
+
+    def test_changed_identity_cancels_pending_and_blocks_retries(self):
+        self.confirm_public_angles()
+        seq = self.client.send_reliable("home")
+        old_payload = self.client._pending[seq]["payload"]
+        self.receive({"type": "hello", "aircraft_id": 2})
+        self.assertFalse(self.client._pending)
+        self.assertFalse(self.client._raw_send(old_payload))
+        self.assertEqual(self.client.send_manual(), -1)
+        self.assertEqual(len(self.packets), 1)
+
+    def test_timeout_cannot_be_reauthorized_by_pong_or_telemetry(self):
+        self.confirm_public_angles()
+        self.client.last_rx_mono -= 6
+        self.assertEqual(self.client.send_reliable("stop"), -1)
+        self.receive({"type": "pong"})
+        self.assertTrue(self.client.connected)
+        self.assertFalse(self.client.identity_ready)
+        self.receive({"type": "telemetry", "aircraft_id": 1})
+        self.assertEqual(self.client.send_reliable("home"), -1)
+        self.receive({"type": "hello", "aircraft_id": 1})
+        self.assertTrue(self.client.identity_ready)
+        self.assertGreater(self.client.send_reliable("home"), 0)
+
+    def test_other_peer_cannot_unlock_identity(self):
+        self.receive({"type": "hello", "aircraft_id": 1}, ("127.0.0.2", 8766))
+        self.assertFalse(self.client.identity_ready)
+        self.assertEqual(self.client.send_reliable("home"), -1)
+
     def test_delay_requires_matching_boot_domain_and_nonnegative_age(self):
         self.receive({"type": "telemetry", "frame_table": [[42, 10.]]})
         self.assertEqual(self.client.lookup(42), 10.)
         self.assertIsNone(self.client.frame_delay_ms(42, 10.1))
         for domain in ["other-boot", ""]:
-            self.receive({"type": "hello", "clock_domain": domain})
+            self.receive({"type": "hello", "aircraft_id": 1, "clock_domain": domain})
             self.assertIsNone(self.client.frame_delay_ms(42, 10.1))
-        self.receive({"type": "hello", "clock_domain": "local-boot"})
+        self.receive({"type": "hello", "aircraft_id": 1, "clock_domain": "local-boot"})
         self.assertAlmostEqual(self.client.frame_delay_ms(42, 10.1), 100.)
         self.assertIsNone(self.client.frame_delay_ms(42, 9.9))
         self.assertIsNone(self.client.frame_delay_ms(42, 13.))

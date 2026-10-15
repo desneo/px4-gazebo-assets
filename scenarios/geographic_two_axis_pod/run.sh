@@ -29,7 +29,7 @@ python3 "$HERE/prepare_world.py" --output "$GIMBAL_RUNDIR/world.sdf"
 bash "$PROJ/models/gimbals/two_axis_pod/scripts/run_plugin_sim.sh" "$GIMBAL_RUNDIR/world.sdf"
 bash "$PROJ/models/gimbals/two_axis_pod/scripts/run_bridge.sh" \
   --world geographic_two_axis_pod --gimbal-model two_axis_pod \
-  --udp-port 8766 --rtsp-port 8555 --rtp-port 5602 --encoder x264 "${BRIDGE_ARGS[@]}"
+  --udp-port 8766 --rtsp-port 8555 --encoder x264 "${BRIDGE_ARGS[@]}"
 if "$SHOW_GUI"; then
   source "$PROJ/models/gimbals/two_axis_pod/scripts/env.sh"
   setsid gz sim -g -v2 > "$GIMBAL_RUNDIR/gz_gui.log" 2>&1 < /dev/null &

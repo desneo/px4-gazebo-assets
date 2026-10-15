@@ -21,11 +21,20 @@ def sha(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def generate(run, output):
+def generate(run, output, binding_dir=None):
     flight = json.loads((run / 'flight_result.json').read_text())
     tracking = json.loads((run / 'tracking/summary.json').read_text())
     if not flight.get('passed') or not flight.get('landing_confirmed') or tracking.get('result') != 'passed':
         raise ValueError('只有实际飞行、降落和独立图像跟踪检查均通过，才能生成通过证据')
+    binding = None
+    if binding_dir is not None:
+        binding_dir = binding_dir.resolve()
+        binding = json.loads((binding_dir / 'binding_summary.json').read_text())
+        if binding.get('result') != 'passed' or not binding.get('source_fingerprints_current'):
+            raise ValueError('网关身份与实际RTSP视频检查未通过')
+        for name, expected in binding['source_sha256'].items():
+            if sha(ROOT / name) != expected:
+                raise ValueError(f'RTSP验证后源文件变化：{name}')
     rows = [json.loads(line) for line in (run / 'flight_result.jsonl').read_text().splitlines()]
     legs = [r for r in rows if r['kind'] == 'leg_result']
     if len(legs) != flight['completed_legs'] or not all(leg['passed'] for leg in legs):
@@ -43,6 +52,12 @@ def generate(run, output):
         path = evidence / name
         path.write_bytes(gzip.compress(data, mtime=0))
         archives[str(path.relative_to(HERE))] = sha(path)
+    if binding is not None:
+        for source_name, archive_name in [('binding_samples.jsonl', 'rtsp_binding_samples.jsonl.gz'),
+                                           ('binding_summary.json', 'rtsp_binding_summary.json.gz')]:
+            path = evidence / archive_name
+            path.write_bytes(gzip.compress((binding_dir / source_name).read_bytes(), mtime=0))
+            archives[str(path.relative_to(HERE))] = sha(path)
     manifest_path = run / 'models/rocket_two_axis_pod/manifest.json'
     summary = dict(passed=True, landing_confirmed=True,
                    scope='当前450mm组合体：PX4实际往返飞行与真实视频空中目标跟踪',
@@ -51,8 +66,11 @@ def generate(run, output):
                    controller_library_sha256=sha(ROOT / 'models/gimbals/two_axis_pod/controller/build/lib/libgz-two-axis-pod-controller.so'),
                    evidence_sha256=archives,
                    limits='仅覆盖当前无风地理世界及可达的静止空中靶标；人工交互验收独立，未验证任意目标或所有载机姿态。')
+    if binding is not None:
+        summary['rtsp_binding'] = binding
     (output / 'validation.json').write_text(json.dumps(summary, ensure_ascii=False, indent=2) + '\n')
-    shutil.copyfile(run / 'rtsp_snapshot.png', output / 'pod_video.png')
+    shutil.copyfile(binding_dir / 'rtsp_snapshot.png' if binding_dir is not None
+                    else run / 'rtsp_snapshot.png', output / 'pod_video.png')
     snapshots = sorted((run / 'tracking').glob('frame_*.png'))
     if snapshots:
         shutil.copyfile(snapshots[len(snapshots) // 2], output / 'tracking_snapshot.png')
@@ -95,6 +113,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--run-dir', type=Path, required=True)
     parser.add_argument('--output-dir', type=Path, default=HERE / 'docs')
+    parser.add_argument('--binding-dir', type=Path, help='要求网关ID、RTSP路径及帧表关联均通过并归档')
     args = parser.parse_args()
-    generate(args.run_dir.resolve(), args.output_dir.resolve())
+    generate(args.run_dir.resolve(), args.output_dir.resolve(), args.binding_dir)
     print(f'组合体验收摘要与实际曲线：{args.output_dir.resolve()}')

@@ -75,3 +75,39 @@ GZ_PARTITION="$(cat runs/geographic_rocket_two_axis_pod/gz_partition.txt)" \
 python3 scenarios/geographic_rocket_two_axis_pod/report_validation.py \
   --run-dir runs/geographic_rocket_two_axis_pod_validation2
 ```
+
+## 每机RTSP身份集成检查
+
+`check_tracking.py` 检查的是控制器与Gazebo原始图像。网关身份和RTSP拉流由 `check_rtsp_binding.py` 独立检查，不能仅凭跟踪通过推断视频路径绑定正确。场景已验证非默认飞机ID23，对应 `rtsp://127.0.0.1:8555/two_axis_pod_23`。
+
+```bash
+# 先启动有限往返飞行；下面两项检查在飞机运行期间另开终端执行
+GIMBAL_PYTHON=../two_axis_pod_venv/bin/python \
+  bash scenarios/geographic_rocket_two_axis_pod/run.sh --cycles 2 --aircraft-id 23 \
+  --run-dir "$PWD/runs/rocket_pod_rtsp_check"
+
+# 飞行运行期间：一次初始化后只观察图像闭环跟踪和独立真值
+GZ_PARTITION="$(cat runs/rocket_pod_rtsp_check/gz_partition.txt)" \
+  ../two_axis_pod_venv/bin/python scenarios/geographic_rocket_two_axis_pod/check_tracking.py \
+  --initialize --duration 70 --wait-timeout 600 \
+  --output runs/rocket_pod_rtsp_check/tracking
+
+# 只读：检查hello与遥测ID/路径、实际H.264帧号与frame_table对应
+../two_axis_pod_venv/bin/python scenarios/geographic_rocket_two_axis_pod/check_rtsp_binding.py \
+  --aircraft-id 23 --check-station-identity --duration 8 \
+  --output runs/rocket_pod_rtsp_check/rtsp_binding
+
+# 飞行完成且上述检查、图像跟踪均通过后，归档完整证据
+python3 scenarios/geographic_rocket_two_axis_pod/report_validation.py \
+  --run-dir runs/rocket_pod_rtsp_check --binding-dir runs/rocket_pod_rtsp_check/rtsp_binding
+```
+
+跟踪检查沿用上文 `--initialize --duration 70`，其 `GZ_PARTITION` 和 `--output` 必须对应本次运行目录及 `tracking/` 子目录。绑定检查只发送ping，不发布云台运动指令；要求身份全部匹配、至少20条遥测和20个视频帧、帧序号识别及帧表匹配比例均至少95%。可用 `--absent-id 24` 检查已明确未注册的路径返回404；同端口已有其他飞机24时不得使用这一负例。
+
+基础双流测试使用独立临时端口：
+
+```bash
+../two_axis_pod_venv/bin/python models/gimbals/two_axis_pod/controller/service/tests/test_rtsp_multi.py -v
+```
+
+它验证两个独立编码进程同端口红蓝画面隔离、路径/RTP端口冲突拒绝、单路停止、租约清理和中继重启恢复。该测试与组合单机实飞分别记录，不代表已验证两架PX4飞机同时飞行。地面站会核对配置ID与当前网关hello的ID，不一致时禁止控制并显示原因。`--check-station-identity` 使用真实hello验证ID23就绪和误配ID24禁用；误配的回零、框选、手动和清故障调用使用本地记录socket检查拦截结果，不发往飞机。RTSP路径与视频帧表由本场景额外交叉核对。

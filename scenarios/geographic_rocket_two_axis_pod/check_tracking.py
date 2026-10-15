@@ -382,9 +382,17 @@ class Session:
         else:
             self.send('stop')
             raise AssertionError('一次初始化未能对准可达靶标')
-        with self.lock:
-            t = self.latest
-        matched = self.matched(t)
+        # 停止机械对准后等待下一组严格同步的数据，避免异步回调的瞬时帧号差
+        # 被误判为初始化失败；匹配标准与后续跟踪评分保持一致。
+        deadline = time.monotonic()+2
+        matched = None
+        while time.monotonic() < deadline:
+            self.poll(.02)
+            with self.lock:
+                t = self.latest
+            matched = self.matched(t)
+            if matched is not None:
+                break
         if matched is None:
             raise AssertionError('框选初始化时没有同步图像/位姿')
         pose, image, frame_joints = matched

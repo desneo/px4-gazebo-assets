@@ -72,6 +72,7 @@ X264_ENCODE_LAUNCH = (
     "max-buffers=3 leaky-type=downstream block=false "
     "! queue leaky=downstream max-size-buffers=2 max-size-time=0 max-size-bytes=0 "
     "! videoconvert "
+    "! video/x-raw,format=I420 "
     "! x264enc tune=zerolatency speed-preset=ultrafast bitrate={bitrate} "
     "key-int-max={fps} bframes=0 sliced-threads=true "
     "! rtph264pay pt=96 config-interval=1 "

@@ -12,6 +12,10 @@
 
 视频默认 NVENC，也可显式指定 `--encoder x264`。初始化失败仍保留控制与遥测服务；视频帧烧录序号，遥测增加 frame_table 和视频计数。同机 boot_id 相符时可测单调时钟端到端时延。
 
+`x264` 编码前明确转换为 I420，输出 8 位 YUV420 H.264，便于 VLC 等播放器使用默认硬件解码。RGB 输入不应直接自动协商为 YUV444 / High 4:4:4，因为部分硬件解码器无法播放该格式而显示黑屏。网关编码配置修改后须重启网关，已连接的播放器须重新打开对应 RTSP URL。此设置不改变 NVENC 管线。
+
+编码兼容性测试入口为 `python3 models/gimbals/two_axis_pod/controller/service/tests/test_video_compatibility.py`，需要上述视频依赖以及 `ffprobe`、`ffmpeg`。测试使用生产 x264 管线、独立临时 RTSP 端口，检查实际码流为 8 位 YUV420、连续解码帧及非黑图像；移除 I420 的对照管线用于确认可检出 YUV444 回归。
+
 ## 多机共享 RTSP
 
 飞机 ID 由网关参数 `--aircraft-id` 配置，为非负整数，默认 1；与实际载机 ID 保持一致，不从 Gazebo 模型名推断。默认 URL 为 `rtsp://<host>:8555/two_axis_pod_<aircraft_id>`，例如 `/two_axis_pod_1`、`/two_axis_pod_2`。`--mount` 配置路径前缀，末尾始终追加 `_飞机ID`；地面站使用相同的 `--aircraft-id` 与 `--mount`。

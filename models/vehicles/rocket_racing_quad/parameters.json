@@ -39,7 +39,9 @@
   "sensors": {
     "imu_rate_hz": 250,
     "air_pressure_rate_hz": 50,
+    "air_pressure_noise_stddev_pa": 1.0,
     "magnetometer_rate_hz": 100,
+    "magnetometer_noise_stddev_t": 0.0001,
     "navsat_rate_hz": 30
   },
   "simulation": {

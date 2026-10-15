@@ -183,6 +183,27 @@ class ModelChecks(unittest.TestCase):
         self.assertAlmostEqual(params['CA_ROTOR0_PX'], config['geometry']['diagonal_wheelbase_m'] / (2 * math.sqrt(2)), places=8)
         self.assertEqual(params['MPC_XY_VEL_MAX'], config['px4']['parameters']['MPC_XY_VEL_MAX'])
 
+    def test_stationary_sensors_have_configured_noise(self):
+        sensors = self.config['sensors']
+        base = self.model.find("link[@name='base_link']")
+        pressure_noise = base.find(
+            "sensor[@name='air_pressure_sensor']/air_pressure/pressure/noise")
+        self.assertIsNotNone(pressure_noise)
+        self.assertEqual(pressure_noise.get('type'), 'gaussian')
+        self.assertEqual(float(pressure_noise.findtext('mean')), 0)
+        self.assertEqual(float(pressure_noise.findtext('stddev')),
+                         sensors['air_pressure_noise_stddev_pa'])
+
+        magnetometer = base.find("sensor[@name='magnetometer_sensor']/magnetometer")
+        self.assertIsNotNone(magnetometer)
+        for axis in ('x', 'y', 'z'):
+            noise = magnetometer.find(f'{axis}/noise')
+            self.assertIsNotNone(noise, f'磁力计{axis}轴缺少噪声配置')
+            self.assertEqual(noise.get('type'), 'gaussian')
+            self.assertEqual(float(noise.findtext('mean')), 0)
+            self.assertEqual(float(noise.findtext('stddev')),
+                             sensors['magnetometer_noise_stddev_t'])
+
     def test_armed_idle_and_hover_mapping(self):
         params = px4_parameters(next((self.output / 'px4').glob('*')).read_text())
         motor = self.config['motor']

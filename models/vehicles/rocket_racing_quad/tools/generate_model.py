@@ -182,6 +182,17 @@ def build_model(config):
                     noise = node(node(quantity_node, axis_name), 'noise', type='gaussian')
                     node(noise, 'mean', 0)
                     node(noise, 'stddev', stddev)
+        elif name == 'air_pressure':
+            pressure = node(node(sensor, 'air_pressure'), 'pressure')
+            noise = node(pressure, 'noise', type='gaussian')
+            node(noise, 'mean', 0)
+            node(noise, 'stddev', config['sensors']['air_pressure_noise_stddev_pa'])
+        elif name == 'magnetometer':
+            magnetometer = node(sensor, 'magnetometer')
+            for axis_name in ('x', 'y', 'z'):
+                noise = node(node(magnetometer, axis_name), 'noise', type='gaussian')
+                node(noise, 'mean', 0)
+                node(noise, 'stddev', config['sensors']['magnetometer_noise_stddev_t'])
     aero = config['aerodynamics']
     plugin = node(model, 'plugin', filename='gz-sim-advanced-lift-drag-system', name='gz::sim::systems::AdvancedLiftDrag')
     for tag, value in {'link_name': 'base_link', 'air_density': aero['air_density_kg_m3'], 'forward': '0 0 1',

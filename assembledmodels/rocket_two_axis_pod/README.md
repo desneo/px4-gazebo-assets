@@ -63,6 +63,12 @@ python3 assembledmodels/rocket_two_axis_pod/tools/check_dynamic_model.py
 
 装配参数 `dynamic.body_mass_kg=null` 表示按保留长度比例估计，可用明确质量覆盖；解锁怠速继承基础火箭模型的 `motor.idle_velocity_rad_s`，悬停推力按组合总质量和电机输出映射计算；`dynamic.airframe_id`、`dynamic.topic_prefix` 配置运行接口。生成的 `manifest.json` 记录装配参数、怠速、实际悬停转速与推力比例、质量估计方法和源资产指纹。生成器仅读取基础组件，复制运行所需网格，不修改基础模型。完整地理世界的飞行与跟踪入口见[场景说明](../../scenarios/geographic_rocket_two_axis_pod/README.md)。
 
+## 多机接入
+
+每架载机的吊舱分别配置飞机ID、UDP控制/遥测端口及RTSP URL；同机可共用RTSP 8555，通过 `/two_axis_pod_<aircraft_id>` 路径区分。控制端口由网关启动配置显式指定，不随飞机ID自动改变。逐机地址表、地面站连接示例和PX4实例隔离要求见[多机集成说明](../../scenarios/geographic_rocket_two_axis_pod/README.md#多机集成的地址与端口对应)。
+
+动态生成器支持 `--topic-prefix` 配置插件与相机话题前缀，生成资产的模型名仍为 `rocket_two_axis_pod`。多机运行时的实体命名、每机话题及PX4绑定由场景启动器负责；现有地理场景入口仍为单机，不能仅改变 `--aircraft-id` 后双开。
+
 ## 验证范围
 
 模型、整机预览世界与近景世界通过 `gz sdf -k`。实际视觉几何含 34 个 visual，零位轴向包络为 `[-225, 225] mm`，长度 450 mm。六组机械姿态 `(yaw,pitch)=(0,0)/(0,90)/(45,45)/(0,-45)/(-90,90)/(90,90)` 的镜头实际旋转方向与两轴运动学一致，生成的默认 SDF 与源配置一致。

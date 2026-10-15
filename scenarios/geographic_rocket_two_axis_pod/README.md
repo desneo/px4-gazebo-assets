@@ -39,6 +39,43 @@ bash scenarios/geographic_rocket_two_axis_pod/stop.sh \
 
 飞机起飞并达到巡航高度后，在吊舱地面站用两轴摇杆寻找空中棋盘靶标，再在实际视频中拖框选择它。观察来回航段及减速、反向时目标是否保持居中，并检查限制提示。只有一个客户端应操作吊舱；检查脚本自动初始化时，不要同时人工控制。
 
+## 多机集成的地址与端口对应
+
+每架飞机绑定一个吊舱网关。集成时为每架飞机记录对应的飞机ID、吊舱UDP控制/遥测地址、完整RTSP URL及Gazebo话题。**同一主机上的吊舱网关分别使用不同UDP控制端口；RTSP可以共用8555端口，通过不同路径区分飞机。** 吊舱UDP端口用于云台指令、遥测和回执，PX4飞行控制使用独立的MAVLink连接。
+
+下表是同一主机上的两机接口配置示例，端口由启动配置显式分配；不是按飞机ID自动计算，也不表示当前场景已提供两机同时飞行入口。
+
+| 配置项 | 飞机23 | 飞机24 |
+|---|---|---|
+| 网关与地面站 `--aircraft-id` | `23` | `24` |
+| 吊舱UDP控制/遥测目标 | `127.0.0.1:8770` | `127.0.0.1:8771` |
+| 网关与地面站 `--udp-port` | `8770` | `8771` |
+| 共享 `--rtsp-port` | `8555` | `8555` |
+| 网关与地面站 `--mount` 前缀 | `/two_axis_pod` | `/two_axis_pod` |
+| 完整RTSP URL | `rtsp://127.0.0.1:8555/two_axis_pod_23` | `rtsp://127.0.0.1:8555/two_axis_pod_24` |
+| 网关 `--topic-prefix`，同一Gazebo分区内分别配置 | `/uav_23/pod` | `/uav_24/pod` |
+| 网关 `--image-topic`，须对应实际相机发布话题 | `/uav_23/pod/image` | `/uav_24/pod/image` |
+
+RTSP路径由 `--mount` 前缀追加 `_飞机ID` 生成，传入 `/two_axis_pod`，不要再手工追加ID。地面站的目标主机、UDP端口、飞机ID、RTSP端口和路径前缀应与同一架飞机的网关配置一致。跨主机连接时将 `127.0.0.1` 替换为实际网关地址；网关的 `--udp-host` 是监听地址，地面站的 `--udp-host` 是连接目标。
+
+以下地面站命令对应上表；前提是多机仿真已发布各自话题，并已按表分别启动两个网关：
+
+```bash
+GIMBAL_PYTHON=../two_axis_pod_venv/bin/python \
+  bash models/gimbals/two_axis_pod/ground_station/run.sh \
+  --udp-host 127.0.0.1 --udp-port 8770 --aircraft-id 23 \
+  --rtsp-port 8555 --mount /two_axis_pod --decoder avdec
+
+GIMBAL_PYTHON=../two_axis_pod_venv/bin/python \
+  bash models/gimbals/two_axis_pod/ground_station/run.sh \
+  --udp-host 127.0.0.1 --udp-port 8771 --aircraft-id 24 \
+  --rtsp-port 8555 --mount /two_axis_pod --decoder avdec
+```
+
+同一Gazebo分区内，每个吊舱的command、telemetry、command_result及图像话题分别对应自己的插件和相机；仅更改网关参数不会修改模型发布的话题。不同 `GZ_PARTITION` 可以隔离Gazebo话题，但不会隔离UDP、RTSP或MAVLink端口。内部RTP端口默认自动分配，显式配置 `--rtp-port` 时也需分别分配。共享RTSP中继的使用条件和网关双路启动示例见[基础组件网关说明](../../models/gimbals/two_axis_pod/controller/service/README.md#多机共享-rtsp)。
+
+**当前组合场景的实际限制：** `run.sh` 仍固定使用一架 `rocket_two_axis_pod`、PX4 instance0、吊舱UDP 8770及默认MAVLink接收端口14540。`--aircraft-id` 只改变吊舱身份和视频路径；不能通过双开不同ID直接启动两架飞机。集成多架PX4飞机时，启动器还需分别配置实体名称、插件/相机话题、PX4实例和SYSID、MAVLink端口、运行目录及rootfs，并保存逐机接口对应表。当前验收覆盖单组合机实飞和双路视频服务隔离。
+
 ## 定位与相机
 
 飞机实体名为 `rocket_two_axis_pod`。起飞点默认 `(0,0)`，机体出生原点世界 Z 为 0.24 m；`prepare_world.py --altitude` 配置的是出生 Z，不是巡航高度。起点旁标志名为 `ROCKET_TAKEOFF_LOCATION_MARKER`，橙黑杆位于起点西南侧 `(-2,-2)` 偏移处，顶牌约 3.1 m 高，黄色箭头指向起点；无碰撞，不随飞机移动。

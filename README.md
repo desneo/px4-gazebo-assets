@@ -69,4 +69,10 @@ px4-gazebo-assets/
 
 空目录中的 `.gitkeep` 用于让 Git 保存目录；添加实际文件后可以移除。
 
+## 多机吊舱集成入口
+
+每架飞机的吊舱使用独立UDP控制/遥测端口和独立RTSP URL。RTSP服务端口可共享8555，URL以 `/two_axis_pod_<aircraft_id>` 区分；UDP控制端口由启动配置分别指定，不随飞机ID自动变化。网关和地面站须使用对应同一架飞机的ID、主机、UDP端口和视频路径配置。
+
+其他Agent集成前请阅读[逐机地址与端口对应表](scenarios/geographic_rocket_two_axis_pod/README.md#多机集成的地址与端口对应)及[网关共享RTSP说明](models/gimbals/two_axis_pod/controller/service/README.md#多机共享-rtsp)。组合场景当前仍使用单个PX4实例；多机接入还需分别配置Gazebo实体/话题、PX4实例、SYSID及MAVLink端口，不能只修改视频ID后双开现有启动器。
+
 三轴吊舱的安装资料见[安装方式与对外角度约定](models/gimbals/three_axis_pod/docs/mounting.md)，其中附有可独立浏览的安装示意图。

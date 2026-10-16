@@ -9,6 +9,7 @@ assembledmodels/rocket_two_axis_pod/runtime/
 specs/
 
 models/gimbals/two_axis_pod/controller/build/
+.venv-windows/
 
 # 固定翼复测的临时原始日志；入库证据保存在各模型 tests/results/。
 models/vehicles/xiaomotuo/tests/flight_result.json

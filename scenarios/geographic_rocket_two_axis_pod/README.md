@@ -24,7 +24,7 @@ GIMBAL_PYTHON=../two_axis_pod_venv/bin/python \
 # 另一个终端打开吊舱地面站
 GIMBAL_PYTHON=../two_axis_pod_venv/bin/python \
   bash models/gimbals/two_axis_pod/ground_station/run.sh \
-  --udp-port 8770 --rtsp-port 8555 --aircraft-id 1 --decoder avdec
+  --udp-port 8770 --rtsp-port 8555 --aircraft-id 1 --decoder nvdec
 
 # 有限飞行检查：两次完整往返后自动降落并停止服务
 bash scenarios/geographic_rocket_two_axis_pod/run.sh --cycles 2 \
@@ -64,12 +64,12 @@ RTSP路径由 `--mount` 前缀追加 `_飞机ID` 生成，传入 `/two_axis_pod`
 GIMBAL_PYTHON=../two_axis_pod_venv/bin/python \
   bash models/gimbals/two_axis_pod/ground_station/run.sh \
   --udp-host 127.0.0.1 --udp-port 8770 --aircraft-id 23 \
-  --rtsp-port 8555 --mount /two_axis_pod --decoder avdec
+  --rtsp-port 8555 --mount /two_axis_pod --decoder nvdec
 
 GIMBAL_PYTHON=../two_axis_pod_venv/bin/python \
   bash models/gimbals/two_axis_pod/ground_station/run.sh \
   --udp-host 127.0.0.1 --udp-port 8771 --aircraft-id 24 \
-  --rtsp-port 8555 --mount /two_axis_pod --decoder avdec
+  --rtsp-port 8555 --mount /two_axis_pod --decoder nvdec
 ```
 
 同一Gazebo分区内，每个吊舱的command、telemetry、command_result及图像话题分别对应自己的插件和相机；仅更改网关参数不会修改模型发布的话题。不同 `GZ_PARTITION` 可以隔离Gazebo话题，但不会隔离UDP、RTSP或MAVLink端口。内部RTP端口默认自动分配，显式配置 `--rtp-port` 时也需分别分配。共享RTSP中继的使用条件和网关双路启动示例见[基础组件网关说明](../../models/gimbals/two_axis_pod/controller/service/README.md#多机共享-rtsp)。

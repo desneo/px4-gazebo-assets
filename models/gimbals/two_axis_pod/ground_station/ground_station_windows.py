@@ -2,8 +2,9 @@
 # -*- coding: utf-8 -*-
 """两轴吊舱地面站的 Windows 原生入口。
 
-控制、遥测和界面复用 ``ground_station.py``，视频改用 OpenCV wheel 自带的
-FFmpeg 后端读取 RTSP，不依赖 PyGObject、GStreamer 或系统级编解码器。
+控制、遥测和界面复用 ``ground_station.py``，视频使用 OpenCV wheel 自带的
+FFmpeg 后端读取 RTSP，并强制、校验 Windows D3D11 硬件解码。入口不依赖
+PyGObject、GStreamer 或系统级 FFmpeg。
 """
 from __future__ import annotations
 
@@ -26,6 +27,35 @@ from stamp import decode_stamp_from_bgr  # noqa: E402
 
 
 WINDOWS_CONFIG = str(HERE / "config.windows.json")
+
+
+def d3d11_capture_params():
+    """返回严格 D3D11 硬解的 VideoCapture 打开参数。"""
+    required = (
+        "CAP_PROP_HW_ACCELERATION",
+        "VIDEO_ACCELERATION_D3D11",
+        "CAP_PROP_OPEN_TIMEOUT_MSEC",
+        "CAP_PROP_READ_TIMEOUT_MSEC",
+    )
+    missing = [name for name in required if getattr(cv2, name, None) is None]
+    if missing:
+        raise RuntimeError(
+            "当前 OpenCV 缺少 D3D11 硬解接口: " + ", ".join(missing))
+    return [
+        cv2.CAP_PROP_HW_ACCELERATION, cv2.VIDEO_ACCELERATION_D3D11,
+        cv2.CAP_PROP_OPEN_TIMEOUT_MSEC, 5000,
+        cv2.CAP_PROP_READ_TIMEOUT_MSEC, 3000,
+    ]
+
+
+def verify_d3d11_capture(capture):
+    """拒绝后端未启用 D3D11 的流，禁止静默回退到 CPU 解码。"""
+    actual = int(round(capture.get(cv2.CAP_PROP_HW_ACCELERATION)))
+    expected = int(cv2.VIDEO_ACCELERATION_D3D11)
+    if actual != expected:
+        raise RuntimeError(
+            "RTSP 已打开，但 OpenCV/FFmpeg 未启用 D3D11 硬件解码"
+            f"（实际加速类型={actual}，期望={expected}）；已拒绝软件解码回退")
 
 
 class WindowsPointerGuard:
@@ -65,7 +95,7 @@ class WindowsPointerGuard:
 
 
 class WindowsGroundStation(common.GroundStation):
-    """使用 OpenCV/FFmpeg 拉取 RTSP 的 Windows 地面站。"""
+    """使用 OpenCV/FFmpeg D3D11 硬解拉取 RTSP 的 Windows 地面站。"""
 
     def __init__(self, cfg: dict, args):
         super().__init__(cfg, args)
@@ -83,20 +113,24 @@ class WindowsGroundStation(common.GroundStation):
         os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = (
             f"rtsp_transport;{self.rtsp_transport}|stimeout;5000000"
         )
-        params = []
-        for name, value in (("CAP_PROP_OPEN_TIMEOUT_MSEC", 5000),
-                            ("CAP_PROP_READ_TIMEOUT_MSEC", 3000)):
-            prop = getattr(cv2, name, None)
-            if prop is not None:
-                params.extend((prop, value))
+        params = d3d11_capture_params()
         url = common.rtsp_url(self.cfg)
         try:
             capture = cv2.VideoCapture(url, cv2.CAP_FFMPEG, params)
-        except (TypeError, cv2.error):
-            capture = cv2.VideoCapture(url, cv2.CAP_FFMPEG)
+        except (TypeError, cv2.error) as exc:
+            raise RuntimeError(
+                "当前 OpenCV/FFmpeg 无法请求 D3D11 硬件解码；"
+                "请更新 Windows 显卡驱动并重新运行 setup_windows.ps1") from exc
         if not capture.isOpened():
             capture.release()
-            raise RuntimeError(f"无法打开 RTSP 视频: {url}")
+            raise RuntimeError(
+                f"无法使用 D3D11 硬件解码打开 RTSP 视频: {url}；"
+                "请检查显卡驱动、OpenCV FFmpeg 后端和网络")
+        try:
+            verify_d3d11_capture(capture)
+        except Exception:
+            capture.release()
+            raise
         capture.set(cv2.CAP_PROP_BUFFERSIZE, 1)
         return capture
 
@@ -122,8 +156,10 @@ class WindowsGroundStation(common.GroundStation):
                     capture = self._open_capture()
                     self._replace_capture(capture)
                     failures = 0
-                    print(f"[video] RTSP 已连接（OpenCV/FFmpeg，{self.rtsp_transport.upper()}）",
-                          flush=True)
+                    print(
+                        "[video] RTSP 已连接"
+                        f"（OpenCV/FFmpeg D3D11 硬解，{self.rtsp_transport.upper()}）",
+                        flush=True)
                 except Exception as exc:  # noqa: BLE001
                     failures += 1
                     if failures == 1 or failures % 5 == 0:
@@ -193,8 +229,8 @@ class WindowsGroundStation(common.GroundStation):
         self.start_video()
         cv2.namedWindow(self.win, cv2.WINDOW_AUTOSIZE)
         cv2.setMouseCallback(self.win, self.on_mouse)
-        print("Windows 地面站已启动：视频使用 OpenCV/FFmpeg；拖框跟踪，"
-              "底部摇杆控制 yaw/pitch，ESC 退出。")
+        print("Windows 地面站已启动：视频使用 OpenCV/FFmpeg D3D11 硬解；"
+              "四种视觉模式互斥，底部摇杆控制 yaw/pitch，ESC 退出。")
         self.last_draw_t = 0.0
         while not self._stop:
             if self.args.duration and time.monotonic() - self._t_start > self.args.duration:
@@ -291,7 +327,8 @@ def run_decode_test(cfg: dict, args) -> int:
     if frames == 0 or latest is None:
         print("[decode-test] 未解码到视频帧", file=sys.stderr)
         return 4
-    print(f"[decode-test] 成功解码 {frames} 帧，尺寸 {latest.shape[1]}x{latest.shape[0]}")
+    print("[decode-test] D3D11 硬件解码成功 "
+          f"{frames} 帧，尺寸 {latest.shape[1]}x{latest.shape[0]}")
     if args.snapshot:
         output = Path(args.snapshot).resolve()
         output.parent.mkdir(parents=True, exist_ok=True)

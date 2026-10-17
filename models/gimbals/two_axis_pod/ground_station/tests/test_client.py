@@ -12,7 +12,8 @@ import unittest
 SOURCE = Path(__file__).resolve().parents[1] / "ground_station.py"
 tree = ast.parse(SOURCE.read_text(encoding="utf-8"), filename=str(SOURCE))
 namespace = {"threading": threading, "time": time, "json": json,
-             "MAX_DATAGRAM": 8192}
+             "MAX_DATAGRAM": 8192,
+             "VISION_MODES": ("off", "detect", "auto_lock", "manual_track")}
 exec(compile(ast.Module(body=[node for node in tree.body
                              if isinstance(node, ast.ClassDef)
                              and node.name == "UdpClient"], type_ignores=[]),
@@ -89,6 +90,29 @@ class ClientTests(unittest.TestCase):
         self.receive({"type": "command_result", "seq": 8, "cmd": "reset_axis", "ok": True})
         self.assertNotIn(8, self.client._pending)
         self.assertTrue(self.client.find_result(cmd="reset_axis", seq=8)["ok"])
+
+    def test_vision_mode_is_reliable_and_rejects_unknown_mode(self):
+        self.receive({"type": "hello", "aircraft_id": 1})
+        seq = self.client.send_reliable("set_vision_mode", mode="auto_lock")
+        self.assertGreater(seq, 0)
+        self.assertEqual(self.packets[-1], {"cmd": "set_vision_mode", "seq": seq,
+                                            "mode": "auto_lock"})
+        self.assertEqual(self.client.send_reliable("set_vision_mode", mode="invalid"), -1)
+        self.assertEqual(len(self.packets), 1)
+
+    def test_vision_telemetry_validation(self):
+        good = {"type": "telemetry", "vision": {
+            "mode": "detect", "state": "running", "target_count": 2,
+            "locked_track_id": None, "inference_ms": 8.4,
+            "input_fps": 30.0, "output_fps": 30.0, "error": ""}}
+        self.receive(good)
+        self.assertEqual(self.client.telemetry["vision"]["target_count"], 2)
+        count = self.client.messages
+        for vision in ({"mode": "bad"}, {"target_count": -1},
+                       {"locked_track_id": "7"}, {"inference_ms": float("nan")},
+                       {"error": []}):
+            self.receive({"type": "telemetry", "vision": vision})
+        self.assertEqual(self.client.messages, count)
 
     def confirm_public_angles(self):
         self.receive({"type": "hello", "aircraft_id": 1, "version": 4, "angle_convention": "upright_joint"})

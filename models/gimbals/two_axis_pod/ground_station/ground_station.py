@@ -6,8 +6,9 @@
 下发跟踪框与控制指令。运行不依赖本仓库 `server/`、`client/` 目录。
 
 功能：
-- RTSP 硬解播放（默认 ``nvh264dec``，可配置/自动回退 ``avdec_h264``）；
-- 鼠标拖拽画框，松开自动提交 ``track``（归一化到整帧 0..1）；
+- RTSP 强制使用 ``nvh264dec`` 硬解播放，不允许软件解码回退；
+- 显式选择关闭视觉/目标检测/自动锁定/手动框选，四种模式互斥；
+- 仅在手动框选模式下允许鼠标拖拽，松开提交 ``track``（归一化到整帧 0..1）；
 - 显示实时跟踪框、跟踪状态、稳定性、两轴机械姿态/角速度、限位/饱和、
   目标中心角误差、端到端时延（用 ``frame_table``）、显示帧率与丢帧率；
 - 按钮与快捷键：复位 reset / 停止 stop / 朝天 home / 清故障 reset_fault，
@@ -59,8 +60,17 @@ from stamp import decode_stamp_from_bgr  # noqa: E402
 HERE = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_CONFIG = os.path.join(HERE, "config.json")
 
-# 解码器配置项 -> GStreamer 元件
-DECODER_ELEMENTS = {"nvenc": "nvh264dec", "avdec": "avdec_h264"}
+# 地面站只允许 NVIDIA NVDEC。``nvenc`` 是旧配置中误用的名称，仅作为
+# 向后兼容别名，二者都严格映射到同一个硬解元件，不构成软件回退。
+DECODER_ELEMENTS = {"nvdec": "nvh264dec", "nvenc": "nvh264dec"}
+
+VISION_MODES = ("off", "detect", "auto_lock", "manual_track")
+VISION_MODE_CN = {
+    "off": "关闭视觉",
+    "detect": "目标检测",
+    "auto_lock": "自动锁定",
+    "manual_track": "手动框选",
+}
 
 # models/gimbals/two_axis_pod/docs/control-protocol.md：单条数据报上限 8 KiB；接收缓冲区建议 ≥ 64 KiB。
 MAX_DATAGRAM = 8 * 1024
@@ -98,7 +108,7 @@ DEFAULT_CONFIG_VALUES = {
     "rtsp_mount": "/two_axis_pod",
     "aircraft_id": 1,
     "display_scale": 0.5,
-    "decoder": "nvenc",
+    "decoder": "nvdec",
     "window_title": "Gimbal Ground Station",
     "client_timeout": 5.0,
     "retry_interval": 0.2,
@@ -281,7 +291,7 @@ class UdpClient(threading.Thread):
         return seq
 
     def send_reliable(self, cmd: str, **extra) -> int:
-        """有回执指令（track / stop / home / reset / reset_axis）：带 seq 发送并按需重传。"""
+        """有回执指令（含 set_vision_mode）：带 seq 发送并按需重传。"""
         if not self._public_command_allowed(dict(cmd=cmd, **extra)):
             self.on_log(f"[udp] 拒绝 {cmd}: {self.identity_error or '机械姿态未就绪或指令参数非法'}")
             return -1
@@ -345,9 +355,34 @@ class UdpClient(threading.Thread):
                     return False
         return True
 
+    @staticmethod
+    def _valid_vision(vision):
+        if not isinstance(vision, dict):
+            return False
+        if "mode" in vision and vision["mode"] not in VISION_MODES:
+            return False
+        if "state" in vision and not isinstance(vision["state"], str):
+            return False
+        if "error" in vision and vision["error"] is not None and not isinstance(vision["error"], str):
+            return False
+        if "target_count" in vision and (type(vision["target_count"]) is not int
+                                          or vision["target_count"] < 0):
+            return False
+        if "locked_track_id" in vision and (vision["locked_track_id"] is not None
+                                              and type(vision["locked_track_id"]) is not int):
+            return False
+        for key in ("inference_ms", "input_fps", "output_fps"):
+            value = vision.get(key)
+            if value is not None and (type(value) not in (int, float)
+                                      or not 0 <= value < float("inf")):
+                return False
+        return True
+
     def _public_command_allowed(self, payload):
         cmd = payload.get("cmd")
         if cmd not in ("ping", "status", "bye") and not self.identity_ready:
+            return False
+        if cmd == "set_vision_mode" and payload.get("mode") not in VISION_MODES:
             return False
         if "roll" in payload or (cmd == "reset_axis" and payload.get("axis") not in ("yaw", "pitch")):
             return False
@@ -492,10 +527,12 @@ class UdpClient(threading.Thread):
                                   and not isinstance(msg["clock_domain"], str)):
             return
         if mtype == "telemetry":
-            for key in ("tracking", "stability", "joints_deg", "attitude_deg", "limits", "cmd_dps", "video"):
+            for key in ("tracking", "stability", "joints_deg", "attitude_deg", "limits", "cmd_dps", "video", "vision"):
                 if key in msg and not isinstance(msg[key], dict):
                     return
             if "attitude_deg" in msg and not self._valid_attitude(msg["attitude_deg"]):
+                return
+            if "vision" in msg and not self._valid_vision(msg["vision"]):
                 return
             table = msg.get("frame_table", [])
             if not isinstance(table, list):
@@ -506,6 +543,7 @@ class UdpClient(threading.Thread):
                         or type(entry[1]) not in (int, float)
                         or not 0 <= entry[1] < float("inf")):
                     return
+
         with self.lock:
             if (getattr(self, "hello", None) is not None
                     and not self.connected):
@@ -725,38 +763,30 @@ class PointerGuard:
 # ---------------------------------------------------------------------------
 # RTSP 解码管线
 # ---------------------------------------------------------------------------
-def build_pipeline(rtsp: str, decoder: str = "nvenc", verbose: bool = True):
-    """构造 RTSP -> BGR appsink 管线；优先 decoder，失败自动回退另一种。"""
+def build_pipeline(rtsp: str, decoder: str = "nvdec", verbose: bool = True):
+    """构造 RTSP -> BGR appsink 管线；只允许 NVIDIA ``nvh264dec``。"""
     if not _HAVE_GST:
         raise RuntimeError(f"GStreamer/PyGObject 不可用: {_GST_ERR}")
-    order = [decoder] + [d for d in ("nvenc", "avdec") if d != decoder]
-    last_err = "无可用解码器"
-    for dec in order:
-        elem = DECODER_ELEMENTS.get(dec, "nvh264dec")
-        if Gst.ElementFactory.find(elem) is None:
-            last_err = f"缺少解码元件 {elem}"
-            continue
-        desc = (
-            f"rtspsrc location={rtsp} latency=0 drop-on-latency=true protocols=udp "
-            f"! rtph264depay ! h264parse ! {elem} ! videoconvert "
-            f"! video/x-raw,format=BGR ! appsink name=sink max-buffers=1 drop=true"
-        )
-        try:
-            pipeline = Gst.parse_launch(desc)
-        except Exception as exc:  # noqa: BLE001
-            last_err = str(exc)
-            continue
-        sink = pipeline.get_by_name("sink")
-        if sink is None:
-            last_err = "appsink 缺失"
-            continue
-        if verbose and dec != decoder:
-            print(f"[video] 解码器 {DECODER_ELEMENTS[decoder]} 不可用，"
-                  f"已回退 {elem}")
-        if verbose:
-            print(f"[video] RTSP 管线就绪: {rtsp} (解码 {elem})")
-        return pipeline, sink, dec
-    raise RuntimeError(f"RTSP 解码管线创建失败: {last_err}")
+    if decoder not in DECODER_ELEMENTS:
+        raise RuntimeError(f"拒绝非硬件解码配置 {decoder!r}；地面站仅允许 nvh264dec")
+    elem = DECODER_ELEMENTS[decoder]
+    if Gst.ElementFactory.find(elem) is None:
+        raise RuntimeError("缺少 NVIDIA 硬解元件 nvh264dec；请安装并启用 GStreamer NVIDIA 插件")
+    desc = (
+        f"rtspsrc location={rtsp} latency=0 drop-on-latency=true protocols=udp "
+        f"! rtph264depay ! h264parse ! {elem} ! videoconvert "
+        f"! video/x-raw,format=BGR ! appsink name=sink max-buffers=1 drop=true"
+    )
+    try:
+        pipeline = Gst.parse_launch(desc)
+    except Exception as exc:  # noqa: BLE001
+        raise RuntimeError(f"NVDEC RTSP 管线创建失败: {exc}") from exc
+    sink = pipeline.get_by_name("sink")
+    if sink is None:
+        raise RuntimeError("NVDEC RTSP 管线创建失败：appsink 缺失")
+    if verbose:
+        print(f"[video] RTSP 管线就绪: {rtsp} (强制硬解 {elem})")
+    return pipeline, sink, "nvdec"
 
 
 # ---------------------------------------------------------------------------
@@ -789,6 +819,7 @@ class GroundStation:
         self.last_frame_mono = time.monotonic()
         self._t_start = time.monotonic()
         self._stop = False
+        self.fatal_video_error = ""
 
         self.mouse_start = None
         self.mouse_end = None
@@ -819,8 +850,10 @@ class GroundStation:
     # ------------------------------------------------------------- video
     def start_video(self):
         self.pipeline, self.sink, self.decoder = build_pipeline(
-            rtsp_url(self.cfg), self.cfg.get("decoder", "nvenc"))
-        self.pipeline.set_state(Gst.State.PLAYING)
+            rtsp_url(self.cfg), self.cfg.get("decoder", "nvdec"))
+        result = self.pipeline.set_state(Gst.State.PLAYING)
+        if result == Gst.StateChangeReturn.FAILURE:
+            raise RuntimeError("NVDEC RTSP 管线启动失败；请检查 NVIDIA 驱动、权限和视频源")
         threading.Thread(target=self.pull_loop, daemon=True).start()
         threading.Thread(target=self.video_watchdog, daemon=True).start()
 
@@ -830,7 +863,7 @@ class GroundStation:
             if sink is None:
                 time.sleep(0.05)
                 continue
-            sample = sink.emit("pull-sample")
+            sample = sink.emit("try-pull-sample", 100_000_000)
             if sample is None:
                 time.sleep(0.002)
                 continue
@@ -887,19 +920,44 @@ class GroundStation:
             pass
         try:
             pipeline, sink, dec = build_pipeline(
-                rtsp_url(self.cfg), self.cfg.get("decoder", "nvenc"), verbose=False)
+                rtsp_url(self.cfg), self.cfg.get("decoder", "nvdec"), verbose=False)
             self.pipeline = pipeline
             self.sink = sink
             self.decoder = dec
-            pipeline.set_state(Gst.State.PLAYING)
+            result = pipeline.set_state(Gst.State.PLAYING)
+            if result == Gst.StateChangeReturn.FAILURE:
+                raise RuntimeError("重建后的 NVDEC 管线无法进入 PLAYING")
             print(f"[video] 已重建 RTSP 管线（解码 {dec}）", flush=True)
         except Exception as exc:  # noqa: BLE001
-            print(f"[video] 重建 RTSP 管线失败: {exc}", flush=True)
+            self._fail_video(f"重建 NVDEC RTSP 管线失败: {exc}")
+
+    def _fail_video(self, message):
+        if not self.fatal_video_error:
+            self.fatal_video_error = str(message)
+            print(f"[video] 致命错误：{self.fatal_video_error}；地面站退出，不回退软件解码。",
+                  file=sys.stderr, flush=True)
+        self._stop = True
+
+    def _poll_video_error(self):
+        pipeline = self.pipeline
+        if pipeline is None:
+            return
+        bus = pipeline.get_bus()
+        message = bus.pop_filtered(Gst.MessageType.ERROR)
+        if message is not None:
+            error, debug = message.parse_error()
+            detail = error.message
+            if debug:
+                detail += f" ({debug})"
+            self._fail_video(f"NVDEC RTSP 管线运行失败: {detail}")
 
     def video_watchdog(self):
         """视频长时间无新帧时尝试 set NULL/PLAYING，仍无则重建管线。"""
         while not self._stop:
             time.sleep(1.0)
+            self._poll_video_error()
+            if self._stop:
+                return
             if time.monotonic() - self._t_start < 6.0:
                 continue
             with self.lock:
@@ -935,6 +993,7 @@ class GroundStation:
                 if not self.tele.public_angles_ready:
                     self.last_cmd = "未确认 两轴机械角度协议，摇杆已禁用"
                     return
+                self._exit_tracking_for_manual()
                 self.manual.cancel()
                 self.joystick = hit
                 self._update_joystick(x, y)
@@ -944,6 +1003,11 @@ class GroundStation:
                 self.pressed = (btn[0], btn[2], x, y, btn[3])
                 return
             if y >= self.display_size[1]:
+                return
+            if self._vision_mode() != "manual_track":
+                self.mouse_start = self.mouse_end = None
+                self.drawing = False
+                self.last_cmd = "当前不是“手动框选”模式，已拒绝画框"
                 return
             self.mouse_start = (x, y)
             self.mouse_end = (x, y)
@@ -978,7 +1042,7 @@ class GroundStation:
     def _joystick_geometry(self):
         dw, dh = self.display_size
         radius = min(56, max(30, dw // 10))
-        return ((dw // 2, dh + 88, radius),)
+        return ((dw // 2, dh + 105, radius),)
 
     def _joystick_at(self, x, y):
         cx, cy, radius = self._joystick_geometry()[0]
@@ -1026,7 +1090,9 @@ class GroundStation:
         if cmd == "reset_axis" and not self.tele.public_angles_ready:
             self.last_cmd = "未确认 两轴机械角度协议，单轴复位已禁用"
             return
-        if cmd in ("track", "stop", "home", "reset", "reset_axis"):
+        if cmd in ("stop", "home", "reset", "reset_axis", "reset_fault"):
+            self._exit_tracking_for_manual()
+        if cmd in ("track", "stop", "home", "reset", "reset_axis", "set_vision_mode"):
             self.tele.send_reliable(cmd, **extra)
         else:
             self.tele.send_once(cmd, **extra)
@@ -1034,6 +1100,11 @@ class GroundStation:
             self.last_cmd = label
 
     def submit_box(self):
+        if self._vision_mode() != "manual_track":
+            self.mouse_start = self.mouse_end = None
+            self.drawing = False
+            self.last_cmd = "当前不是“手动框选”模式，已拒绝提交选框"
+            return
         if not self.mouse_start or not self.mouse_end:
             return
         x0 = min(self.mouse_start[0], self.mouse_end[0])
@@ -1054,6 +1125,26 @@ class GroundStation:
         self.mouse_start = None
         self.mouse_end = None
 
+    def _vision_mode(self, telemetry=None):
+        tele = self.tele.snapshot() if telemetry is None else telemetry
+        vision = (tele or {}).get("vision") or {}
+        mode = vision.get("mode", "off")
+        return mode if mode in VISION_MODES else "off"
+
+    def _single_target_overlay_active(self, telemetry):
+        """手动画框或已选定自动目标时显示插件 CSRT 的单目标框。"""
+        mode = self._vision_mode(telemetry)
+        if mode == "manual_track":
+            return True
+        vision = (telemetry or {}).get("vision") or {}
+        return mode == "auto_lock" and vision.get("locked_track_id") is not None
+
+    def _exit_tracking_for_manual(self):
+        """人工转动抢占自动/手动框选跟踪；先可靠切至 off。"""
+        if self._vision_mode() in {"auto_lock", "manual_track"}:
+            self.tele.send_reliable("set_vision_mode", mode="off")
+            self.last_cmd = "人工控制：已退出目标跟踪"
+
     # ------------------------------------------------------------- ui
     def draw(self, frame, tele):
         w, h = self.frame_size
@@ -1069,12 +1160,15 @@ class GroundStation:
         if self.mouse_start and self.mouse_end:
             cv2.rectangle(disp, self.mouse_start, self.mouse_end, (255, 180, 0), 2)
 
-        # 实时跟踪框（遥测 box_px 为 1080p 系 -> 缩放到显示尺寸）
+        # 检测/搜索阶段的多目标框由服务端烧录为红色；手动框选或自动选定
+        # 目标后，改画插件 CSRT 的单目标框。自动目标固定使用绿色。
         target = (tele or {}).get("target") or {}
         track = (tele or {}).get("tracking") or {}
         state = track.get("state", "IDLE")
-        color = TRACK_COLORS.get(state, (200, 200, 200))
-        if target.get("valid") and target.get("box_px"):
+        auto_single = (self._vision_mode(tele) == "auto_lock"
+                       and ((tele or {}).get("vision") or {}).get("locked_track_id") is not None)
+        color = (0, 255, 0) if auto_single else TRACK_COLORS.get(state, (200, 200, 200))
+        if self._single_target_overlay_active(tele) and target.get("valid") and target.get("box_px"):
             bx, by, bw, bh = target["box_px"]
             sx, sy = dw / w, dh / h
             p0 = (int(bx * sx), int(by * sy))
@@ -1128,6 +1222,21 @@ class GroundStation:
             ]
             colors = [(0, 255, 255)] * len(lines)
             colors[0] = (0, 255, 255)
+            vision = tele.get("vision") or {}
+            vision_mode = self._vision_mode(tele)
+            locked = vision.get("locked_track_id")
+            lock_text = f"  LOCK #{locked}" if locked is not None else ""
+            metric = lambda key: float(vision.get(key) or 0.0)
+            lines.append(
+                f"视觉: {VISION_MODE_CN[vision_mode]} / {vision.get('state', '未知')}"
+                f"{lock_text}   目标 {vision.get('target_count', 0)}   "
+                f"推理 {metric('inference_ms'):.1f} ms   "
+                f"输入/输出 {metric('input_fps'):.1f}/{metric('output_fps'):.1f} fps"
+            )
+            colors.append((0, 255, 0) if not vision.get("error") else (0, 0, 255))
+            if vision.get("error"):
+                lines.append(f"视觉错误: {vision['error']}")
+                colors.append((0, 0, 255))
             mode = (tele.get("mount") or {}).get("mode")
             mounting = {"upright": "立装（竖直偏航）"}.get(mode, "未知")
             if dynamic_mount and mode == "upright":
@@ -1198,6 +1307,17 @@ class GroundStation:
         # 摇杆区独立于视频，避免遮挡选框；视频尺寸及 ROI 归一化不包含控制区。
         panel = np.full((224, dw, 3), 28, dtype=np.uint8)
         disp = np.vstack((disp, panel))
+        mode_buttons = self._vision_mode_buttons()
+        self.buttons.extend(mode_buttons)
+        current_mode = ((tele or {}).get("vision") or {}).get("mode")
+        for label, rect, cmd, extra in mode_buttons:
+            active = extra["mode"] == current_mode
+            color = ((0, 130, 0) if active else
+                     ((110, 110, 110) if self.hover == label else (70, 70, 70)))
+            cv2.rectangle(disp, (rect[0], rect[1]),
+                          (rect[0] + rect[2], rect[1] + rect[3]), color, -1)
+            cv2.rectangle(disp, (rect[0], rect[1]),
+                          (rect[0] + rect[2], rect[1] + rect[3]), (200, 200, 200), 1)
         for name, (cx, cy, radius) in zip(("aim",), self._joystick_geometry()):
             cv2.circle(disp, (cx, cy), radius, (150, 150, 150), 1, cv2.LINE_AA)
             cv2.line(disp, (cx - radius, cy), (cx + radius, cy), (80, 80, 80), 1)
@@ -1205,8 +1325,8 @@ class GroundStation:
                 cv2.line(disp, (cx, cy - radius), (cx, cy + radius), (80, 80, 80), 1)
             x, y = self.joystick_values if self.joystick == name else (0.0, 0.0)
             cv2.circle(disp, (int(cx + x * radius), int(cy - y * radius)), 11, (0, 200, 255), -1, cv2.LINE_AA)
-            cv2.putText(disp, "YAW / PITCH", (cx - radius, dh + 21), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (230, 230, 230), 1, cv2.LINE_AA)
-            cv2.putText(disp, "left -yaw / right +yaw", (max(4, cx - 100), dh + 159), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (190, 190, 190), 1, cv2.LINE_AA)
+            cv2.putText(disp, "YAW / PITCH", (cx - radius, dh + 48), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (230, 230, 230), 1, cv2.LINE_AA)
+            cv2.putText(disp, "left -yaw / right +yaw", (max(4, cx - 100), dh + 171), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (190, 190, 190), 1, cv2.LINE_AA)
             if name == "aim":
                 cv2.putText(disp, "+pitch", (cx + radius + 6, cy - radius + 14), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (190, 190, 190), 1, cv2.LINE_AA)
                 cv2.putText(disp, "-pitch", (cx + radius + 6, cy + radius), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (190, 190, 190), 1, cv2.LINE_AA)
@@ -1220,17 +1340,32 @@ class GroundStation:
             cv2.rectangle(disp, (rect[0], rect[1]), (rect[0] + rect[2], rect[1] + rect[3]), color, -1)
             cv2.rectangle(disp, (rect[0], rect[1]), (rect[0] + rect[2], rect[1] + rect[3]), (200, 200, 200), 1)
         if self.font is not None:
-            pil = Image.fromarray(cv2.cvtColor(disp[dh + 176:, :], cv2.COLOR_BGR2RGB))
+            pil = Image.fromarray(cv2.cvtColor(disp[dh:, :], cv2.COLOR_BGR2RGB))
             painter = ImageDraw.Draw(pil)
-            for label, rect, cmd, extra in axis_buttons:
+            for label, rect, cmd, extra in mode_buttons + axis_buttons:
                 bbox = painter.textbbox((0, 0), label, font=self.font)
                 tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
-                painter.text((rect[0] + (rect[2] - tw) / 2 - bbox[0], rect[1] - dh - 176 + (rect[3] - th) / 2 - bbox[1]), label, font=self.font, fill=(255, 255, 255))
-            disp[dh + 176:, :] = cv2.cvtColor(np.array(pil), cv2.COLOR_RGB2BGR)
+                painter.text((rect[0] + (rect[2] - tw) / 2 - bbox[0],
+                              rect[1] - dh + (rect[3] - th) / 2 - bbox[1]),
+                             label, font=self.font, fill=(255, 255, 255))
+            disp[dh:, :] = cv2.cvtColor(np.array(pil), cv2.COLOR_RGB2BGR)
         else:
+            for label, rect, cmd, extra in mode_buttons:
+                cv2.putText(disp, extra["mode"].upper(), (rect[0] + 5, rect[1] + 21),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.38, (255, 255, 255), 1, cv2.LINE_AA)
             for label, rect, cmd, extra in axis_buttons:
                 cv2.putText(disp, extra["axis"].upper() + " RESET", (rect[0] + 6, rect[1] + 23), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (255, 255, 255), 1, cv2.LINE_AA)
         return disp
+
+    def _vision_mode_buttons(self):
+        dw, dh = self.display_size
+        gap = 8
+        width = min(130, max(20, (dw - 5 * gap) // 4))
+        total = 4 * width + 3 * gap
+        x0 = max(4, (dw - total) // 2)
+        return [(VISION_MODE_CN[mode], (x0 + i * (width + gap), dh + 2, width, 28),
+                 "set_vision_mode", {"mode": mode})
+                for i, mode in enumerate(VISION_MODES)]
 
     def _axis_reset_buttons(self):
         dw, dh = self.display_size
@@ -1247,6 +1382,7 @@ class GroundStation:
             return
         if self.joystick:
             self._release_joystick()
+        self._exit_tracking_for_manual()
         self.manual.hold(axis, value, duration)
         if label:
             self.last_cmd = label
@@ -1259,10 +1395,14 @@ class GroundStation:
             return 2
         self.tele.start()
         self.manual.start()
-        self.start_video()
+        try:
+            self.start_video()
+        except Exception as exc:  # noqa: BLE001
+            self._fail_video(str(exc))
+            return 2
         cv2.namedWindow(self.win, cv2.WINDOW_AUTOSIZE)
         cv2.setMouseCallback(self.win, self.on_mouse)
-        print("地面站已启动：拖拽鼠标画框并松开自动跟踪；"
+        print("地面站已启动：先选择“手动框选”，再拖拽鼠标画框；"
               "按钮[复位/停止/朝天/清故障]或按键 R/S/H/M；"
               "底部虚拟摇杆控制 yaw/pitch，松手停止；"
               "方向键手动 yaw/pitch；ESC 退出")
@@ -1323,7 +1463,7 @@ class GroundStation:
         if self.args.gui_snapshot and self.last_disp is not None:
             cv2.imwrite(self.args.gui_snapshot, self.last_disp)
             print("界面截图:", self.args.gui_snapshot)
-        return 0
+        return 2 if self.fatal_video_error else 0
 
     def shutdown(self):
         if getattr(self, "_shutdown_done", False):
@@ -1536,11 +1676,16 @@ def run_decode_test(cfg: dict, args) -> int:
     duration = float(args.decode_test)
     print(f"[decode-test] 连接 {url}，解码 {duration:.1f}s ...")
     try:
-        pipeline, sink, dec = build_pipeline(url, cfg.get("decoder", "nvenc"))
+        pipeline, sink, dec = build_pipeline(url, cfg.get("decoder", "nvdec"))
     except Exception as exc:  # noqa: BLE001
         print(f"[decode-test] 管线创建失败: {exc}", file=sys.stderr)
         return 2
-    pipeline.set_state(Gst.State.PLAYING)
+    result = pipeline.set_state(Gst.State.PLAYING)
+    if result == Gst.StateChangeReturn.FAILURE:
+        print("[decode-test] 失败：NVDEC 管线无法进入 PLAYING；请检查 NVIDIA 驱动、权限和视频源",
+              file=sys.stderr)
+        pipeline.set_state(Gst.State.NULL)
+        return 2
 
     t0 = time.monotonic()
     frames = 0
@@ -1550,7 +1695,14 @@ def run_decode_test(cfg: dict, args) -> int:
     latest = None
     first_frame_at = None
     while time.monotonic() - t0 < duration:
-        sample = sink.emit("pull-sample")
+        message = pipeline.get_bus().pop_filtered(Gst.MessageType.ERROR)
+        if message is not None:
+            error, debug = message.parse_error()
+            print(f"[decode-test] 失败：NVDEC 管线运行错误: {error.message}"
+                  f"{f' ({debug})' if debug else ''}", file=sys.stderr)
+            pipeline.set_state(Gst.State.NULL)
+            return 2
+        sample = sink.emit("try-pull-sample", 100_000_000)
         if sample is None:
             time.sleep(0.005)
             continue
@@ -1638,8 +1790,8 @@ def build_parser() -> argparse.ArgumentParser:
     ap.add_argument("--mount", default=None, help="RTSP 路径前缀（末尾自动追加 _飞机ID）")
     ap.add_argument("--display-scale", type=float, default=None,
                     help="显示缩放（0.05..2.0）")
-    ap.add_argument("--decoder", choices=["nvenc", "avdec"], default=None,
-                    help="视频解码器：nvenc=硬解 / avdec=软解（不可用时自动回退）")
+    ap.add_argument("--decoder", choices=["nvdec", "nvenc"], default=None,
+                    help="视频解码器（仅 NVIDIA nvh264dec；nvenc 为旧配置兼容别名）")
     ap.add_argument("--window-title", default=None, help="窗口标题")
     ap.add_argument("--font", default=None, help="中文渲染字体路径")
     ap.add_argument("--client-timeout", type=float, default=None,

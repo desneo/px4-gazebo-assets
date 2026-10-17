@@ -17,13 +17,7 @@ from rtsp_relay import aircraft_mount, request, ensure_relay
 
 def worker(port, aircraft_id):
     import video
-    # 独立进程使用红/蓝图像，验证路径与图像来源没有串流。
-    video.ENCODE_LAUNCH = (
-        'appsrc name=vsrc is-live=true format=time do-timestamp=false '
-        'caps=video/x-raw,format=RGB,width={w},height={h},framerate={fps}/1 '
-        '! videoconvert ! x264enc tune=zerolatency speed-preset=ultrafast '
-        'bitrate={bitrate} key-int-max={fps} ! rtph264pay pt=96 config-interval=1 '
-        '! udpsink host=127.0.0.1 port={udp_port} sync=false async=false')
+    # 独立进程使用生产 NVENC 管线编码红/蓝图像，验证路径与图像来源没有串流。
     stream = video.VideoStreamer(640, 480, rtsp_port=port,
                                  mount=aircraft_mount('/two_axis_pod', aircraft_id))
     running = True
@@ -72,7 +66,7 @@ class MultiRtspTests(unittest.TestCase):
         Gst.init(None)
         pipeline = Gst.parse_launch(
             f'rtspsrc location=rtsp://127.0.0.1:{self.port}/two_axis_pod_{aircraft_id} '
-            'protocols=tcp latency=50 ! rtph264depay ! h264parse ! avdec_h264 '
+            'protocols=tcp latency=50 ! rtph264depay ! h264parse ! nvh264dec '
             '! videoconvert ! video/x-raw,format=RGB ! appsink name=frames '
             'sync=false max-buffers=1 drop=true')
         pipeline.set_state(Gst.State.PLAYING)

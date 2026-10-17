@@ -137,6 +137,8 @@ class Session:
 
     def start_tracking(self):
         self.collect(.5)
+        self.send('set_vision_mode',mode='manual_track')
+        self.collect(.2)
         self.send('track',box=self.args.box)
         t=self.collect(8,tracked)
         assert t and tracked(t[-1]),'选框未进入TRACK，请检查视频/选框'
@@ -206,7 +208,7 @@ def main():
     ap.add_argument('--observe-seconds',type=float,default=0,help='启动地面站观察移动靶标，保存界面截图；与验收测试分开运行')
     ap.add_argument('--test',choices=['all','moving','occlusion'],default='all')
     ap.add_argument('--speed',type=float,default=.5);ap.add_argument('--leg-seconds',type=float,default=10)
-    ap.add_argument('--box',type=float,nargs=4,default=[.468,.452,.064,.096])
+    ap.add_argument('--box',type=float,nargs=4,default=[.45,.47,.10,.06])
     ap.add_argument('--output',type=Path,default=ROOT/'runs/geographic_two_axis_pod/target.jsonl')
     args=ap.parse_args()
     if not 0<args.speed<=1 or not 5<=args.leg_seconds<=20:ap.error('速度(0,1]m/s，每段[5,20]仿真秒')
@@ -223,7 +225,7 @@ def main():
             command=[os.environ.get('GIMBAL_PYTHON','python3'),
                 str(ROOT/'models/gimbals/two_axis_pod/ground_station/ground_station.py'),
                 '--udp-host',args.host,'--udp-port',str(args.port),
-                '--decoder','avdec','--duration',str(args.observe_seconds),
+                '--decoder','nvdec','--duration',str(args.observe_seconds),
                 '--gui-snapshot',str(snapshot)]
             gui_log=(args.output.parent/'ground_station.log').open('w')
             gui=subprocess.Popen(command,stdout=gui_log,stderr=subprocess.STDOUT)

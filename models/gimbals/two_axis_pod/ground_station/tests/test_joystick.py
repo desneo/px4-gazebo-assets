@@ -16,7 +16,10 @@ cv2 = SimpleNamespace(EVENT_LBUTTONDOWN=1, EVENT_MOUSEMOVE=0,
                       EVENT_LBUTTONUP=4, EVENT_FLAG_LBUTTON=1,
                       destroyAllWindows=lambda: None)
 namespace = {"threading": threading, "time": time, "json": json, "math": math,
-             "cv2": cv2, "MAX_DATAGRAM": 8192}
+             "cv2": cv2, "MAX_DATAGRAM": 8192,
+             "VISION_MODES": ("off", "detect", "auto_lock", "manual_track"),
+             "VISION_MODE_CN": {"off": "关闭视觉", "detect": "目标检测",
+                                "auto_lock": "自动锁定", "manual_track": "手动框选"}}
 exec(compile(ast.Module(body=[node for node in tree.body
                              if isinstance(node, ast.ClassDef)
                              and node.name in ("UdpClient", "ManualController", "GroundStation")],
@@ -63,6 +66,9 @@ class JoystickTests(unittest.TestCase):
         self.gs.mouse_start = self.gs.mouse_end = None
         self.gs.drawing = False
         self.gs.pipeline = None
+        self.gs.lock = threading.Lock()
+        self.gs.frame_size = (1920, 1080)
+        self.gs.last_cmd = ""
 
     def tearDown(self):
         self.manual.stop()
@@ -188,6 +194,64 @@ class JoystickTests(unittest.TestCase):
         self.assertEqual(packets[-2]["yaw"], 0.0)
         self.assertEqual(packets[-1]["cmd"], "home")
         self.assertIsNone(self.gs.joystick)
+
+    def test_video_drag_is_rejected_until_manual_track_mode(self):
+        self.mouse(cv2.EVENT_LBUTTONDOWN, 100, 100)
+        self.assertFalse(self.gs.drawing)
+        self.assertIn("拒绝画框", self.gs.last_cmd)
+        self.client.telemetry["vision"] = {"mode": "manual_track"}
+        self.mouse(cv2.EVENT_LBUTTONDOWN, 100, 100)
+        self.mouse(cv2.EVENT_MOUSEMOVE, 200, 180, cv2.EVENT_FLAG_LBUTTON)
+        self.mouse(cv2.EVENT_LBUTTONUP, 200, 180)
+        packet = self.client.sock.packets[-1][1]
+        self.assertEqual(packet["cmd"], "track")
+        self.assertEqual(packet["box"], [0.104167, 0.185185, 0.104167, 0.148148])
+
+    def test_four_mode_buttons_send_one_reliable_mode_command(self):
+        buttons = self.gs._vision_mode_buttons()
+        self.assertEqual([extra["mode"] for _, _, _, extra in buttons],
+                         ["off", "detect", "auto_lock", "manual_track"])
+        self.gs.buttons = buttons
+        label, (x, y, width, height), _, _ = buttons[2]
+        self.mouse(cv2.EVENT_LBUTTONDOWN, x + width // 2, y + height // 2)
+        self.mouse(cv2.EVENT_LBUTTONUP, x + width // 2, y + height // 2)
+        packet = self.client.sock.packets[-1][1]
+        self.assertEqual(packet["cmd"], "set_vision_mode")
+        self.assertEqual(packet["mode"], "auto_lock")
+        self.assertIn(packet["seq"], self.client._pending)
+
+    def test_auto_lock_manual_control_sends_off_first(self):
+        self.client.telemetry["vision"] = {"mode": "auto_lock"}
+        self.gs._send_ctrl("home")
+        packets = [packet for _, packet in self.client.sock.packets]
+        self.assertEqual([packet["cmd"] for packet in packets],
+                         ["set_vision_mode", "home"])
+        self.assertEqual(packets[0]["mode"], "off")
+
+    def test_manual_track_joystick_sends_off_before_motion(self):
+        self.client.telemetry["vision"] = {"mode": "manual_track"}
+        cx, cy, radius = self.gs._joystick_geometry()[0]
+        self.mouse(cv2.EVENT_LBUTTONDOWN, cx + radius, cy)
+        packets = [packet for _, packet in self.client.sock.packets]
+        self.assertEqual(packets[0]["cmd"], "set_vision_mode")
+        self.assertEqual(packets[0]["mode"], "off")
+        self.assertEqual(self.manual.axes["yaw"][0], 30.0)
+
+    def test_auto_lock_uses_single_target_overlay_after_selection(self):
+        searching = {"vision": {"mode": "auto_lock", "locked_track_id": None}}
+        selected = {"vision": {"mode": "auto_lock", "locked_track_id": 3}}
+        manual = {"vision": {"mode": "manual_track"}}
+        self.assertFalse(self.gs._single_target_overlay_active(searching))
+        self.assertTrue(self.gs._single_target_overlay_active(selected))
+        self.assertTrue(self.gs._single_target_overlay_active(manual))
+
+    def test_detect_mode_keeps_detection_during_joystick(self):
+        self.client.telemetry["vision"] = {"mode": "detect"}
+        cx, cy, radius = self.gs._joystick_geometry()[0]
+        self.mouse(cv2.EVENT_LBUTTONDOWN, cx + radius, cy)
+        packets = [packet for _, packet in self.client.sock.packets]
+        self.assertFalse(any(packet["cmd"] == "set_vision_mode" for packet in packets))
+        self.assertEqual(self.manual.axes["yaw"][0], 30.0)
 
     def test_shutdown_is_idempotent_and_zeros_before_bye(self):
         self.manual.hold("yaw", 20.0)

@@ -94,6 +94,10 @@ int main()
   c.Manual(50, 20, 11.02);
   cmd = c.Step(.13, false, empty, 0, 0, j, 11.02);
   Check(cmd[0] > 3, "手动续发持续加速");
+  c.Manual(0, 0, 11.03);
+  cmd = c.Step(.14, false, empty, 0, 0, j, 12);
+  Check(cmd[0] == 0 && cmd[1] == 0 && c.mode() == Mode::IDLE &&
+        c.client_message().empty(), "零速手动指令直接停车且不触发超时提示");
   c.Stop();
   j = {90 * d, 90 * d, 0, 0};
   c.Manual(50, 50, 20);

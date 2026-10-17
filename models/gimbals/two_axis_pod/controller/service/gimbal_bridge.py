@@ -38,14 +38,17 @@ import uuid
 from pathlib import Path
 from collections import deque
 
+import numpy as np
+
 from gz.msgs10.image_pb2 import Image  # noqa: E402
 from gz.msgs10.stringmsg_pb2 import StringMsg  # noqa: E402
 
 from gz_source import GzSource  # noqa: E402
-import video as video_mod  # noqa: E402
 from rtsp_relay import aircraft_mount
 from video import VideoStreamer  # noqa: E402
 from status_udp import DEFAULT_CONFIG, StatusUdpPublisher, load_status_config  # noqa: E402
+from vision import (DetectorConfig, TrackerConfig, VisionEngine,
+                    draw_tracks_rgb, nearest_confirmed_track)  # noqa: E402
 
 STAMP_MASK = 0xFFFFFF
 
@@ -64,21 +67,31 @@ SESSION_RETENTION = 60.0
 
 # 直接透传给插件的指令（插件负责执行并回 command_result）
 PASSTHROUGH_CMDS = {"track", "stop", "home", "reset", "reset_axis", "manual", "reset_fault"}
+LOCAL_CMDS = {"set_vision_mode"}
+VISION_MODES = {"off", "detect", "auto_lock", "manual_track"}
+DEFAULT_VISION_CONFIG = Path(__file__).with_name("vision.json")
 
-# x264 软编降级管线（NVENC 不可用时使用，使用本地 video 模块）
-X264_ENCODE_LAUNCH = (
-    "appsrc name=vsrc is-live=true format=time do-timestamp=false "
-    "caps=video/x-raw,format=RGB,width={w},height={h},framerate={fps}/1 "
-    "max-buffers=3 leaky-type=downstream block=false "
-    "! queue leaky=downstream max-size-buffers=2 max-size-time=0 max-size-bytes=0 "
-    "! videoconvert "
-    "! video/x-raw,format=I420 "
-    "! x264enc tune=zerolatency speed-preset=ultrafast bitrate={bitrate} "
-    "key-int-max={fps} bframes=0 sliced-threads=true "
-    "! rtph264pay pt=96 config-interval=1 "
-    "! udpsink host=127.0.0.1 port={udp_port} sync=false async=false"
-)
 
+def load_vision_config(path: Path) -> dict:
+    """读取视觉配置，并把相对模型路径按配置文件所在目录解析。"""
+    path = Path(path).expanduser().resolve()
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except OSError as exc:
+        raise ValueError(f"无法读取视觉配置 {path}: {exc}") from exc
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"视觉配置不是有效 JSON {path}: {exc}") from exc
+    if not isinstance(data, dict):
+        raise ValueError("视觉配置根节点必须是对象")
+    model_path = data.get("model_path")
+    if not isinstance(model_path, str) or not model_path.strip():
+        raise ValueError("视觉配置 model_path 必须是非空字符串")
+    resolved = Path(model_path).expanduser()
+    if not resolved.is_absolute():
+        resolved = path.parent / resolved
+    data["model_path"] = resolved.resolve()
+    data["config_path"] = path
+    return data
 
 def _as_int(value):
     """把候选 seq 规整为 int；布尔/非整数/缺失返回 None。"""
@@ -117,12 +130,27 @@ class GimbalBridge:
         self.source = GzSource(args.world, args.gimbal_model)
 
         self.lock = threading.RLock()
+        self._vision_lock = threading.RLock()
         self._latest_tel = None                 # 插件遥测 JSON -> dict
         self._latest_tel_received = None        # 接收单调时钟时间，供额外上报判断时效
         self._frame = None                      # (seq,w,h,sim_stamp,t_arrive,t0,data)
         self._img_counter = 0
         self.frame_registry = deque(maxlen=600)  # (seq24, t0_mono)
         self._last_reg_seq = None
+        self._vision = None
+        self._vision_config = load_vision_config(args.vision_config)
+        self._vision_frame_size = None
+        self._vision_failed = False
+        self._vision_mode = "off"
+        self._vision_state = "OFF"
+        self._vision_error = None
+        self._locked_track_id = None
+        self._vision_target_count = 0
+        self._vision_metrics = {}
+        self._camera_times = deque(maxlen=120)
+        self._vision_times = deque(maxlen=120)
+        self._last_vision_seq = None
+        self._auto_lock_sent_at = None
 
         self.clients_lock = threading.RLock()
         self.clients: dict[tuple, _Client] = {}
@@ -206,48 +234,264 @@ class GimbalBridge:
         with self.lock:
             self._frame = (seq, int(msg.width), int(msg.height), sim_stamp,
                            t_arrive, t0, bytes(msg.data))
+            self._camera_times.append(t_arrive)
 
     # ---------------- 视频线程 ----------------
     def video_thread(self):
+        last_frame_seq = None
         while self._running:
             with self.lock:
                 frame = self._frame
-            if frame is not None:
-                seq, w, h, _sim, _arr, t0, data = frame
-                if self.video is None and self._video_error is None:
-                    self._start_video(w, h)
-                if self.video is not None:
-                    seq24 = seq & STAMP_MASK
-                    if self.video.push(seq24, data, t0):
-                        with self.lock:
-                            if seq24 != self._last_reg_seq:
-                                self.frame_registry.append((seq24, t0))
-                                self._last_reg_seq = seq24
-            time.sleep(1.0 / 60.0)
+            if frame is None or frame[0] == last_frame_seq:
+                time.sleep(.001)
+                continue
+            seq, w, h, _sim, _arr, t0, data = frame
+            last_frame_seq = seq
+            if self.video is None and self._video_error is None:
+                self._start_video(w, h)
+            if self.video is not None:
+                data = self._process_vision_frame(seq, w, h, data)
+                seq24 = seq & STAMP_MASK
+                if self.video.push(seq24, data, t0):
+                    with self.lock:
+                        if seq24 != self._last_reg_seq:
+                            self.frame_registry.append((seq24, t0))
+                            self._last_reg_seq = seq24
+
+    @staticmethod
+    def _rate(samples) -> float:
+        if len(samples) < 2:
+            return 0.0
+        elapsed = samples[-1] - samples[0]
+        return (len(samples) - 1) / elapsed if elapsed > 0.0 else 0.0
+
+    def _build_vision(self, width, height):
+        cfg = self._vision_config
+        detector = DetectorConfig(
+            model_path=cfg["model_path"], input_size=int(cfg.get("input_size", 640)),
+            frame_width=width, frame_height=height,
+            confidence_threshold=float(cfg.get("confidence_threshold", 0.5)),
+            low_confidence_threshold=float(cfg.get("low_confidence_threshold", 0.1)),
+            nms_iou_threshold=float(cfg.get("nms_iou_threshold", 0.45)),
+            opencv_threads=int(cfg.get("opencv_threads", 2)))
+        tracker = TrackerConfig(
+            confirmation_hits=int(cfg.get("confirmation_hits", 5)),
+            max_missed=int(cfg.get("max_missed", 15)),
+            high_confidence_threshold=detector.confidence_threshold,
+            low_confidence_threshold=detector.low_confidence_threshold,
+            high_match_iou=float(cfg.get("high_match_iou", 0.3)),
+            low_match_iou=float(cfg.get("low_match_iou", 0.2)))
+        self._vision = VisionEngine(detector, tracker)
+        self._vision_frame_size = (width, height)
+        self._vision_failed = False
+        print(f"[vision] 单类 aircraft 模型已加载: {detector.model_path}，"
+              f"连续命中 {tracker.confirmation_hits} 帧确认", flush=True)
+
+    def _process_vision_frame(self, seq, width, height, data):
+        """处理最新相机帧；同步推理使检测框与编码帧保持一一对应。"""
+        with self.lock:
+            mode = self._vision_mode
+            last_seq = self._last_vision_seq
+        if mode not in {"detect", "auto_lock"} or seq == last_seq:
+            return data
+        # 自动锁定只把检测器用于搜索和选框。一旦框交给插件 CSRT，视频恢复
+        # 原始画面，由地面站根据 CSRT 遥测绘制单个绿色框；不再叠加多目标红框。
+        if mode == "auto_lock" and self._auto_tracker_controls_frame():
+            return data
+        if len(data) != width * height * 3:
+            with self.lock:
+                self._vision_error = (f"RGB 帧长度错误：期望 {width * height * 3}，"
+                                      f"实际 {len(data)}")
+                self._vision_state = "ERROR"
+            return data
+        try:
+            with self._vision_lock:
+                if self._vision is None or self._vision_frame_size != (width, height):
+                    if self._vision_failed:
+                        return data
+                    self._build_vision(width, height)
+                rgb = np.frombuffer(data, dtype=np.uint8).reshape(height, width, 3)
+                result = self._vision.process_rgb(rgb, seq)
+                annotated = draw_tracks_rgb(rgb, result.tracks)
+            now = time.monotonic()
+            with self.lock:
+                self._last_vision_seq = seq
+                self._vision_times.append(now)
+                self._vision_target_count = len(result.tracks)
+                self._vision_error = None
+                self._vision_metrics = {
+                    "inference_ms": round(result.inference_ms, 3),
+                    "input_fps": round(self._rate(self._camera_times), 2),
+                    "output_fps": round(self._rate(self._vision_times), 2),
+                }
+            if mode == "auto_lock":
+                self._update_auto_lock(result, width, height)
+            else:
+                with self.lock:
+                    self._vision_state = "DETECTING"
+            return annotated.tobytes()
+        except Exception as exc:  # noqa: BLE001 - 原始视频仍应可诊断
+            with self.lock:
+                self._vision_failed = True
+                self._vision_error = str(exc)
+                self._vision_state = "ERROR"
+                self._vision_target_count = 0
+            print(f"[vision] 目标检测停止：{exc}", flush=True)
+            if mode == "auto_lock":
+                self._publish_internal("stop")
+            return data
+
+    def _auto_tracker_controls_frame(self):
+        """锁定后由插件 CSRT 独占单目标跟踪；最终丢失才恢复检测搜索。"""
+        with self.lock:
+            tel = self._latest_tel or {}
+            tracking_state = ((tel.get("tracking") or {}).get("state"))
+            locked_id = self._locked_track_id
+            sent_at = self._auto_lock_sent_at
+        if locked_id is None:
+            return False
+        release = tracking_state in {"LOST", "FAULT"}
+        if (tracking_state in {"IDLE", "INIT"} and sent_at is not None
+                and time.monotonic() - sent_at > .75):
+            # 插件未接受精确帧或初始化未完成；释放目标后从最新检测重新选择。
+            release = True
+        if release:
+            self._publish_internal("stop")
+            with self.lock:
+                self._locked_track_id = None
+                self._auto_lock_sent_at = None
+                self._vision_target_count = 0
+                self._vision_state = "AUTO_SEARCH"
+                vision = self._vision
+            if vision is not None and hasattr(vision, "reset"):
+                with self._vision_lock:
+                    vision.reset()
+            return False
+        with self.lock:
+            self._vision_target_count = 1
+            self._vision_state = ("AUTO_LOCKED" if tracking_state == "TRACK"
+                                  else "AUTO_ACQUIRING")
+        return True
+
+    def _update_auto_lock(self, result, width, height):
+        """搜索阶段选中中心最近目标，并把检测框交给插件 CSRT。"""
+        target = nearest_confirmed_track(result.tracks, width, height)
+        if target is None:
+            with self.lock:
+                self._vision_state = "AUTO_SEARCH"
+            return
+        x1, y1, x2, y2 = target.xyxy
+        box = [max(0.0, min(1.0, x1 / width)),
+               max(0.0, min(1.0, y1 / height)),
+               max(1.0 / width, min(1.0, (x2 - x1) / width)),
+               max(1.0 / height, min(1.0, (y2 - y1) / height))]
+        if box[0] + box[2] > 1.0:
+            box[2] = 1.0 - box[0]
+        if box[1] + box[3] > 1.0:
+            box[3] = 1.0 - box[1]
+        if self._publish_internal("track", box=box, frame_seq=result.seq):
+            with self.lock:
+                self._locked_track_id = target.track_id
+                self._auto_lock_sent_at = time.monotonic()
+                self._vision_target_count = 1
+                self._vision_state = "AUTO_ACQUIRING"
+        else:
+            with self.lock:
+                self._vision_error = "自动锁定指令发布失败"
+                self._vision_state = "ERROR"
 
     def _start_video(self, width, height):
         try:
-            if self.args.encoder == "x264":
-                video_mod.ENCODE_LAUNCH = X264_ENCODE_LAUNCH
             self.video = VideoStreamer(width, height,
                                        rtsp_port=self.args.rtsp_port,
                                        mount=self.args.mount,
                                        bitrate_kbps=self.args.video_bitrate,
-                                       udp_port=self.args.rtp_port)
+                                       udp_port=self.args.rtp_port,
+                                       on_error=self._on_video_error)
             print(f"[video] RTSP 服务已启动 "
                   f"rtsp://0.0.0.0:{self.args.rtsp_port}{self.args.mount} "
-                  f"({width}x{height}, encoder={self.args.encoder})",
+                  f"({width}x{height}, encoder=NVENC)",
                   flush=True)
-        except Exception as exc:  # noqa: BLE001 - 编码器不可用不应拖垮网关
+        except Exception as exc:  # noqa: BLE001 - 硬编码是运行前提，失败即终止
             self._video_error = str(exc)
-            print(f"[video] 编码管线初始化失败（网关继续提供遥测/指令）: {exc}",
+            print(f"[video] NVIDIA NVENC 硬编码不可用，网关终止: {exc}",
                   flush=True)
+            self._running = False
+            try:
+                self.sock.close()
+            except OSError:
+                pass
+
+    def _on_video_error(self, message):
+        """硬编码运行期失败时终止网关，禁止无视频继续控制。"""
+        self._video_error = str(message)
+        print(f"[video] NVIDIA NVENC 运行失败，网关终止: {message}", flush=True)
+        self._running = False
+        try:
+            self.sock.close()
+        except OSError:
+            pass
+
+    def _publish_internal(self, cmd, **extra):
+        """发布网关内部控制命令；回执仅用于插件诊断，不属于任一客户端。"""
+        message = StringMsg()
+        message.data = json.dumps({"cmd": cmd,
+                                   "request_id": "bridge-" + uuid.uuid4().hex,
+                                   **extra})
+        try:
+            return self._cmd_pub.publish(message) is not False
+        except Exception:
+            return False
+
+    def _set_vision_mode(self, mode):
+        """原子切换互斥视觉模式，并停止前一模式留下的跟踪输出。"""
+        if mode not in VISION_MODES:
+            raise ValueError(f"无效视觉模式 {mode}")
+        with self.lock:
+            previous = self._vision_mode
+            self._vision_mode = mode
+            self._locked_track_id = None
+            self._vision_target_count = 0
+            self._vision_error = None
+            self._vision_failed = False
+            self._vision_metrics = {}
+            self._vision_times.clear()
+            self._vision_state = {
+                "off": "OFF",
+                "detect": "DETECTING",
+                "auto_lock": "AUTO_SEARCH",
+                "manual_track": "MANUAL_READY",
+            }[mode]
+            vision = self._vision
+            self._last_vision_seq = None
+            self._auto_lock_sent_at = None
+        if vision is not None and hasattr(vision, "reset"):
+            with self._vision_lock:
+                vision.reset()
+        with self.lock:
+            if self._vision_mode == mode:
+                self._vision_state = {
+                    "off": "OFF",
+                    "detect": "DETECTING",
+                    "auto_lock": "AUTO_SEARCH",
+                    "manual_track": "MANUAL_READY",
+                }[mode]
+        if previous != mode:
+            self._publish_internal("stop")
 
     # ---------------- 遥测组装 ----------------
     def snapshot(self) -> dict | None:
         with self.lock:
             tel = self._latest_tel
             table = list(self.frame_registry)[-60:]
+            vision = {
+                "mode": self._vision_mode,
+                "state": self._vision_state,
+                "target_count": self._vision_target_count,
+                "locked_track_id": self._locked_track_id,
+                "error": self._vision_error,
+                **self._vision_metrics,
+            }
         if tel is None:
             return None
         out = dict(tel)  # 插件遥测所有字段
@@ -260,6 +504,7 @@ class GimbalBridge:
             "dropped": self.video.frames_dropped if self.video else 0,
             "clients": self.video.clients if self.video else 0,
         }
+        out["vision"] = vision
         # 便于地面站做时钟/存活判断（docs/control-protocol.md；插件未提供）
         out["ts_wall"] = round(time.time(), 6)
         out["server_uptime"] = round(time.time() - self._t_start, 1)
@@ -303,7 +548,7 @@ class GimbalBridge:
                                    "seq": None})
             return
         cmd = msg.get("cmd")
-        if not isinstance(cmd, str) or cmd not in PASSTHROUGH_CMDS | {"ping", "bye", "status"}:
+        if not isinstance(cmd, str) or cmd not in PASSTHROUGH_CMDS | LOCAL_CMDS | {"ping", "bye", "status"}:
             self._send_json(addr, {"type": "command_result", "cmd": cmd if isinstance(cmd, str) else None,
                                    "seq": _as_int(msg.get("seq")), "ok": False,
                                    "message": "无效指令"})
@@ -330,6 +575,7 @@ class GimbalBridge:
                 "telemetry_hz": self.args.telemetry_hz,
                 "video_rtsp_path": self.args.mount,
                 "aircraft_id": getattr(self.args, "aircraft_id", 1),
+                "capabilities": ["vision_mode", "server_video_overlay", "auto_lock", "frame_exact_track"],
             }
             self._send_json(addr, hello)
             print(f"[udp] 客户端登记 {addr}，当前 {len(self.clients)} 个", flush=True)
@@ -390,12 +636,24 @@ class GimbalBridge:
                                   {"type": "error", "message": "暂无遥测"})
             return
 
-        if seq is not None and cmd in PASSTHROUGH_CMDS:
+        if seq is not None and cmd in PASSTHROUGH_CMDS | LOCAL_CMDS:
             if seq < cl.last_control_seq:
                 self._reply_and_cache(cl, seq, {"type": "command_result", "cmd": cmd,
                                                 "ok": False, "message": "过时指令，未执行"})
                 return
             cl.last_control_seq = seq
+
+        if cmd == "set_vision_mode":
+            mode = msg.get("mode")
+            if mode not in VISION_MODES:
+                self._reply_and_cache(cl, seq, {"type": "command_result", "cmd": cmd,
+                                                "ok": False,
+                                                "message": "mode 必须为 off/detect/auto_lock/manual_track"})
+                return
+            self._set_vision_mode(mode)
+            self._reply_and_cache(cl, seq, {"type": "command_result", "cmd": cmd,
+                                            "ok": True, "message": ""})
+            return
 
         if cmd == "reset_axis":
             axis = msg.get("axis")
@@ -403,10 +661,17 @@ class GimbalBridge:
                 self._reply_and_cache(cl, seq, {"type": "command_result", "cmd": cmd,
                     "ok": False, "message": "axis 必须为 yaw 或 pitch"})
                 return
+            if self._vision_mode in {"auto_lock", "manual_track"}:
+                self._set_vision_mode("off")
             self._record_and_publish(cl, seq, {"cmd": cmd, "axis": axis})
             return
 
         if cmd in {"track", "manual"}:
+            if cmd == "track" and self._vision_mode != "manual_track":
+                self._reply_and_cache(cl, seq, {"type": "command_result", "cmd": cmd,
+                                                "ok": False,
+                                                "message": "请先切换到手动框选模式"})
+                return
             try:
                 if cmd == "track":
                     box = msg.get("box")
@@ -430,8 +695,17 @@ class GimbalBridge:
                 out = {"cmd": cmd}
                 if keys:
                     out.update(zip(keys, values))
+                    if (any(abs(value) > 1e-9 for value in values)
+                            and self._vision_mode in {"auto_lock", "manual_track"}):
+                        # 在网关协议层执行人工抢占，保证 GUI 和第三方 CLI 行为一致。
+                        self._set_vision_mode("off")
                 else:
                     out["box"] = values
+                    if "frame_seq" in msg:
+                        frame_seq = _as_int(msg.get("frame_seq"))
+                        if frame_seq is None or frame_seq < 0:
+                            raise ValueError("frame_seq 必须是非负整数")
+                        out["frame_seq"] = frame_seq
             except (TypeError, ValueError, OverflowError) as exc:
                 self._reply_and_cache(cl, seq, {"type": "command_result", "cmd": cmd,
                                                 "ok": False, "message": str(exc)})
@@ -440,6 +714,8 @@ class GimbalBridge:
             return
 
         if cmd in PASSTHROUGH_CMDS:
+            if cmd in {"stop", "home", "reset", "reset_fault"}:
+                self._set_vision_mode("off")
             self._record_and_publish(cl, seq, {"cmd": cmd})
             return
         self._reply_and_cache(cl, seq, {"type": "command_result", "cmd": cmd,
@@ -603,8 +879,10 @@ def main():
     parser.add_argument("--status-ip", help="额外状态接收 IP；须同时指定 --status-port")
     parser.add_argument("--status-port", type=int, help="额外状态接收端口")
     parser.add_argument("--status-hz", type=float, help="覆盖额外状态发送频率，默认 20 Hz")
-    parser.add_argument("--encoder", choices=["nvenc", "x264"], default="nvenc",
-                        help="视频编码器：nvenc(nvcudah264enc，默认) / x264 软编降级")
+    parser.add_argument("--encoder", choices=["nvenc"], default="nvenc",
+                        help="视频编码器：仅支持 NVIDIA NVENC；不可用时拒绝启动")
+    parser.add_argument("--vision-config", type=Path, default=DEFAULT_VISION_CONFIG,
+                        help="目标检测与多目标跟踪配置 JSON")
     args = parser.parse_args()
     try:
         args.mount = aircraft_mount(args.mount, args.aircraft_id)
@@ -614,6 +892,10 @@ def main():
             raise ValueError("rtp-port 必须为 1～65535")
         args.status_config = load_status_config(args.status_config, ip=args.status_ip,
                                                 port=args.status_port, hz=args.status_hz)
+        # 启动阶段先验证配置和模型路径；OpenCV/模型前向在首次启用视觉时加载。
+        vision_config = load_vision_config(args.vision_config)
+        if not vision_config["model_path"].is_file():
+            raise ValueError(f"目标检测模型不存在: {vision_config['model_path']}")
     except ValueError as exc:
         parser.error(str(exc))
 

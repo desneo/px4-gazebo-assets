@@ -28,13 +28,42 @@ def visual(link, name, pose, size, color):
     return element
 
 
+def aircraft_visuals(link, scale=5.0):
+    """使用仓库内小蝙蝠固定翼外形构造无传感器的空中视觉夹具。"""
+    for side in (-1, 1):
+        element = ET.SubElement(link, 'visual', name=f'aircraft_wing_{side}')
+        geometry = ET.SubElement(element, 'geometry')
+        mesh = ET.SubElement(geometry, 'mesh')
+        set_text(mesh, 'uri', f'model://xiaobianfu/meshes/wing_{side}.stl')
+        set_text(mesh, 'scale', f'{scale} {scale} {scale}')
+        material = ET.SubElement(element, 'material')
+        set_text(material, 'ambient', '.95 .96 .92 1')
+        set_text(material, 'diffuse', '.95 .96 .92 1')
+        y = side * .27 * scale
+        visual(link, f'aircraft_stripe_{side}', f'{.005*scale} {y} {.014*scale} 0 0 {-side*.43}',
+               f'{.045*scale} {.42*scale} {.003*scale}', '.03 .6 .03 1')
+        visual(link, f'aircraft_winglet_{side}',
+               f'{-.115*scale} {side*.492*scale} {.045*scale} 0 0 0',
+               f'{.13*scale} {.012*scale} {.10*scale}', '.03 .6 .03 1')
+    pod = ET.SubElement(link, 'visual', name='aircraft_central_pod')
+    set_text(pod, 'pose', f'{.025*scale} 0 {.012*scale} 0 0 0')
+    geometry = ET.SubElement(pod, 'geometry')
+    set_text(ET.SubElement(geometry, 'ellipsoid'), 'radii',
+             f'{.175*scale} {.075*scale} {.04*scale}')
+    material = ET.SubElement(pod, 'material')
+    set_text(material, 'ambient', '.03 .6 .03 1')
+    set_text(material, 'diffuse', '.03 .6 .03 1')
+    visual(link, 'aircraft_canopy', f'{.07*scale} 0 {.047*scale} 0 0 0',
+           f'{.13*scale} {.07*scale} {.022*scale}', '.08 .10 .12 1')
+
+
 def target_model():
     model = ET.fromstring('''<model name="tracking_target">
-      <static>false</static><pose>30 0 70 0 0 0</pose>
+      <static>false</static><pose>30 0 70 0 0 3.14159265359</pose>
       <link name="body"><gravity>false</gravity>
         <inertial><mass>1</mass><inertia><ixx>0.96</ixx><iyy>0.483333333333</iyy>
           <izz>0.483333333333</izz><ixy>0</ixy><ixz>0</ixz><iyz>0</iyz></inertia></inertial>
-        <collision name="body_collision"><geometry><box><size>0.2 2.4 2.4</size></box></geometry></collision>
+        <collision name="body_collision"><geometry><box><size>1.8 5.2 0.55</size></box></geometry></collision>
       </link>
       <plugin filename="gz-sim-velocity-control-system" name="gz::sim::systems::VelocityControl">
         <topic>/model/tracking_target/cmd_vel</topic></plugin>
@@ -43,22 +72,16 @@ def target_model():
         <odom_topic>/model/tracking_target/odometry</odom_topic></plugin>
     </model>''')
     link = model.find('link')
-    visual(link, 'body_visual', '0 0 0 0 0 0', '0.2 2.4 2.4', '0.35 0.35 0.35 1')
-    # 两个宽面使用 8×8 黑白格，薄侧面使用交替色条；几何材质无需外部贴图。
-    for side in (-1, 1):
-        for row in range(8):
-            for col in range(8):
-                color = '.025 .025 .025 1' if (row + col) % 2 == 0 else '.95 .95 .95 1'
-                y, z = -1.05 + col * .3, -1.05 + row * .3
-                visual(link, f'checker_{side}_{row}_{col}', f'{side * .102} {y} {z} 0 0 0', '.004 .3 .3', color)
-        # 不同位置、不同颜色标记打破棋盘旋转对称性。
-        visual(link, f'red_marker_{side}', f'{side * .106} -.9 .9 0 0 0', '.004 .22 .22', '.95 .05 .04 1')
-        visual(link, f'blue_marker_{side}', f'{side * .106} .6 -.9 0 0 0', '.004 .38 .14', '.04 .12 .95 1')
-        for index in range(8):
-            position = -1.05 + index * .3
-            color = '.04 .04 .04 1' if index % 2 else '.95 .8 .05 1'
-            visual(link, f'edge_y_{side}_{index}', f'0 {side * 1.202} {position} 0 0 0', '.2 .004 .3', color)
-            visual(link, f'edge_z_{side}_{index}', f'0 {position} {side * 1.202} 0 0 0', '.2 .3 .004', color)
+    aircraft_visuals(link)
+    return model
+
+
+def detection_aircraft(name, pose, scale=4.0):
+    """额外静态飞机目标，用于验证多目标编号和中心最近选择。"""
+    model = ET.fromstring(
+        f'<model name="{name}"><static>true</static><pose>{pose}</pose>'
+        '<link name="body"/></model>')
+    aircraft_visuals(model.find('link'), scale)
     return model
 
 
@@ -116,6 +139,10 @@ def prepare(output):
     world.append(fixture)
     world.append(location_marker())
     world.append(target_model())
+    world.append(detection_aircraft('detection_aircraft_left',
+                                    '34 -9 71 0 0 3.14159265359'))
+    world.append(detection_aircraft('detection_aircraft_right',
+                                    '38 11 73 0 0 3.14159265359'))
     panel = ET.fromstring('''<model name="occlusion_panel"><static>true</static>
       <pose>100 100 80 0 0 0</pose><link name="body">
         <collision name="panel"><geometry><box><size>0.2 20 20</size></box></geometry></collision>

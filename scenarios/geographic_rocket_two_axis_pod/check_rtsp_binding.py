@@ -124,7 +124,7 @@ def main():
                                                        f'/two_axis_pod_{args.absent_id}')
             if report['absent_describe_status'] != 404:
                 raise RuntimeError('约定未注册路径没有返回404')
-        pipeline, sink, decoder = station.build_pipeline(url, 'avdec')
+        pipeline, sink, decoder = station.build_pipeline(url, 'nvdec')
         report['decoder'] = decoder
         pipeline.set_state(station.Gst.State.PLAYING)
         with (args.output/'binding_samples.jsonl').open('w') as log:

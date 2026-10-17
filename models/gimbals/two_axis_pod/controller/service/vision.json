@@ -1,0 +1,12 @@
+{
+  "model_path": "../../models/yolo11/aircraft_yolo11n/model.onnx",
+  "input_size": 640,
+  "confidence_threshold": 0.25,
+  "low_confidence_threshold": 0.1,
+  "nms_iou_threshold": 0.45,
+  "opencv_threads": 8,
+  "confirmation_hits": 5,
+  "max_missed": 15,
+  "high_match_iou": 0.3,
+  "low_match_iou": 0.2
+}

@@ -1,0 +1,54 @@
+{
+  "name": "Planespotting YOLO11n aircraft detector",
+  "architecture": "YOLO11n",
+  "task": "object-detection",
+  "format": "ONNX",
+  "license": "AGPL-3.0",
+  "classes": {
+    "0": "aircraft"
+  },
+  "input": {
+    "name": "images",
+    "dtype": "float32",
+    "layout": "NCHW",
+    "shape": [1, 3, 640, 640]
+  },
+  "outputs": [
+    {
+      "name": "output0",
+      "dtype": "float32",
+      "layout": "BCN",
+      "shape": [1, 5, 8400],
+      "channels": [
+        "x_center",
+        "y_center",
+        "width",
+        "height",
+        "aircraft_confidence"
+      ]
+    }
+  ],
+  "preprocessing": {
+    "color_order": "RGB",
+    "resize": "letterbox",
+    "input_size": [640, 640],
+    "scale": 0.00392156862745098
+  },
+  "export": {
+    "ultralytics": "8.4.178",
+    "torch": "2.14.1+cpu",
+    "onnx": "1.23.2",
+    "opset": 17,
+    "batch": 1,
+    "dynamic": false,
+    "simplify": true,
+    "embedded_nms": false
+  },
+  "source": {
+    "repository": "nyuuzyou/Planespotting-YOLO11",
+    "revision": "24eda2e19aa7efffed4b725a28430dc49bd89f83",
+    "file": "yolo11n/weights/best.pt",
+    "sha256": "476ffc0a413a541f8b6f1503a34430ff926715b77e9c8a43697593f87f7d2b46"
+  },
+  "sha256": "001679a8f0be63a286a6822831d2ffb1d89649e05025304f8b0af4eb74fec0f2"
+}

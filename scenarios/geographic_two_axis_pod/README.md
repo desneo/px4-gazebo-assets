@@ -4,7 +4,7 @@
 
 吊舱底部圆环在 `(0, 0, 50)` 固定于世界，Ø84 mm 圆环与地面平行，导引头整体向上高 91 mm。圆环下方的蓝色水平台面 `pod_mount_fixture` 是独立观察夹具，顶面高度 50 m，不属于吊舱外形和尺寸。安装姿态为单位旋转，使用已确认的立装运动链 `Rz(yaw) Ry(pitch)`。俯仰零位朝天，正值朝前，限位 −45°～+90°；偏航绕竖直 +Z，限位 ±90°。该安装与限位下镜头无法指向安装水平以下，因此测试对象为空中夹具，不使用地面小车，也不通过转动安装方向改变可视范围。
 
-动态靶标 `tracking_target` 的初始中心为 `(30, 0, 70)`，尺寸 `0.2 × 2.4 × 2.4 m`，关闭重力。朝 −X 和 +X 的宽面均有黑白棋盘及非对称红蓝色标，其他面为交替色条。它由 Gazebo VelocityControl 驱动，属于视觉测试夹具，不代表飞行器或飞行动力学。速度话题为 `/model/tracking_target/cmd_vel`，里程计话题为 `/model/tracking_target/odometry`。
+动态飞机靶标 `tracking_target` 的初始中心为 `(30, 0, 70)`，使用仓库内小蝙蝠固定翼外形放大到约 5 m 翼展，关闭重力。它由 Gazebo VelocityControl 驱动，只作为视觉测试夹具，不代表飞行动力学。速度话题为 `/model/tracking_target/cmd_vel`，里程计话题为 `/model/tracking_target/odometry`。`detection_aircraft_left` 与 `detection_aircraft_right` 是无碰撞静态飞机夹具，和动态目标共同验证多目标稳定编号及中心最近自动锁定。
 
 实体遮挡板名为 `occlusion_panel`，尺寸 `0.2 × 20 × 20 m`；隐藏位置为 `(100, 100, 80)`，遮挡位置为 `(15, 0, 60)`，横跨初始吊舱与靶标视线。
 
@@ -15,18 +15,25 @@
 ```bash
 bash scenarios/geographic_two_axis_pod/run.sh --gui
 GZ_PARTITION=geographic_two_axis_pod python3 scenarios/geographic_two_axis_pod/check_target.py --prepare-only
-bash models/gimbals/two_axis_pod/ground_station/run.sh --udp-port 8766 --rtsp-port 8555 --decoder avdec
+bash models/gimbals/two_axis_pod/ground_station/run.sh --udp-port 8766 --rtsp-port 8555 --decoder nvdec
 ```
 
 启动后机械零位朝天；先执行 `check_target.py --prepare-only`，将相机指向靶标并完成测试初始化，再打开地面站观察运动与视频。启动器不会自动调用测试初始化。测试无需 PX4，也无需载机装配。
 
-默认 partition 为 `geographic_two_axis_pod`，运行目录为 `runs/geographic_two_axis_pod/`，UDP 为 `8766`，RTSP 为 `8555`，内部 RTP 自动分配，RTSP 挂载点为 `/two_axis_pod_1`（`--aircraft-id` 可配置）。默认采用 x264 编码，可通过 `--encoder nvenc` 切换。`GZ_PARTITION` 和 `GIMBAL_RUNDIR` 环境变量可覆盖默认值；其余参数传给组件网关。多机可共用 RTSP 8555，必须传入不同 `--aircraft-id` 并隔离控制端口和 Gazebo 话题；地面站配置对应 ID 与控制端口。
+默认 partition 为 `geographic_two_axis_pod`，运行目录为 `runs/geographic_two_axis_pod/`，UDP 为 `8766`，RTSP 为 `8555`，内部 RTP 自动分配，RTSP 挂载点为 `/two_axis_pod_1`（`--aircraft-id` 可配置）。视频强制使用 NVENC/NVDEC；不可用时网关或地面站明确报错退出。`GZ_PARTITION` 和 `GIMBAL_RUNDIR` 环境变量可覆盖默认值；其余参数传给组件网关。多机可共用 RTSP 8555，必须传入不同 `--aircraft-id` 并隔离控制端口和 Gazebo 话题；地面站配置对应 ID 与控制端口。
 
 额外 UDP JSON 状态副本可在组件 `controller/service/status_udp.json` 中启用，也可传入 `--status-ip 192.168.1.100 --status-port 9000 --status-hz 20`。此输出使用独立 socket 和发送循环，无需接收端登记，不改变原 station 服务，见[网关配置](../../models/gimbals/two_axis_pod/controller/service/README.md#额外-udp-json-状态上报)。
 
 ```bash
 # 完整视觉检查；不要同时运行其他 UDP 控制客户端。
 GZ_PARTITION=geographic_two_axis_pod python3 scenarios/geographic_two_axis_pod/check_target.py
+# 飞机检测、处理速率、三目标自动锁定与锁定后不换目标。
+python3 scenarios/geographic_two_axis_pod/check_vision.py
+# 保留检测模式后，用 NVDEC 保存带服务端红框和编号的 RTSP 帧。
+python3 scenarios/geographic_two_axis_pod/check_vision.py --leave-mode detect
+GIMBAL_PYTHON=../two_axis_pod_venv/bin/python \
+  bash models/gimbals/two_axis_pod/ground_station/run.sh --decoder nvdec \
+  --decode-test 5 --snapshot runs/geographic_two_axis_pod/vision_nvdec.png
 # 停止场景服务（沿用本次启动的运行目录）。
 GIMBAL_RUNDIR="$PWD/runs/geographic_two_axis_pod" bash models/gimbals/two_axis_pod/scripts/stop_bridge.sh
 GIMBAL_RUNDIR="$PWD/runs/geographic_two_axis_pod" bash models/gimbals/two_axis_pod/scripts/stop_plugin_sim.sh
@@ -48,7 +55,7 @@ GIMBAL_PYTHON=../two_axis_pod_venv/bin/python python3 scenarios/geographic_two_a
   --observe-seconds 10 --output runs/geographic_two_axis_pod/observe.jsonl
 ```
 
-测试脚本默认连接该场景分区。移动测试以 0.5 m/s 完成四段轨迹，转弯角速度为 ±0.06 rad/s。验收要求：有效 TRACK 比例至少95%、中心角误差与独立靶标中心真值角差 P95 均不超过3°、累计移动距离至少10米、无重力靶标高度变化小于0.1米。里程计仅用于验收，不参与图像跟踪控制。遮挡测试每轮保持实体遮挡2秒墙钟，要求出现 TEMP_LOST、不进入终止 LOST、移除遮挡后恢复TRACK并持续稳定1秒。
+测试脚本默认连接该场景分区。移动测试以 0.5 m/s 完成四段轨迹，转弯角速度为 ±0.06 rad/s。验收要求：有效 TRACK 比例至少95%、中心角误差与独立靶标中心真值角差 P95 均不超过3°、累计移动距离至少10米、无重力靶标高度变化小于0.1米。里程计仅用于验收，不参与图像跟踪控制。遮挡测试每轮保持实体遮挡2秒墙钟，要求出现 TEMP_LOST、不进入终止 LOST、移除遮挡后恢复TRACK并持续稳定1秒。`check_vision.py` 要求网关上报全部视觉能力、至少识别一个飞机目标、视觉输出速率不低于相机输入的 80%，自动锁定进入 TRACK 且两秒内不换轨迹。
 
 记录保存到 `runs/geographic_two_axis_pod/target.jsonl` 和 `target.summary.json`；实窗观察使用独立 `observe.jsonl`，避免覆盖验收结果。地面站截图为 `ground_station.png`。独立环境应包含组件地面站所需的 OpenCV、NumPy、Pillow、PyGObject 与 GStreamer；`GIMBAL_PYTHON` 可指定其他已有解释器。
 

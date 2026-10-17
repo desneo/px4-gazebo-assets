@@ -1,6 +1,6 @@
 # 两轴立装吊舱
 
-`two_axis_pod` 是独立的两轴立装相机组件，包含 Gazebo 模型、图像跟踪控制插件、UDP/RTSP 网关、地面站与固定立装演示。导引头以水平圆环为底部，后部弧形罩壳向上延伸，球形相机位于罩壳前方的双侧俯仰支架内。圆环直径 84 mm，整机高度 91 mm、底部以上主体高度 83 mm、底部圆面厚度 8 mm、相机球直径 48 mm，并表现 6×M3 孔位。三轴组件保持独立。
+`two_axis_pod` 是独立的两轴立装相机组件，包含 Gazebo 模型、飞机目标检测与多目标跟踪、图像跟踪控制插件、UDP/RTSP 网关、地面站与固定立装演示。导引头以水平圆环为底部，后部弧形罩壳向上延伸，球形相机位于罩壳前方的双侧俯仰支架内。圆环直径 84 mm，整机高度 91 mm、底部以上主体高度 83 mm、底部圆面厚度 8 mm、相机球直径 48 mm，并表现 6×M3 孔位。三轴组件保持独立。
 
 ![两轴立装吊舱零位实景](docs/preview.png)
 
@@ -32,11 +32,15 @@ bash models/gimbals/two_axis_pod/ground_station/run.sh
 
 运行依赖与网络地址见[启动说明](scripts/README.md)、[网关说明](controller/service/README.md)和[地面站说明](ground_station/README.md)。演示世界不启动 PX4。相机为 1920×1080@30Hz、水平视场 60°。
 
+地面站提供关闭视觉、目标检测、自动锁定和手动框选四个互斥模式。目标检测使用 `models/yolo11/aircraft_yolo11n/model.onnx` 的单类飞机模型；多目标轨迹默认连续命中 5 帧后确认，检测及自动搜索阶段的 RTSP 画面包含红框与稳定轨迹号。自动锁定首次选择离画面中心最近的已确认目标，然后停止多目标叠加并把该框交给 CSRT，地面站只显示一个绿色跟踪框；CSRT 最终丢失后恢复检测搜索。视频只允许 NVENC 编码和 NVDEC 解码，不提供软件回退。
+
 网关支持向配置的 IP/端口额外发送 UDP JSON 状态副本，默认关闭、默认频率 20 Hz。配置文件为 `controller/service/status_udp.json`；该独立输出不改变 station 原有遥测和控制，见[主动上报配置](controller/service/README.md#额外-udp-json-状态上报)。
 
 ## 参数与资料
 
 - `parameters.json`：尺寸、机械限位、最大速度/加速度与相机参数。
+- `models/yolo11/aircraft_yolo11n/`：单类飞机 ONNX、类别、来源、许可、元数据与校验值。
+- `controller/service/vision.json`：检测置信度、NMS、多目标确认/丢失参数和推理线程数。
 - `tools/generate_model.py`：生成 `model.sdf`、罩壳网格与 `tests/world.sdf`。演示环境底图来自 `tests/world_base.sdf`，生成时加入固定立装吊舱和朝天纹理靶标。
 - [控制协议](docs/control-protocol.md)：机械角、命令与遥测约定。
 - [验证说明](docs/validation.md)：验证命令、结果及限制。

@@ -5,7 +5,7 @@
   "aircraft_id": 1,
   "rtsp_mount": "/two_axis_pod",
   "display_scale": 0.5,
-  "decoder": "nvenc",
+  "decoder": "nvdec",
   "window_title": "Gimbal Ground Station",
   "client_timeout": 5.0,
   "retry_interval": 0.2,

@@ -18,7 +18,7 @@ gz sdf -k models/gimbals/two_axis_pod/model.sdf
 gz sdf -k models/gimbals/two_axis_pod/tests/world.sdf
 ```
 
-网络与地面站测试包含 60 项，使用 Python 标准库。其中 `ground_station/tests/test_status_udp.py` 使用本机 UDP 回环验证额外状态输出：配置读取和覆盖、默认关闭、20 Hz 独立发送、原 station 50 Hz 遥测与 ping、字段完整保留、遥测过期暂停、发送异常恢复、关闭额外输出后 station 继续工作。不会向外部 IP 发送测试数据。
+网络与地面站测试包含 87 项。其中 `ground_station/tests/test_status_udp.py` 使用本机 UDP 回环验证额外状态输出：配置读取和覆盖、默认关闭、20 Hz 独立发送、原 station 50 Hz 遥测与 ping、字段完整保留、遥测过期暂停、发送异常恢复、关闭额外输出后 station 继续工作；`test_windows.py` 验证 Windows 配置、视频帧处理、D3D11 硬解打开参数以及拒绝软件解码回退。不会向外部 IP 发送测试数据。
 
 ## 在线验证
 
@@ -26,9 +26,9 @@ gz sdf -k models/gimbals/two_axis_pod/tests/world.sdf
 export GZ_PARTITION=two_axis_validation
 bash models/gimbals/two_axis_pod/scripts/run_plugin_sim.sh
 python3 models/gimbals/two_axis_pod/tests/check_sim.py
-bash models/gimbals/two_axis_pod/scripts/run_bridge.sh --encoder x264
+bash models/gimbals/two_axis_pod/scripts/run_bridge.sh --encoder nvenc
 bash models/gimbals/two_axis_pod/ground_station/run.sh --selftest 5 --send-home --send-manual
-bash models/gimbals/two_axis_pod/ground_station/run.sh --decode-test 5 --decoder avdec --snapshot runs/two_axis_pod/rtsp.png
+bash models/gimbals/two_axis_pod/ground_station/run.sh --decode-test 5 --decoder nvdec --snapshot runs/two_axis_pod/rtsp.png
 bash models/gimbals/two_axis_pod/scripts/stop_bridge.sh
 bash models/gimbals/two_axis_pod/scripts/stop_plugin_sim.sh
 ```
@@ -39,10 +39,18 @@ RTSP 解码和地面站自检需具备 OpenCV Python 等依赖；可用 `GIMBAL_
 
 完整400块地理背景中的动态靶标与实体遮挡验收见[地理部件测试场景](../../../../scenarios/geographic_two_axis_pod/README.md)，使用同一两轴模型与协议。
 
-多机视频验证（无需 Gazebo 或 PX4，需要 GStreamer、GstRtspServer、x264 与 avdec_h264）：
+目标检测/跟踪核心测试使用带 OpenCV 的两轴环境，覆盖 YOLO 输出解析、连续 5 帧确认、误检过滤、ByteTrack 两阶段关联、稳定 ID、Hungarian 匹配、中心最近选择和 RGB 红框：
 
 ```bash
-python3 models/gimbals/two_axis_pod/controller/service/tests/test_rtsp_multi.py
+../two_axis_pod_venv/bin/python -m unittest \
+  models/gimbals/two_axis_pod/controller/service/tests/test_vision.py
+```
+
+多机视频验证（无需 Gazebo 或 PX4，需要 NVIDIA NVENC/NVDEC、GStreamer 与 GstRtspServer）：
+
+```bash
+../two_axis_pod_venv/bin/python \
+  models/gimbals/two_axis_pod/controller/service/tests/test_rtsp_multi.py
 ```
 
 测试使用临时 RTSP 端口，启动独立编码进程验证同端口不同 ID 后缀的视频隔离、重复路径拒绝、单路退出、租约过期和中继重启恢复。测试中继在全部视频退出后空闲约 30 秒自动退出。

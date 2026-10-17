@@ -81,6 +81,13 @@ void GimbalControl::ResetFault()
 }
 void GimbalControl::Manual(double y, double p, double now)
 {
+  // 客户端以 manual(0, 0) 明确表示松手停车。零速指令应直接退出手动
+  // 模式，不能重新武装 0.5 s 看门狗并在正常松手后误报输入超时。
+  if (std::abs(y) < 1e-9 && std::abs(p) < 1e-9)
+  {
+    Stop();
+    return;
+  }
   message_.clear();
   mode_ = Mode::MANUAL;
   state_ = TrackState::IDLE;

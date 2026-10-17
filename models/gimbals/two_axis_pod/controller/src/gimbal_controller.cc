@@ -3,7 +3,10 @@
 #include <chrono>
 #include <cmath>
 #include <cstdint>
+#include <deque>
+#include <limits>
 #include <mutex>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -54,6 +57,13 @@ struct Frame
   double simStamp{0.0};
   double arrive{0.0};
   std::int64_t seq{0};
+};
+
+struct ProcessedFrame
+{
+  std::int64_t seq{0};
+  cv::Mat bgr;
+  double arrive{0.0};
 };
 }  // namespace
 
@@ -117,6 +127,7 @@ private:
   cv::Mat latestBgr_;
   int latestWidth_{0};
   int latestHeight_{0};
+  std::deque<ProcessedFrame> processedFrames_;
   std::int64_t lastProcessedSeq_{-1};
   std::int64_t meanSeq_{0};
   std::chrono::steady_clock::time_point manualReceived_{};
@@ -369,6 +380,18 @@ void GimbalController::OnCommand(const gz::msgs::StringMsg &_msg)
       reply(false, "选框必须位于归一化图像范围内");
       return;
     }
+    std::optional<std::int64_t> requestedFrameSeq;
+    if (const json::Value *seqV = v.Find("frame_seq"))
+    {
+      if (seqV->type != json::Value::Type::NUM || !std::isfinite(seqV->num) ||
+          std::floor(seqV->num) != seqV->num || seqV->num < 0 ||
+          seqV->num > static_cast<double>(std::numeric_limits<std::int64_t>::max()))
+      {
+        reply(false, "frame_seq 必须是非负整数");
+        return;
+      }
+      requestedFrameSeq = static_cast<std::int64_t>(seqV->num);
+    }
     double frameAge;
     {
       std::lock_guard<std::mutex> imgLock(this->imgMutex_);
@@ -382,14 +405,40 @@ void GimbalController::OnCommand(const gz::msgs::StringMsg &_msg)
       return;
     }
     std::lock_guard<std::mutex> lock(this->ctrlMutex_);
-    if (this->latestBgr_.empty())
+    const cv::Mat *trackingImage = &this->latestBgr_;
+    int trackingWidth = this->latestWidth_;
+    int trackingHeight = this->latestHeight_;
+    if (requestedFrameSeq)
+    {
+      const auto it = std::find_if(this->processedFrames_.rbegin(),
+        this->processedFrames_.rend(), [&](const ProcessedFrame &_frame)
+        {
+          return _frame.seq == *requestedFrameSeq;
+        });
+      if (it == this->processedFrames_.rend())
+      {
+        reply(false, "指定视频帧已过期或尚未处理");
+        return;
+      }
+      const double selectedAge = std::chrono::duration<double>(
+        std::chrono::steady_clock::now().time_since_epoch()).count() - it->arrive;
+      if (selectedAge >= 0.5)
+      {
+        reply(false, "指定视频帧已超时");
+        return;
+      }
+      trackingImage = &it->bgr;
+      trackingWidth = it->bgr.cols;
+      trackingHeight = it->bgr.rows;
+    }
+    if (trackingImage->empty())
     {
       reply(false, "尚无视频帧");
       return;
     }
     auto [ok, message] =
-      this->control_.StartTracking(this->latestBgr_, box, this->latestWidth_,
-                                   this->latestHeight_);
+      this->control_.StartTracking(*trackingImage, box, trackingWidth,
+                                   trackingHeight);
     reply(ok, message);
   }
   else if (cmd == "stop")
@@ -553,6 +602,8 @@ void GimbalController::PreUpdate(const gz::sim::UpdateInfo &_info,
 
     // 取最新图像 -> BGR（仅在新帧时转换）
     cv::Mat bgr;
+    std::int64_t processedSeq{-1};
+    double processedArrive{0.0};
     {
       std::lock_guard<std::mutex> imgLock(this->imgMutex_);
       if (this->frame_.valid && this->frame_.seq != this->lastProcessedSeq_ &&
@@ -567,6 +618,8 @@ void GimbalController::PreUpdate(const gz::sim::UpdateInfo &_info,
           const cv::Mat rgb(h, w, CV_8UC3,
                             const_cast<char *>(this->frame_.rgb.data()));
           cv::cvtColor(rgb, bgr, cv::COLOR_RGB2BGR);
+          processedSeq = this->frame_.seq;
+          processedArrive = this->frame_.arrive;
         }
         this->lastProcessedSeq_ = this->frame_.seq;
         this->meanSeq_ = this->frame_.seq;
@@ -579,6 +632,10 @@ void GimbalController::PreUpdate(const gz::sim::UpdateInfo &_info,
       this->latestBgr_ = bgr.clone();
       this->latestWidth_ = bgr.cols;
       this->latestHeight_ = bgr.rows;
+      this->processedFrames_.push_back(
+        ProcessedFrame{processedSeq, this->latestBgr_, processedArrive});
+      while (this->processedFrames_.size() > 4)
+        this->processedFrames_.pop_front();
     }
     const bool newFrame = !bgr.empty();
     const cv::Mat &useImg = newFrame ? bgr : this->latestBgr_;

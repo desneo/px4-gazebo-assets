@@ -42,12 +42,14 @@ ENCODE_LAUNCH = (
 class VideoStreamer:
     def __init__(self, width: int, height: int, fps: int = 30,
                  rtsp_port: int = 8555, mount: str = "/two_axis_pod_1",
-                 bitrate_kbps: int = 8000, udp_port: int | None = None):
+                 bitrate_kbps: int = 8000, udp_port: int | None = None,
+                 on_error=None):
         self.width = width
         self.height = height
         self.fps = fps
         self.rtsp_port = rtsp_port
         self.mount = mount
+        self._on_error = on_error
         # 未指定时由系统分配内部 RTP 端口；显式端口先检查占用。
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as reservation:
             reservation.bind(("127.0.0.1", udp_port or 0))
@@ -91,6 +93,8 @@ class VideoStreamer:
         if message.type == Gst.MessageType.ERROR:
             err, dbg = message.parse_error()
             print(f"[video] 编码管线错误: {err.message} ({dbg})", flush=True)
+            if self._on_error is not None:
+                self._on_error(err.message)
         elif message.type == Gst.MessageType.WARNING:
             print(f"[video] 编码管线警告: {message.parse_warning()[0].message}", flush=True)
 

@@ -141,6 +141,12 @@ class PublisherTests(unittest.TestCase):
         bridge.video = None
         bridge._latest_tel = self.snapshot
         bridge._latest_tel_received = time.monotonic()
+        bridge._vision_mode = "off"
+        bridge._vision_state = "OFF"
+        bridge._vision_target_count = 0
+        bridge._locked_track_id = None
+        bridge._vision_error = None
+        bridge._vision_metrics = {}
         bridge._t_start = time.time()
         bridge._running = True
         bridge.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)

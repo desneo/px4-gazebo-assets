@@ -6,6 +6,7 @@ import sys
 import threading
 from types import SimpleNamespace
 import unittest
+from unittest import mock
 
 import numpy as np
 
@@ -19,6 +20,42 @@ from stamp import seq_to_bits  # noqa: E402
 
 
 class WindowsGroundStationTests(unittest.TestCase):
+    def test_d3d11_capture_params_require_explicit_hardware_decode(self):
+        params = windows.d3d11_capture_params()
+        pairs = dict(zip(params[0::2], params[1::2]))
+        self.assertEqual(
+            pairs[windows.cv2.CAP_PROP_HW_ACCELERATION],
+            windows.cv2.VIDEO_ACCELERATION_D3D11)
+
+    def test_open_capture_rejects_software_decode_fallback(self):
+        class SoftwareCapture:
+            released = False
+
+            @staticmethod
+            def isOpened():
+                return True
+
+            @staticmethod
+            def get(prop):
+                if prop == windows.cv2.CAP_PROP_HW_ACCELERATION:
+                    return windows.cv2.VIDEO_ACCELERATION_NONE
+                return 0
+
+            def release(self):
+                self.released = True
+
+        capture = SoftwareCapture()
+        station = windows.WindowsGroundStation.__new__(windows.WindowsGroundStation)
+        station.cfg = {
+            "gimbal_host": "127.0.0.1", "rtsp_port": 8555,
+            "rtsp_mount": "/two_axis_pod", "aircraft_id": 1,
+        }
+        station.rtsp_transport = "tcp"
+        with mock.patch.object(windows.cv2, "VideoCapture", return_value=capture):
+            with self.assertRaisesRegex(RuntimeError, "拒绝软件解码回退"):
+                station._open_capture()
+        self.assertTrue(capture.released)
+
     def test_pointer_guard_uses_process_id_instead_of_mojibake_title(self):
         class User32:
             @staticmethod

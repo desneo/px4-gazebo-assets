@@ -39,10 +39,13 @@ BRIDGE = load_definitions(
      "SEQ_WINDOW": 1024, "MAX_PENDING": 4096, "RESULT_TIMEOUT": 30.,
      "SESSION_RETENTION": 60., "MAX_DATAGRAM": 8192, "RECV_BUFFER": 65535, "socket": socket,
      "StringMsg": type("StringMsg", (), {}),
+     "LOCAL_CMDS": {"set_vision_mode"},
+     "VISION_MODES": {"off", "detect", "auto_lock", "manual_track"},
      "PASSTHROUGH_CMDS": {"track", "stop", "home", "reset", "reset_axis", "manual", "reset_fault"}})
 CLIENT = load_definitions(
     ROOT / "models/gimbals/two_axis_pod/ground_station/ground_station.py", {"UdpClient"},
-    {"threading": threading, "time": time, "json": json, "MAX_DATAGRAM": 8192})
+    {"threading": threading, "time": time, "json": json, "MAX_DATAGRAM": 8192,
+     "VISION_MODES": ("off", "detect", "auto_lock", "manual_track")})
 
 
 class BridgeProtocolTests(unittest.TestCase):
@@ -54,6 +57,20 @@ class BridgeProtocolTests(unittest.TestCase):
         self.bridge.clock_domain = "test-boot"
         self.bridge.retired_clients = {}
         self.bridge.pending_requests = {}
+        self.bridge.lock = threading.RLock()
+        self.bridge._vision_lock = threading.RLock()
+        self.bridge._latest_tel = {}
+        self.bridge._vision_mode = "off"
+        self.bridge._vision_state = "OFF"
+        self.bridge._vision = None
+        self.bridge._locked_track_id = None
+        self.bridge._vision_target_count = 0
+        self.bridge._vision_error = None
+        self.bridge._vision_failed = False
+        self.bridge._vision_metrics = {}
+        self.bridge._vision_times = []
+        self.bridge._last_vision_seq = None
+        self.bridge._auto_lock_sent_at = None
         self.client = BRIDGE["_Client"](("127.0.0.1", 10001))
         self.bridge.clients = {self.client.addr: self.client}
         self.sent = []
@@ -78,6 +95,43 @@ class BridgeProtocolTests(unittest.TestCase):
         self.assertEqual(self.sent[-1][1], {"type": "pong", "seq": 1, "t": 123.5})
         self.assertEqual(self.published, [])
 
+    def test_set_vision_mode_returns_correlated_result(self):
+        self.command(cmd="set_vision_mode", seq=7, mode="detect")
+        self.assertEqual(self.bridge._vision_mode, "detect")
+        self.assertEqual(self.sent[-1][1], {"type": "command_result",
+                                            "cmd": "set_vision_mode", "ok": True,
+                                            "message": "", "seq": 7})
+        self.assertEqual(self.published[-1]["cmd"], "stop")
+
+    def test_set_vision_mode_rejects_unknown_mode(self):
+        self.command(cmd="set_vision_mode", seq=8, mode="unknown")
+        self.assertFalse(self.sent[-1][1]["ok"])
+        self.assertEqual(self.bridge._vision_mode, "off")
+        self.assertEqual(self.published, [])
+
+    def test_auto_lock_hands_selected_target_to_csrt_without_redetection(self):
+        self.bridge._vision_mode = "auto_lock"
+        self.bridge._locked_track_id = 7
+        self.bridge._auto_lock_sent_at = time.monotonic()
+        self.bridge._latest_tel = {"tracking": {"state": "TRACK"}}
+        self.assertTrue(self.bridge._auto_tracker_controls_frame())
+        self.assertEqual(self.bridge._vision_state, "AUTO_LOCKED")
+        self.assertEqual(self.bridge._vision_target_count, 1)
+        self.assertEqual(self.published, [])
+
+    def test_auto_lock_resumes_detection_only_after_csrt_lost(self):
+        resets = []
+        self.bridge._vision_mode = "auto_lock"
+        self.bridge._locked_track_id = 7
+        self.bridge._auto_lock_sent_at = time.monotonic()
+        self.bridge._vision = types.SimpleNamespace(reset=lambda: resets.append(True))
+        self.bridge._latest_tel = {"tracking": {"state": "LOST"}}
+        self.assertFalse(self.bridge._auto_tracker_controls_frame())
+        self.assertIsNone(self.bridge._locked_track_id)
+        self.assertEqual(self.bridge._vision_state, "AUTO_SEARCH")
+        self.assertEqual(self.published[-1]["cmd"], "stop")
+        self.assertEqual(resets, [True])
+
     def test_manual_preserves_joint_rates_at_singular_view(self):
         self.bridge.snapshot = lambda: {"singular": True}
         self.command(cmd="manual", seq=1, yaw=20, pitch=-10)
@@ -85,6 +139,20 @@ class BridgeProtocolTests(unittest.TestCase):
         self.assertIsInstance(actual.pop("request_id"), str)
         self.assertEqual(actual, {"cmd": "manual", "yaw": 20., "pitch": -10.})
         self.assertEqual(self.sent, [])
+
+    def test_nonzero_manual_exits_manual_track_at_gateway_boundary(self):
+        self.bridge._vision_mode = "manual_track"
+        self.bridge._vision_state = "MANUAL_READY"
+        self.command(cmd="manual", seq=1, yaw=12, pitch=0)
+        self.assertEqual(self.bridge._vision_mode, "off")
+        self.assertEqual([item["cmd"] for item in self.published], ["stop", "manual"])
+
+    def test_zero_manual_does_not_change_selected_vision_mode(self):
+        self.bridge._vision_mode = "manual_track"
+        self.bridge._vision_state = "MANUAL_READY"
+        self.command(cmd="manual", seq=1, yaw=0, pitch=0)
+        self.assertEqual(self.bridge._vision_mode, "manual_track")
+        self.assertEqual([item["cmd"] for item in self.published], ["manual"])
 
     def test_roll_input_is_rejected_even_if_zero(self):
         for seq, value in enumerate([0, 5, None], 1):

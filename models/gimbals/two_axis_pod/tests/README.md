@@ -18,7 +18,7 @@ gz sdf -k models/gimbals/two_axis_pod/model.sdf
 gz sdf -k models/gimbals/two_axis_pod/tests/world.sdf
 ```
 
-网络与地面站测试包含 87 项。其中 `ground_station/tests/test_status_udp.py` 使用本机 UDP 回环验证额外状态输出：配置读取和覆盖、默认关闭、20 Hz 独立发送、原 station 50 Hz 遥测与 ping、字段完整保留、遥测过期暂停、发送异常恢复、关闭额外输出后 station 继续工作；`test_windows.py` 验证 Windows 配置、视频帧处理、D3D11 硬解打开参数以及拒绝软件解码回退。不会向外部 IP 发送测试数据。
+网络与地面站测试包含 89 项。其中 `ground_station/tests/test_config.py` 验证带注释 INI 的类型读取和对 JSON 配置的拒绝；`test_status_udp.py` 使用本机 UDP 回环验证额外状态输出：配置读取和覆盖、默认关闭、20 Hz 独立发送、原 station 50 Hz 遥测与 ping、字段完整保留、遥测过期暂停、发送异常恢复、关闭额外输出后 station 继续工作；`test_windows.py` 验证 Windows 配置、视频帧处理、D3D11 硬解打开参数以及拒绝软件解码回退。不会向外部 IP 发送测试数据。
 
 ## 在线验证
 

@@ -26,7 +26,7 @@ import ground_station as common  # noqa: E402
 from stamp import decode_stamp_from_bgr  # noqa: E402
 
 
-WINDOWS_CONFIG = str(HERE / "config.windows.json")
+WINDOWS_CONFIG = str(HERE / "config.windows.ini")
 
 
 def d3d11_capture_params():
@@ -343,7 +343,11 @@ def main(argv=None) -> int:
     parser.add_argument("--rtsp-transport", choices=("tcp", "udp"), default=None,
                         help="Windows RTSP 传输方式")
     args = parser.parse_args(argv)
-    cfg = common.apply_cli_overrides(common.load_config(args.config), args)
+    try:
+        cfg = common.load_config(args.config)
+    except ValueError as exc:
+        parser.error(str(exc))
+    cfg = common.apply_cli_overrides(cfg, args)
     if args.ws_port is not None and args.udp_port is None:
         cfg["udp_port"] = args.ws_port
     if args.rtsp_transport is not None:

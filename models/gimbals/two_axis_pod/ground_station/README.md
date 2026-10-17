@@ -1,6 +1,6 @@
 # 两轴吊舱地面站
 
-地面站显示 RTSP 视频、机械 yaw/pitch 角度和角速度、视觉模式、检测/锁定状态及限位状态。Linux 默认配置保存在同目录 `config.json`，其中包含网关地址、UDP/RTSP 端口、飞机 ID、RTSP 路径、NVDEC 和界面参数。直接执行启动命令；入口自动检查环境，缺少项目虚拟环境或 Python 包时调用 `setup_linux.sh` 安装，然后使用仓库根目录 `.venv-linux` 并读取 `config.json`：
+地面站显示 RTSP 视频、机械 yaw/pitch 角度和角速度、视觉模式、检测/锁定状态及限位状态。Linux 默认配置保存在同目录 `config.ini`，按 `[network]`、`[video]` 和 `[session]` 分组，每个配置项上方都有用途注释。Station 只接受 INI 配置，不解析旧 JSON 文件。直接执行启动命令；入口自动检查环境，缺少项目虚拟环境或 Python 包时调用 `setup_linux.sh` 安装，然后使用仓库根目录 `.venv-linux` 并读取 `config.ini`：
 
 ```bash
 bash models/gimbals/two_axis_pod/ground_station/run.sh
@@ -34,7 +34,7 @@ python3 -m unittest discover -s models/gimbals/two_axis_pod/ground_station/tests
 
 `.venv-linux` 是可重建的本机运行环境，已被 Git 忽略，不随仓库归档；仓库归档的是环境检查、`requirements-linux.txt` 和 `setup_linux.sh`。安装脚本优先使用系统 `python3-venv`，系统缺少 `ensurepip` 时自动使用已有 `uv`；两者都不可用或缺少 GStreamer/PyGObject 时，在 Debian/Ubuntu 上调用 `sudo apt-get` 安装基础系统包。NVIDIA 驱动或 `nvh264dec` 最终仍不可用时明确报错，不回退软件解码。`GIMBAL_PYTHON` 仅保留为开发或诊断时的高级覆盖入口，正常启动不需要设置。
 
-多机视频路径为 `/two_axis_pod_<aircraft_id>`。在 `config.json` 设置 `aircraft_id`（默认 1）；`rtsp_mount` 是路径前缀，末尾自动追加 ID。各机共用 RTSP 8555，UDP 控制端口仍需配置为对应网关端口；配置示例见[网关说明](../controller/service/README.md#多机共享-rtsp)。命令行的 `--udp-port`、`--rtsp-port`、`--aircraft-id`、`--mount` 和 `--decoder` 仅用于临时覆盖配置，不是正常启动必需项。
+多机视频路径为 `/two_axis_pod_<aircraft_id>`。在 `config.ini` 设置 `aircraft_id`（默认 1）；`rtsp_mount` 是路径前缀，末尾自动追加 ID。各机共用 RTSP 8555，UDP 控制端口仍需配置为对应网关端口；配置示例见[网关说明](../controller/service/README.md#多机共享-rtsp)。命令行的 `--udp-port`、`--rtsp-port`、`--aircraft-id`、`--mount` 和 `--decoder` 仅用于临时覆盖配置，不是正常启动必需项。
 
 地面站按配置的 `aircraft_id` 核对当前网关 `hello.aircraft_id`，必须是相同的非负整数。尚未确认、缺失/非法 ID、ID 不符或连接超时时禁止所有控制（含停止、零速度、回零、跟踪和清故障），仅允许 ping、status、bye。身份不符时清除待重传控制，界面和日志显示期望 ID 与网关 ID；连接超时后仅收到 pong 或遥测不会恢复控制，须重新收到匹配 hello。GUI 与 `--selftest` 均使用相同校验，自检身份未确认时返回非零退出码。旧网关缺少 ID 时须升级网关，不能跳过校验。
 
@@ -42,7 +42,7 @@ python3 -m unittest discover -s models/gimbals/two_axis_pod/ground_station/tests
 
 Windows 入口使用 OpenCV wheel 自带的 FFmpeg 后端接收 RTSP，复用相同的四种视觉模式、UDP 协议、身份校验、界面和控制逻辑。入口固定请求 Windows D3D11 硬件解码，并在 RTSP 打开后核对实际加速类型；OpenCV 缺少接口、驱动不支持、打开失败或后端回退到 CPU 时均显示中文错误并退出，不提供软件解码回退。它不安装或使用 PyGObject、GStreamer、系统级 FFmpeg。Python 包只安装在仓库根目录的 `.venv-windows` 虚拟环境中。
 
-默认 Windows 配置位于 `config.windows.json`，连接飞机 1：
+默认 Windows 配置位于带注释的 `config.windows.ini`，连接飞机 1：
 
 - 指令/遥测：`udp://192.168.1.56:8770`
 - 视频：`rtsp://192.168.1.56:8555/two_axis_pod_1`
@@ -70,4 +70,4 @@ models/gimbals/two_axis_pod/ground_station/run_windows.ps1 --selftest 5
 models/gimbals/two_axis_pod/ground_station/run_windows.ps1 --decode-test 5 --snapshot runs/two_axis_pod_windows.png
 ```
 
-地址可使用原有 `--udp-host`、`--udp-port`、`--rtsp-port`、`--aircraft-id` 和 `--mount` 参数覆盖。Windows 版本不会改写 Linux 的 `config.json` 和 `run.sh`。由于当前环境不能执行 Windows D3D11 解码，发布前应在目标 Windows 机器上先运行上述 `--decode-test`，再人工检查四个视觉模式按钮、绿色锁定框及人工摇杆退出锁定行为。
+地址可使用原有 `--udp-host`、`--udp-port`、`--rtsp-port`、`--aircraft-id` 和 `--mount` 参数覆盖。Windows 版本不会改写 Linux 的 `config.ini` 和 `run.sh`。由于当前环境不能执行 Windows D3D11 解码，发布前应在目标 Windows 机器上先运行上述 `--decode-test`，再人工检查四个视觉模式按钮、绿色锁定框及人工摇杆退出锁定行为。

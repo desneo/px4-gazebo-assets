@@ -16,5 +16,5 @@ if [[ ! -x "$PYTHON" ]] \
   PYTHON="$PROJ/.venv-linux/bin/python"
 fi
 
-# ground_station.py 默认读取同目录 config.json；额外参数仅作临时覆盖。
+# ground_station.py 默认读取同目录 config.ini；额外参数仅作临时覆盖。
 exec "$PYTHON" -u "$HERE/ground_station.py" "$@"

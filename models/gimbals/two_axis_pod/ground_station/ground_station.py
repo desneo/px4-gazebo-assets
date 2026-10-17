@@ -26,6 +26,7 @@
 from __future__ import annotations
 
 import argparse
+import configparser
 import ctypes
 import ctypes.util
 import json
@@ -58,7 +59,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from stamp import decode_stamp_from_bgr  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-DEFAULT_CONFIG = os.path.join(HERE, "config.json")
+DEFAULT_CONFIG = os.path.join(HERE, "config.ini")
 
 # 地面站只允许 NVIDIA NVDEC。``nvenc`` 是旧配置中误用的名称，仅作为
 # 向后兼容别名，二者都严格映射到同一个硬解元件，不构成软件回退。
@@ -115,6 +116,30 @@ DEFAULT_CONFIG_VALUES = {
     "retry_max": 5,
     "reconnect": True,
     "font_path": "",
+    "rtsp_transport": "tcp",
+}
+
+INI_CONFIG_FIELDS = {
+    "network": {
+        "gimbal_host": ("gimbal_host", str),
+        "udp_port": ("udp_port", int),
+        "rtsp_port": ("rtsp_port", int),
+        "aircraft_id": ("aircraft_id", int),
+        "rtsp_mount": ("rtsp_mount", str),
+    },
+    "video": {
+        "display_scale": ("display_scale", float),
+        "decoder": ("decoder", str),
+        "rtsp_transport": ("rtsp_transport", str),
+        "window_title": ("window_title", str),
+        "font_path": ("font_path", str),
+    },
+    "session": {
+        "client_timeout": ("client_timeout", float),
+        "retry_interval": ("retry_interval", float),
+        "retry_max": ("retry_max", int),
+        "reconnect": ("reconnect", bool),
+    },
 }
 
 # 命令行 -> 配置键（后项覆盖前项，例如 --udp-host 优先于 --host）
@@ -136,16 +161,38 @@ CLI_TO_CONFIG = [
 
 def load_config(path: str) -> dict:
     cfg = dict(DEFAULT_CONFIG_VALUES)
+    if path and os.path.splitext(path)[1].lower() != ".ini":
+        raise ValueError(f"Station 配置仅支持 INI 格式: {path}")
     if path and os.path.isfile(path):
         try:
-            with open(path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            if isinstance(data, dict):
-                # 兼容旧配置：ws_port -> udp_port
-                if "udp_port" not in data and "ws_port" in data:
-                    data["udp_port"] = data["ws_port"]
-                cfg.update({k: v for k, v in data.items() if v is not None})
-        except (OSError, json.JSONDecodeError) as exc:
+            parser = configparser.ConfigParser(interpolation=None)
+            with open(path, "r", encoding="utf-8") as stream:
+                parser.read_file(stream)
+            data = {}
+            unknown_sections = set(parser.sections()) - set(INI_CONFIG_FIELDS)
+            if unknown_sections:
+                raise ValueError("未知配置节: " + ", ".join(sorted(unknown_sections)))
+            for section, fields in INI_CONFIG_FIELDS.items():
+                if not parser.has_section(section):
+                    continue
+                unknown = set(parser.options(section)) - set(fields)
+                if unknown:
+                    raise ValueError(
+                        f"[{section}] 未知配置项: " + ", ".join(sorted(unknown)))
+                for option, (key, value_type) in fields.items():
+                    if not parser.has_option(section, option):
+                        continue
+                    if value_type is bool:
+                        value = parser.getboolean(section, option)
+                    elif value_type is int:
+                        value = parser.getint(section, option)
+                    elif value_type is float:
+                        value = parser.getfloat(section, option)
+                    else:
+                        value = parser.get(section, option)
+                    data[key] = value
+            cfg.update({key: value for key, value in data.items() if value is not None})
+        except (OSError, ValueError, configparser.Error) as exc:
             print(f"[config] 读取 {path} 失败，使用内置默认值: {exc}", file=sys.stderr)
     elif path:
         print(f"[config] 未找到 {path}，使用内置默认值", file=sys.stderr)
@@ -1776,7 +1823,7 @@ def build_parser() -> argparse.ArgumentParser:
         description="两轴跟踪吊舱独立地面站（RTSP 视频 + UDP 遥测/控制，models/gimbals/two_axis_pod/docs/control-protocol.md）",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     ap.add_argument("--config", default=DEFAULT_CONFIG,
-                    help="JSON 配置文件路径")
+                    help="INI 配置文件路径（不支持 JSON）")
     ap.add_argument("--udp-host", default=None,
                     help="云台网关主机（UDP 控制/遥测，覆盖配置）")
     ap.add_argument("--udp-port", type=int, default=None,
@@ -1824,7 +1871,10 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv=None) -> int:
     ap = build_parser()
     args = ap.parse_args(argv)
-    cfg = load_config(args.config)
+    try:
+        cfg = load_config(args.config)
+    except ValueError as exc:
+        ap.error(str(exc))
     cfg = apply_cli_overrides(cfg, args)
 
     # 兼容旧参数 --ws-port：映射为 UDP 端口

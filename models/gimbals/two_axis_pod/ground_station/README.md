@@ -1,6 +1,6 @@
 # 两轴吊舱地面站
 
-地面站显示 RTSP 视频、机械 yaw/pitch 角度和角速度、视觉模式、检测/锁定状态及限位状态。默认连接本机 UDP 8766 和 `rtsp://127.0.0.1:8555/two_axis_pod_1`；可修改 `config.json` 或命令行参数。
+地面站显示 RTSP 视频、机械 yaw/pitch 角度和角速度、视觉模式、检测/锁定状态及限位状态。Linux 默认配置保存在同目录 `config.json`，其中包含网关地址、UDP/RTSP 端口、飞机 ID、RTSP 路径、NVDEC 和界面参数。直接执行启动命令；入口自动检查环境，缺少项目虚拟环境或 Python 包时调用 `setup_linux.sh` 安装，然后使用仓库根目录 `.venv-linux` 并读取 `config.json`：
 
 ```bash
 bash models/gimbals/two_axis_pod/ground_station/run.sh
@@ -32,13 +32,9 @@ python3 -m unittest discover -s models/gimbals/two_axis_pod/ground_station/tests
 
 离线测试覆盖 UDP 会话/去重/回执、视觉模式协议和遥测校验、模式互斥、两轴机械协议、拒绝滚转、拖动续发、释放与焦点保护。在线自检使用 `--selftest 5 --send-home --send-manual`，硬解视频检查使用 `--decode-test 5 --snapshot /tmp/two_axis_pod.png`。自检会发出实际运动命令。
 
-可用 `GIMBAL_PYTHON` 指定含依赖的 Python 解释器。依赖安装在仓库上一级的独立环境时，例如：
+`.venv-linux` 是可重建的本机运行环境，已被 Git 忽略，不随仓库归档；仓库归档的是环境检查、`requirements-linux.txt` 和 `setup_linux.sh`。安装脚本优先使用系统 `python3-venv`，系统缺少 `ensurepip` 时自动使用已有 `uv`；两者都不可用或缺少 GStreamer/PyGObject 时，在 Debian/Ubuntu 上调用 `sudo apt-get` 安装基础系统包。NVIDIA 驱动或 `nvh264dec` 最终仍不可用时明确报错，不回退软件解码。`GIMBAL_PYTHON` 仅保留为开发或诊断时的高级覆盖入口，正常启动不需要设置。
 
-```bash
-GIMBAL_PYTHON=../two_axis_pod_venv/bin/python bash models/gimbals/two_axis_pod/ground_station/run.sh
-```
-
-多机视频路径为 `/two_axis_pod_<aircraft_id>`。在 `config.json` 设置 `aircraft_id`（默认 1），或用 `--aircraft-id 2` 选择飞机 2；`rtsp_mount` / `--mount` 是路径前缀，末尾自动追加 ID。各机共用 RTSP 8555，UDP 控制端口仍需配置为对应网关端口；配置示例见[网关说明](../controller/service/README.md#多机共享-rtsp)。
+多机视频路径为 `/two_axis_pod_<aircraft_id>`。在 `config.json` 设置 `aircraft_id`（默认 1）；`rtsp_mount` 是路径前缀，末尾自动追加 ID。各机共用 RTSP 8555，UDP 控制端口仍需配置为对应网关端口；配置示例见[网关说明](../controller/service/README.md#多机共享-rtsp)。命令行的 `--udp-port`、`--rtsp-port`、`--aircraft-id`、`--mount` 和 `--decoder` 仅用于临时覆盖配置，不是正常启动必需项。
 
 地面站按配置的 `aircraft_id` 核对当前网关 `hello.aircraft_id`，必须是相同的非负整数。尚未确认、缺失/非法 ID、ID 不符或连接超时时禁止所有控制（含停止、零速度、回零、跟踪和清故障），仅允许 ping、status、bye。身份不符时清除待重传控制，界面和日志显示期望 ID 与网关 ID；连接超时后仅收到 pong 或遥测不会恢复控制，须重新收到匹配 hello。GUI 与 `--selftest` 均使用相同校验，自检身份未确认时返回非零退出码。旧网关缺少 ID 时须升级网关，不能跳过校验。
 

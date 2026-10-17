@@ -222,10 +222,10 @@ def main():
             session.prepare();session.start_tracking()
             snapshot=args.output.parent/'ground_station.png'
             snapshot.unlink(missing_ok=True)
-            command=[os.environ.get('GIMBAL_PYTHON','python3'),
-                str(ROOT/'models/gimbals/two_axis_pod/ground_station/ground_station.py'),
+            command=['bash',
+                str(ROOT/'models/gimbals/two_axis_pod/ground_station/run.sh'),
                 '--udp-host',args.host,'--udp-port',str(args.port),
-                '--decoder','nvdec','--duration',str(args.observe_seconds),
+                '--duration',str(args.observe_seconds),
                 '--gui-snapshot',str(snapshot)]
             gui_log=(args.output.parent/'ground_station.log').open('w')
             gui=subprocess.Popen(command,stdout=gui_log,stderr=subprocess.STDOUT)

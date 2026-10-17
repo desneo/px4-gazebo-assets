@@ -57,4 +57,4 @@ PY_CHECK
 fi
 echo "两轴地理场景已启动；GZ_PARTITION=$GZ_PARTITION；日志：$GIMBAL_RUNDIR"
 echo "先运行 python3 scenarios/geographic_two_axis_pod/check_target.py --prepare-only，再打开地面站。"
-echo "地面站：bash models/gimbals/two_axis_pod/ground_station/run.sh --udp-port 8766 --rtsp-port 8555 --decoder nvdec"
+echo "地面站：bash models/gimbals/two_axis_pod/ground_station/run.sh（读取 ground_station/config.json）"

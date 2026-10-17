@@ -30,7 +30,7 @@ bash models/gimbals/two_axis_pod/scripts/run_bridge.sh
 bash models/gimbals/two_axis_pod/ground_station/run.sh
 ```
 
-运行依赖与网络地址见[启动说明](scripts/README.md)、[网关说明](controller/service/README.md)和[地面站说明](ground_station/README.md)。演示世界不启动 PX4。相机为 1920×1080@30Hz、水平视场 60°。
+Linux 地面站启动时自动检查并安装缺失的运行依赖，使用仓库根目录 `.venv-linux` 并读取 `ground_station/config.json`，无需预先执行安装命令，也无需重复传入端口、飞机 ID 和解码器。运行依赖与网络地址见[启动说明](scripts/README.md)、[网关说明](controller/service/README.md)和[地面站说明](ground_station/README.md)。演示世界不启动 PX4。相机为 1920×1080@30Hz、水平视场 60°。
 
 地面站提供关闭视觉、目标检测、自动锁定和手动框选四个互斥模式。目标检测使用 `models/yolo11/aircraft_yolo11n/model.onnx` 的单类飞机模型；多目标轨迹默认连续命中 5 帧后确认，检测及自动搜索阶段的 RTSP 画面包含红框与稳定轨迹号。自动锁定首次选择离画面中心最近的已确认目标，然后停止多目标叠加并把该框交给 CSRT，地面站只显示一个绿色跟踪框；CSRT 最终丢失后恢复检测搜索。视频只允许 NVENC 编码和 NVDEC 解码，不提供软件回退。
 

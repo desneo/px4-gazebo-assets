@@ -15,7 +15,7 @@
 ```bash
 bash scenarios/geographic_two_axis_pod/run.sh --gui
 GZ_PARTITION=geographic_two_axis_pod python3 scenarios/geographic_two_axis_pod/check_target.py --prepare-only
-bash models/gimbals/two_axis_pod/ground_station/run.sh --udp-port 8766 --rtsp-port 8555 --decoder nvdec
+bash models/gimbals/two_axis_pod/ground_station/run.sh
 ```
 
 启动后机械零位朝天；先执行 `check_target.py --prepare-only`，将相机指向靶标并完成测试初始化，再打开地面站观察运动与视频。启动器不会自动调用测试初始化。测试无需 PX4，也无需载机装配。
@@ -31,8 +31,7 @@ GZ_PARTITION=geographic_two_axis_pod python3 scenarios/geographic_two_axis_pod/c
 python3 scenarios/geographic_two_axis_pod/check_vision.py
 # 保留检测模式后，用 NVDEC 保存带服务端红框和编号的 RTSP 帧。
 python3 scenarios/geographic_two_axis_pod/check_vision.py --leave-mode detect
-GIMBAL_PYTHON=../two_axis_pod_venv/bin/python \
-  bash models/gimbals/two_axis_pod/ground_station/run.sh --decoder nvdec \
+bash models/gimbals/two_axis_pod/ground_station/run.sh \
   --decode-test 5 --snapshot runs/geographic_two_axis_pod/vision_nvdec.png
 # 停止场景服务（沿用本次启动的运行目录）。
 GIMBAL_RUNDIR="$PWD/runs/geographic_two_axis_pod" bash models/gimbals/two_axis_pod/scripts/stop_bridge.sh
@@ -51,13 +50,13 @@ Gazebo GUI 默认从 `(-15, -35, 65)` 观察吊舱与靶标全景；近距离检
 # 40 仿真秒：前进、倒退、转弯、反向转弯各10秒；随后两轮实体遮挡。
 python3 scenarios/geographic_two_axis_pod/check_target.py --test all
 # 单独查看实际地面站运动跟踪，10秒后自动保存截图并关闭地面站。
-GIMBAL_PYTHON=../two_axis_pod_venv/bin/python python3 scenarios/geographic_two_axis_pod/check_target.py \
+python3 scenarios/geographic_two_axis_pod/check_target.py \
   --observe-seconds 10 --output runs/geographic_two_axis_pod/observe.jsonl
 ```
 
 测试脚本默认连接该场景分区。移动测试以 0.5 m/s 完成四段轨迹，转弯角速度为 ±0.06 rad/s。验收要求：有效 TRACK 比例至少95%、中心角误差与独立靶标中心真值角差 P95 均不超过3°、累计移动距离至少10米、无重力靶标高度变化小于0.1米。里程计仅用于验收，不参与图像跟踪控制。遮挡测试每轮保持实体遮挡2秒墙钟，要求出现 TEMP_LOST、不进入终止 LOST、移除遮挡后恢复TRACK并持续稳定1秒。`check_vision.py` 要求网关上报全部视觉能力、至少识别一个飞机目标、视觉输出速率不低于相机输入的 80%，自动锁定进入 TRACK 且两秒内不换轨迹。
 
-记录保存到 `runs/geographic_two_axis_pod/target.jsonl` 和 `target.summary.json`；实窗观察使用独立 `observe.jsonl`，避免覆盖验收结果。地面站截图为 `ground_station.png`。独立环境应包含组件地面站所需的 OpenCV、NumPy、Pillow、PyGObject 与 GStreamer；`GIMBAL_PYTHON` 可指定其他已有解释器。
+记录保存到 `runs/geographic_two_axis_pod/target.jsonl` 和 `target.summary.json`；实窗观察使用独立 `observe.jsonl`，避免覆盖验收结果。地面站截图为 `ground_station.png`。观察脚本调用同一个 `run.sh`；入口自动配置 `.venv-linux`，不依赖仓库外的固定虚拟环境路径。
 
 单独测试可使用 `--test moving --output runs/geographic_two_axis_pod/moving.jsonl` 和 `--test occlusion --output runs/geographic_two_axis_pod/occlusion.jsonl`，各自生成同名 `.summary.json`。实体遮挡计时期间避免并行导出完整世界等耗时服务请求，以免延迟遮挡板移除，超过默认 2.5 秒恢复窗口。
 

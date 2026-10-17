@@ -16,8 +16,10 @@ gz sim -g -v2
 
 ```bash
 export GZ_PARTITION=two_axis_pod_demo
-bash models/gimbals/two_axis_pod/ground_station/run.sh --decoder nvdec
+bash models/gimbals/two_axis_pod/ground_station/run.sh
 ```
+
+地面站启动入口自动检查并安装缺失依赖，使用仓库根目录 `.venv-linux` 并读取 `ground_station/config.json`，无需单独运行安装命令，也无需在命令行重复填写端口、飞机 ID 和解码器。
 
 仿真脚本启动无窗口服务端；`gz sim -g` 打开 Gazebo 3D 窗口。视频强制使用 NVIDIA NVENC 编码和 NVDEC 解码，不提供软件回退；缺少 GPU、驱动、`nvcudah264enc` 或 `nvh264dec` 时会显示中文错误并退出。
 

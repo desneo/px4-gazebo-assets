@@ -6,6 +6,8 @@
 bash models/gimbals/two_axis_pod/ground_station/run.sh
 ```
 
+仓库默认 Linux 配置连接 1 号机：UDP 控制/遥测为 `192.168.1.56:8770`，RTSP 为 `rtsp://192.168.1.56:8555/two_axis_pod_1`。修改 `config.ini` 可切换到其他飞机或网关地址。
+
 界面提供四个互斥视觉模式按钮，按钮活动态以网关 `vision.mode` 遥测为准，而不是以最近一次点击为准：
 
 - **关闭视觉**：不执行检测或跟踪。

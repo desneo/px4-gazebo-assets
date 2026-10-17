@@ -1,0 +1,4 @@
+{
+    "cmake.sourceDirectory": "/home/aeroarx/test/codex_gimbal_test/px4-gazebo-assets/worlds/geo_32_217857_119_105878/gui",
+    "cmake.autoDetectSourceDirectory": false
+}

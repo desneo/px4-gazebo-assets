@@ -23,7 +23,7 @@ bash models/gimbals/two_axis_pod/ground_station/run.sh
 
 仿真脚本启动无窗口服务端；`gz sim -g` 打开 Gazebo 3D 窗口。视频强制使用 NVIDIA NVENC 编码和 NVDEC 解码，不提供软件回退；缺少 GPU、驱动、`nvcudah264enc` 或 `nvh264dec` 时会显示中文错误并退出。
 
-网关需要带 OpenCV DNN 的 Python。`run_bridge.sh` 默认使用仓库上一级 `../two_axis_pod_venv/bin/python`，可用 `GIMBAL_PYTHON` 覆盖；该解释器还须能导入 Gazebo 与 GStreamer Python 绑定。飞机检测模型和参数由 `controller/service/vision.json` 指定。
+`run_bridge.sh` 会先检查 Gazebo/GStreamer Python 绑定、OpenCV DNN、`nvcudah264enc` 和 `controller/service/vision.json` 指定的 ONNX 模型。默认使用仓库根目录 `.venv-linux`；环境不存在或依赖不完整时自动调用 `setup_bridge.sh` 安装系统包和 Python 包，并实际用 OpenCV DNN 加载归档的 ONNX。NVIDIA 驱动或 NVENC 不可用时明确报错，不回退软编码。`GIMBAL_PYTHON` 仅用于显式指定已完整配置的高级环境；指定后启动器不会修改该解释器。
 
 默认 UDP 8766、共享 RTSP 8555 `/two_axis_pod_1`，内部 RTP 默认自动分配，运行日志和 PID 存于 `runs/two_axis_pod/`。`GIMBAL_RUNDIR` 可改写运行目录；并行实例使用独立运行目录、UDP 控制端口和飞机 ID。同一 Gazebo 世界需要独立模型名、插件话题前缀和图像话题；不同仿真可使用独立 `GZ_PARTITION`。`env.sh` 设置仓库资源路径与两轴 `controller/build/lib` 插件路径。自定义世界作为仿真脚本首参，并相应设置网关 `--world`、`--gimbal-model`；相机参数为 `--camera-link`、`--camera-sensor`。
 

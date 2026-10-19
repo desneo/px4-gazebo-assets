@@ -38,7 +38,7 @@ GIMBAL_RUNDIR="$PWD/runs/pod_2" bash models/gimbals/two_axis_pod/scripts/run_bri
 bash models/gimbals/two_axis_pod/ground_station/run.sh --aircraft-id 2 --udp-port 8767 --decoder nvdec
 ```
 
-两路视频共用 8555，分别为 `rtsp://127.0.0.1:8555/two_axis_pod_1` 与 `rtsp://127.0.0.1:8555/two_axis_pod_2`。测试入口为 `GIMBAL_PYTHON=../two_axis_pod_venv/bin/python python3 models/gimbals/two_axis_pod/controller/service/tests/test_rtsp_multi.py`，需要 GstRtspServer、NVENC 与 NVDEC，验证双进程同端口拉流、颜色隔离、重复路径拒绝、独立停止、租约过期和中继重启恢复。
+两路视频共用 8555，分别为 `rtsp://127.0.0.1:8555/two_axis_pod_1` 与 `rtsp://127.0.0.1:8555/two_axis_pod_2`。先运行 `bash models/gimbals/two_axis_pod/scripts/run_bridge.sh --prepare-only` 自动配置环境，再用 `.venv-linux/bin/python models/gimbals/two_axis_pod/controller/service/tests/test_rtsp_multi.py` 测试。该测试需要 GstRtspServer、NVENC 与 NVDEC，验证双进程同端口拉流、颜色隔离、重复路径拒绝、独立停止、租约过期和中继重启恢复。
 
 ## 额外 UDP JSON 状态上报
 
@@ -73,4 +73,4 @@ bash models/gimbals/two_axis_pod/scripts/run_bridge.sh --encoder nvenc \
 
 独立发送使用非阻塞 UDP，单包上限 8 KiB。发送错误、非法 JSON 数值或超长报文会丢弃当前包并限频记录日志；后续按配置周期继续尝试，不影响 station，不重传积压报文。UDP 不保证到达或顺序。
 
-运行依赖：Python 3、Gazebo Harmonic 的 gz-transport13 / gz-msgs10 Python 绑定、NumPy、带 DNN 的 OpenCV、PyGObject、GStreamer、GstRtspServer、NVIDIA 驱动与 `nvcudah264enc`。`run_bridge.sh` 默认使用仓库上一级 `two_axis_pod_venv`，也可用 `GIMBAL_PYTHON` 指定等价解释器。`gz_source.py` 只管理节点和仿真时钟映射。
+运行依赖：Python 3、Gazebo Harmonic 的 gz-transport13 / gz-msgs10 Python 绑定、NumPy、带 DNN 的 OpenCV、PyGObject、GStreamer、GstRtspServer、NVIDIA 驱动与 `nvcudah264enc`。`run_bridge.sh` 默认使用仓库根目录 `.venv-linux`，检测到缺失时自动创建并安装依赖；启动前实际加载 ONNX 并确认 NVENC。也可用 `GIMBAL_PYTHON` 指定已配置的等价解释器。`gz_source.py` 只管理节点和仿真时钟映射。

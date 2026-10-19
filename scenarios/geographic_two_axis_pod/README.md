@@ -18,7 +18,7 @@ GZ_PARTITION=geographic_two_axis_pod python3 scenarios/geographic_two_axis_pod/c
 bash models/gimbals/two_axis_pod/ground_station/run.sh
 ```
 
-启动后机械零位朝天；先执行 `check_target.py --prepare-only`，将相机指向靶标并完成测试初始化，再打开地面站观察运动与视频。启动器不会自动调用测试初始化。测试无需 PX4，也无需载机装配。
+启动后机械零位朝天；先执行 `check_target.py --prepare-only`，将相机指向靶标并完成测试初始化，再打开地面站观察运动与视频。场景启动器会通过 `run_bridge.sh` 自动配置网关 `.venv-linux`、检查 ONNX DNN 和 NVENC，但不会自动调用测试初始化。测试无需 PX4，也无需载机装配。
 
 默认 partition 为 `geographic_two_axis_pod`，运行目录为 `runs/geographic_two_axis_pod/`，UDP 为 `8766`，RTSP 为 `8555`，内部 RTP 自动分配，RTSP 挂载点为 `/two_axis_pod_1`（`--aircraft-id` 可配置）。视频强制使用 NVENC/NVDEC；不可用时网关或地面站明确报错退出。`GZ_PARTITION` 和 `GIMBAL_RUNDIR` 环境变量可覆盖默认值；其余参数传给组件网关。多机可共用 RTSP 8555，必须传入不同 `--aircraft-id` 并隔离控制端口和 Gazebo 话题；地面站配置对应 ID 与控制端口。
 

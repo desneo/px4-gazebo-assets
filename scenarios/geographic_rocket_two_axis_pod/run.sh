@@ -35,14 +35,14 @@ PX4_ROOT="${PX4_ROOT:-$PROJ/../PX4-Autopilot}"
 PX4_BIN="$PX4_ROOT/build/px4_sitl_default/bin/px4"
 PX4_ETC="$PX4_ROOT/build/px4_sitl_default/etc"
 FLIGHT_PYTHON="${FLIGHT_PYTHON:-python3}"
-BRIDGE_PYTHON="${GIMBAL_PYTHON:-$PROJ/../two_axis_pod_venv/bin/python}"
 [[ -x "$PX4_BIN" && -d "$PX4_ETC" ]] || { echo "找不到已构建的 PX4：$PX4_BIN" >&2; exit 1; }
 [[ -f "$PROJ/models/gimbals/two_axis_pod/controller/build/lib/libgz-two-axis-pod-controller.so" ]] || {
   echo '请先构建两轴吊舱 controller 插件' >&2; exit 1;
 }
 for command in gz setsid timeout; do command -v "$command" >/dev/null; done
 "$FLIGHT_PYTHON" -c 'import pymavlink, numpy, gz.transport13, gz.msgs10.pose_v_pb2'
-"$BRIDGE_PYTHON" -c 'import cv2, numpy, gi, gz.transport13; gi.require_version("Gst", "1.0"); gi.require_version("GstRtspServer", "1.0"); from gi.repository import Gst, GstRtspServer'
+bash "$PROJ/models/gimbals/two_axis_pod/scripts/run_bridge.sh" --prepare-only
+BRIDGE_PYTHON="${GIMBAL_PYTHON:-$PROJ/.venv-linux/bin/python}"
 mkdir -p "$RUN_DIR"
 for service in launcher gazebo px4 bridge flight gui imu_wait; do
   if python3 "$HERE/process_state.py" live "$RUN_DIR/$service.pid"; then

@@ -14,16 +14,14 @@ PX4 控制真实动力学飞行。默认相对起飞点高度 **80 m**、航段�
 
 ## 启动与人工验收
 
-以下命令在仓库根目录执行。需要 Gazebo Harmonic、已构建的相邻 `../PX4-Autopilot`、两轴控制插件，以及 Python 的 pymavlink、NumPy、Gazebo Transport/Messages 绑定。网关和地面站另需 GStreamer、PyGObject、Pillow、OpenCV；已有独立环境可用 `GIMBAL_PYTHON` 指定。`PX4_ROOT` 可覆盖 PX4 路径，`FLIGHT_PYTHON` 可覆盖飞行脚本解释器。
+以下命令在仓库根目录执行。需要 Gazebo Harmonic、已构建的相邻 `../PX4-Autopilot`、两轴控制插件，以及 Python 的 pymavlink、NumPy、Gazebo Transport/Messages 绑定。网关和地面站另需 GStreamer、PyGObject、Pillow、OpenCV；启动入口会自动检查并配置仓库根目录 `.venv-linux`。已有独立环境可用 `GIMBAL_PYTHON` 指定。`PX4_ROOT` 可覆盖 PX4 路径，`FLIGHT_PYTHON` 可覆盖飞行脚本解释器。
 
 ```bash
 # 持续往返并打开 Gazebo；Ctrl+C 或 stop.sh 请求降落后停止
-GIMBAL_PYTHON=../two_axis_pod_venv/bin/python \
-  bash scenarios/geographic_rocket_two_axis_pod/run.sh --gui
+bash scenarios/geographic_rocket_two_axis_pod/run.sh --gui
 
 # 另一个终端打开吊舱地面站
-GIMBAL_PYTHON=../two_axis_pod_venv/bin/python \
-  bash models/gimbals/two_axis_pod/ground_station/run.sh \
+bash models/gimbals/two_axis_pod/ground_station/run.sh --no-manage-bridge \
   --udp-port 8770 --rtsp-port 8555 --aircraft-id 1 --decoder nvdec
 
 # 有限飞行检查：两次完整往返后自动降落并停止服务
@@ -61,13 +59,11 @@ RTSP路径由 `--mount` 前缀追加 `_飞机ID` 生成，传入 `/two_axis_pod`
 以下地面站命令对应上表；前提是多机仿真已发布各自话题，并已按表分别启动两个网关：
 
 ```bash
-GIMBAL_PYTHON=../two_axis_pod_venv/bin/python \
-  bash models/gimbals/two_axis_pod/ground_station/run.sh \
+bash models/gimbals/two_axis_pod/ground_station/run.sh --no-manage-bridge \
   --udp-host 127.0.0.1 --udp-port 8770 --aircraft-id 23 \
   --rtsp-port 8555 --mount /two_axis_pod --decoder nvdec
 
-GIMBAL_PYTHON=../two_axis_pod_venv/bin/python \
-  bash models/gimbals/two_axis_pod/ground_station/run.sh \
+bash models/gimbals/two_axis_pod/ground_station/run.sh --no-manage-bridge \
   --udp-host 127.0.0.1 --udp-port 8771 --aircraft-id 24 \
   --rtsp-port 8555 --mount /two_axis_pod --decoder nvdec
 ```
@@ -104,7 +100,7 @@ GZ_PARTITION="$(cat runs/geographic_rocket_two_axis_pod/gz_partition.txt)" \
 ```bash
 # 飞行场景启动后，另一个终端只观察人工框选；自动检查可显式加 --initialize
 GZ_PARTITION="$(cat runs/geographic_rocket_two_axis_pod/gz_partition.txt)" \
-  ../two_axis_pod_venv/bin/python scenarios/geographic_rocket_two_axis_pod/check_tracking.py \
+  .venv-linux/bin/python scenarios/geographic_rocket_two_axis_pod/check_tracking.py \
   --manual-only --duration 70 --wait-timeout 600 \
   --output runs/geographic_rocket_two_axis_pod/tracking
 
@@ -119,18 +115,17 @@ python3 scenarios/geographic_rocket_two_axis_pod/report_validation.py \
 
 ```bash
 # 先启动有限往返飞行；下面两项检查在飞机运行期间另开终端执行
-GIMBAL_PYTHON=../two_axis_pod_venv/bin/python \
-  bash scenarios/geographic_rocket_two_axis_pod/run.sh --cycles 2 --aircraft-id 23 \
+bash scenarios/geographic_rocket_two_axis_pod/run.sh --cycles 2 --aircraft-id 23 \
   --run-dir "$PWD/runs/rocket_pod_rtsp_check"
 
 # 飞行运行期间：一次初始化后只观察图像闭环跟踪和独立真值
 GZ_PARTITION="$(cat runs/rocket_pod_rtsp_check/gz_partition.txt)" \
-  ../two_axis_pod_venv/bin/python scenarios/geographic_rocket_two_axis_pod/check_tracking.py \
+  .venv-linux/bin/python scenarios/geographic_rocket_two_axis_pod/check_tracking.py \
   --initialize --duration 70 --wait-timeout 600 \
   --output runs/rocket_pod_rtsp_check/tracking
 
 # 只读：检查hello与遥测ID/路径、实际H.264帧号与frame_table对应
-../two_axis_pod_venv/bin/python scenarios/geographic_rocket_two_axis_pod/check_rtsp_binding.py \
+.venv-linux/bin/python scenarios/geographic_rocket_two_axis_pod/check_rtsp_binding.py \
   --aircraft-id 23 --check-station-identity --duration 8 \
   --output runs/rocket_pod_rtsp_check/rtsp_binding
 
@@ -144,7 +139,7 @@ python3 scenarios/geographic_rocket_two_axis_pod/report_validation.py \
 基础双流测试使用独立临时端口：
 
 ```bash
-../two_axis_pod_venv/bin/python models/gimbals/two_axis_pod/controller/service/tests/test_rtsp_multi.py -v
+.venv-linux/bin/python models/gimbals/two_axis_pod/controller/service/tests/test_rtsp_multi.py -v
 ```
 
 它验证两个独立编码进程同端口红蓝画面隔离、路径/RTP端口冲突拒绝、单路停止、租约清理和中继重启恢复。该测试与组合单机实飞分别记录，不代表已验证两架PX4飞机同时飞行。地面站会核对配置ID与当前网关hello的ID，不一致时禁止控制并显示原因。`--check-station-identity` 使用真实hello验证ID23就绪和误配ID24禁用；误配的回零、框选、手动和清故障调用使用本地记录socket检查拦截结果，不发往飞机。RTSP路径与视频帧表由本场景额外交叉核对。

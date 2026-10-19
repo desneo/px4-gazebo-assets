@@ -117,9 +117,23 @@ DEFAULT_CONFIG_VALUES = {
     "reconnect": True,
     "font_path": "",
     "rtsp_transport": "tcp",
+    "bridge_manage": False,
+    "bridge_world": "two_axis_pod_demo",
+    "bridge_model": "two_axis_pod",
+    "bridge_topic_prefix": "/two_axis_pod",
+    "bridge_image_topic": "",
+    "bridge_gz_partition": "",
 }
 
 INI_CONFIG_FIELDS = {
+    "bridge": {
+        "manage": ("bridge_manage", bool),
+        "world": ("bridge_world", str),
+        "model": ("bridge_model", str),
+        "topic_prefix": ("bridge_topic_prefix", str),
+        "image_topic": ("bridge_image_topic", str),
+        "gz_partition": ("bridge_gz_partition", str),
+    },
     "network": {
         "gimbal_host": ("gimbal_host", str),
         "udp_port": ("udp_port", int),
@@ -206,6 +220,8 @@ def apply_cli_overrides(cfg: dict, args) -> dict:
             cfg[key] = val
     if args.font:
         cfg["font_path"] = args.font
+    if getattr(args, "no_manage_bridge", False):
+        cfg["bridge_manage"] = False
     return cfg
 
 
@@ -1824,6 +1840,8 @@ def build_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     ap.add_argument("--config", default=DEFAULT_CONFIG,
                     help="INI 配置文件路径（不支持 JSON）")
+    ap.add_argument("--no-manage-bridge", action="store_true",
+                    help="只连接网关，不由 Station 启动/停止（覆盖 [bridge] manage）")
     ap.add_argument("--udp-host", default=None,
                     help="云台网关主机（UDP 控制/遥测，覆盖配置）")
     ap.add_argument("--udp-port", type=int, default=None,

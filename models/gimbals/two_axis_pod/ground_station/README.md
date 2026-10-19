@@ -1,12 +1,20 @@
 # 两轴吊舱地面站
 
-地面站显示 RTSP 视频、机械 yaw/pitch 角度和角速度、视觉模式、检测/锁定状态及限位状态。Linux 默认配置保存在同目录 `config.ini`，按 `[network]`、`[video]` 和 `[session]` 分组，每个配置项上方都有用途注释。Station 只接受 INI 配置，不解析旧 JSON 文件。直接执行启动命令；入口自动检查环境，缺少项目虚拟环境或 Python 包时调用 `setup_linux.sh` 安装，然后使用仓库根目录 `.venv-linux` 并读取 `config.ini`：
+地面站显示 RTSP 视频、机械 yaw/pitch 角度和角速度、视觉模式、检测/锁定状态及限位状态。Linux 默认配置保存在同目录 `config.ini`，按 `[network]`、`[bridge]`、`[video]` 和 `[session]` 分组，每个配置项上方都有用途注释。Station 只接受 INI 配置，不解析旧 JSON 文件。直接执行启动命令；入口自动检查环境，缺少项目虚拟环境或 Python 包时调用 `setup_linux.sh` 安装，然后使用仓库根目录 `.venv-linux` 并读取 `config.ini`：
 
 ```bash
 bash models/gimbals/two_axis_pod/ground_station/run.sh
 ```
 
 仓库默认 Linux 配置连接 1 号机：UDP 控制/遥测为 `192.168.1.56:8770`，RTSP 为 `rtsp://192.168.1.56:8555/two_axis_pod_1`。修改 `config.ini` 可切换到其他飞机或网关地址。
+
+Linux `config.ini` 的 `[bridge] manage=true` 时，`run.sh` 会检查并管理本机同仓库、同 UDP 端口和飞机 ID 的网关。已有网关的 Python 缺少 DNN 等依赖时，先自动配置 `.venv-linux` 并实际加载 ONNX、校验 NVENC，再用原参数、工作目录和 Gazebo 分区恢复网关；存在其他启动器监管时会要求先通过该启动器停止。没有网关时，使用 `[bridge]` 的 world、model、topic_prefix、image_topic 和 gz_partition 启动。默认这些参数对应 1 号机场景。停止操作如下：
+
+```bash
+bash models/gimbals/two_axis_pod/ground_station/stop.sh
+```
+
+关闭 GUI 或按 Ctrl+C 也会停止本次管理的 bridge。使用自定义配置或临时端口时，`stop.sh` 传入相同的 `--config`、`--udp-port`、`--aircraft-id`。进程记录在 `runs/station_<ID>_<UDP端口>/session.json`，停止时核对 PID、启动时间与命令，避免误停复用 PID 的进程。直接运行 `ground_station.py`、`--selftest` 或 `--decode-test` 不管理网关。连接其他主机或希望由场景单独管理网关时设置 `[bridge] manage=false` 或传入 `--no-manage-bridge`；此时关闭 Station 不停止网关，远端依赖须在网关主机初始化。Windows 入口只连接已启动的网关。
 
 界面提供四个互斥视觉模式按钮，按钮活动态以网关 `vision.mode` 遥测为准，而不是以最近一次点击为准：
 
@@ -34,7 +42,7 @@ python3 -m unittest discover -s models/gimbals/two_axis_pod/ground_station/tests
 
 离线测试覆盖 UDP 会话/去重/回执、视觉模式协议和遥测校验、模式互斥、两轴机械协议、拒绝滚转、拖动续发、释放与焦点保护。在线自检使用 `--selftest 5 --send-home --send-manual`，硬解视频检查使用 `--decode-test 5 --snapshot /tmp/two_axis_pod.png`。自检会发出实际运动命令。
 
-`.venv-linux` 是可重建的本机运行环境，已被 Git 忽略，不随仓库归档；仓库归档的是环境检查、`requirements-linux.txt` 和 `setup_linux.sh`。安装脚本优先使用系统 `python3-venv`，系统缺少 `ensurepip` 时自动使用已有 `uv`；两者都不可用或缺少 GStreamer/PyGObject 时，在 Debian/Ubuntu 上调用 `sudo apt-get` 安装基础系统包。NVIDIA 驱动或 `nvh264dec` 最终仍不可用时明确报错，不回退软件解码。`GIMBAL_PYTHON` 仅保留为开发或诊断时的高级覆盖入口，正常启动不需要设置。
+`.venv-linux` 是 Linux 网关与地面站共用的可重建本机环境，已被 Git 忽略，不随仓库归档；仓库归档的是环境检查、依赖列表和安装脚本。安装脚本优先使用系统 `python3-venv`，系统缺少 `ensurepip` 时自动使用已有 `uv`；两者都不可用或缺少 GStreamer/PyGObject 时，在 Debian/Ubuntu 上调用 `sudo apt-get` 安装基础系统包。NVIDIA 驱动或 `nvh264dec` 最终仍不可用时明确报错，不回退软件解码。`GIMBAL_PYTHON` 仅保留为开发或诊断时的高级覆盖入口，正常启动不需要设置。
 
 多机视频路径为 `/two_axis_pod_<aircraft_id>`。在 `config.ini` 设置 `aircraft_id`（默认 1）；`rtsp_mount` 是路径前缀，末尾自动追加 ID。各机共用 RTSP 8555，UDP 控制端口仍需配置为对应网关端口；配置示例见[网关说明](../controller/service/README.md#多机共享-rtsp)。命令行的 `--udp-port`、`--rtsp-port`、`--aircraft-id`、`--mount` 和 `--decoder` 仅用于临时覆盖配置，不是正常启动必需项。
 

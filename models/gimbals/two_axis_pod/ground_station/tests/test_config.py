@@ -25,6 +25,9 @@ class StationConfigTests(unittest.TestCase):
         self.assertEqual(config["display_scale"], 0.5)
         self.assertIs(type(config["display_scale"]), float)
         self.assertIs(config["reconnect"], True)
+        self.assertIs(config["bridge_manage"], True)
+        args = ground_station.build_parser().parse_args(["--no-manage-bridge"])
+        self.assertIs(ground_station.apply_cli_overrides(config, args)["bridge_manage"], False)
 
     def test_json_config_is_rejected(self):
         with tempfile.TemporaryDirectory() as directory:

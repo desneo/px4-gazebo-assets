@@ -905,6 +905,12 @@ def main():
     except Exception:  # noqa: BLE001
         pass
 
+    def request_shutdown(*_):
+        raise KeyboardInterrupt
+
+    # 入口可能从后台 shell 继承忽略 SIGINT；显式恢复有序退出以撤销 RTSP 租约。
+    signal.signal(signal.SIGINT, request_shutdown)
+    signal.signal(signal.SIGTERM, request_shutdown)
     bridge = GimbalBridge(args)
     threading.Thread(target=bridge.video_thread, daemon=True).start()
     threading.Thread(target=bridge.telemetry_thread, daemon=True).start()

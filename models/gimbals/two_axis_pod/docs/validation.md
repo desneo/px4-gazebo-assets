@@ -2,15 +2,15 @@
 
 ## 验证环境与范围
 
-使用 Gazebo Harmonic（Sim 8、Transport 13、Msgs 10）、OpenCV C++/Python、GStreamer NVIDIA NVENC/NVDEC。演示世界使用独立 Gazebo 分区，Ø84 mm 底部圆环水平固定在台面，导引头整体向上高 91 mm。Python 网关和地面站验证使用仓库上一级独立环境 `two_axis_pod_venv`，其中包含 OpenCV Python，并复用系统的 Gazebo/GStreamer 绑定。
+使用 Gazebo Harmonic（Sim 8、Transport 13、Msgs 10）、OpenCV C++/Python、GStreamer NVIDIA NVENC/NVDEC。演示世界使用独立 Gazebo 分区，Ø84 mm 底部圆环水平固定在台面，导引头整体向上高 91 mm。Python 网关和 Linux 地面站共用仓库根目录的可重建 `.venv-linux`，其中包含 OpenCV Python，并复用系统 Gazebo/GStreamer 绑定。两个启动入口均在环境缺失时自动配置，虚拟环境不入库。
 
 ## 已通过检查
 
 - 基本模型与演示世界通过 `gz sdf -k`。
 - 四项模型测试验证工程尺寸、底环水平方向、91 mm 竖直外廓、罩壳归属偏航 link、实际 SDF 关节链、光学姿态、机械角边界及生成一致性。
 - CTest 验证 `Rz(yaw) Ry(pitch)` 运动学、图像 Jacobian、朝天退化、速度/加速度与前瞻限位、机械回零、故障锁定、CSRT 跟踪及断帧停止/丢失。
-- 89 项地面站/网关测试覆盖 Station INI 配置与 JSON 拒绝、协议 v4、两轴控制、拒绝滚转、seq 去重/乱序/回执、四个互斥视觉模式、自动检测到 CSRT 单目标交接、网关层人工转动抢占、手动框选保护、视觉遥测校验、Linux 强制 NVDEC、Windows D3D11 硬解参数与软件回退拒绝、摇杆续发、释放和焦点保护。
-- 14 项视觉核心测试覆盖单类 YOLO11 输出解析、NMS、连续命中确认、误检过滤、ByteTrack 高低置信两阶段关联、Kalman 预测、Hungarian 全局匹配、稳定 ID、中心最近选择和 RGB 红框。
+- 95 项地面站/网关测试覆盖 Station INI 配置与 JSON 拒绝、协议 v4、两轴控制、拒绝滚转、seq 去重/乱序/回执、四个互斥视觉模式、自动检测到 CSRT 单目标交接、网关层人工转动抢占、手动框选保护、视觉遥测校验、Linux 强制 NVDEC、Windows D3D11 硬解参数与软件回退拒绝、摇杆续发、释放和焦点保护。
+- 16 项视觉核心/网关环境测试覆盖单类 YOLO11 输出解析、NMS、连续命中确认、误检过滤、ByteTrack 高低置信两阶段关联、Kalman 预测、Hungarian 全局匹配、稳定 ID、中心最近选择、RGB 红框、模型路径校验和 OpenCV DNN 实际加载归档 ONNX。
 - Gazebo 在线检查验证默认零位朝天、两路真实渲染、实际 CSRT TRACK 状态、四端限位及稳定回零、单轴复位保持另一轴、手动停止续发后停车，以及朝天退化处偏航仍可机械运动。
 - 地理场景的地面站 UDP 在线自检收到 201 条遥测（约 50.1 Hz），协议 v4 和 home 回执有效；机械姿态回到 yaw `0°`、pitch `−0.024°`，两轴速度为零。
 - 完整地理场景识别到 3 个飞机目标；1920×1080@30 Hz 输入 30.35 fps、视觉输出 30.20 fps、模型推理约 14.9 ms。自动锁定选择一个已确认轨迹并进入 CSRT TRACK，连续 2 秒未切换目标。

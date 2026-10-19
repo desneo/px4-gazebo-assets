@@ -16,5 +16,5 @@ if [[ ! -x "$PYTHON" ]] \
   PYTHON="$PROJ/.venv-linux/bin/python"
 fi
 
-# ground_station.py 默认读取同目录 config.ini；额外参数仅作临时覆盖。
-exec "$PYTHON" -u "$HERE/ground_station.py" "$@"
+# lifecycle 读取相同 INI 和命令行，管理对应 bridge 后启动 GUI。
+exec "$PYTHON" -u "$HERE/station_lifecycle.py" run "$@"

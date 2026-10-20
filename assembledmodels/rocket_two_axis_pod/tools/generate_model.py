@@ -218,11 +218,15 @@ def build_model(yaw_deg=0.0, pitch_deg=0.0):
     return root
 
 
+def preview_spawn_z():
+    return -source_geometry()['min_z_m'] + .015
+
+
 def marker(world):
     model = node(world, 'model', name='ROCKET_POD_LOCATION_MARKER')
     node(model, 'static', 'true')
     link = node(model, 'link', name='arrow')
-    height = .24 + dimensions()[1] + .036
+    height = preview_spawn_z() + dimensions()[1] + .036
     for name, position, size in (
         ('shaft', f'-.20 0 {height:.12g} 0 0 0', '.12 .009 .009'),
         ('head_upper', f'-.125 0 {height + .01:.12g} 0 .7853981634 0', '.04 .009 .009'),
@@ -271,7 +275,7 @@ def build_world(view='overall'):
     include = node(world, 'include')
     node(include, 'uri', f'model://{NAME}')
     node(include, 'name', 'ROCKET_TWO_AXIS_POD')
-    node(include, 'pose', '0 0 .24 0 0 0')
+    node(include, 'pose', f'0 0 {preview_spawn_z():.12g} 0 0 0')
     floor = node(world, 'model', name='preview_floor')
     node(floor, 'static', 'true')
     visual = node(node(floor, 'link', name='floor'), 'visual', name='floor')

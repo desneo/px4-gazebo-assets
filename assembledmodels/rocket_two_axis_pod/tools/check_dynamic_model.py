@@ -24,6 +24,18 @@ def scalar(element, path):
     return float(element.findtext(path))
 
 
+def mass_and_center(model):
+    mass = 0.
+    moment = np.zeros(3)
+    for link in model.findall('link'):
+        link_mass = scalar(link, 'inertial/mass')
+        transform = (dynamic.appearance.transform(link.findtext('pose')) @
+                     dynamic.appearance.transform(link.findtext('inertial/pose')))
+        mass += link_mass
+        moment += link_mass * transform[:3, 3]
+    return mass, moment / mass
+
+
 def native_mesh_uris(element):
     element = copy.deepcopy(element)
     for uri in element.findall('.//mesh/uri'):
@@ -74,12 +86,13 @@ def check_output(output, manifest):
     collision = base.find("collision[@name='body_collision']")
     length = scalar(collision, 'geometry/cylinder/length')
     center_z = float(collision.findtext('pose').split()[2])
-    assert math.isclose(length, .499, abs_tol=1e-12)
-    assert math.isclose(center_z, .0245, abs_tol=1e-12)
+    expected_length = config['mount_z_m'] - config['geometry']['min_z_m']
+    expected_center_z = (config['mount_z_m'] + config['geometry']['min_z_m']) / 2
+    assert math.isclose(length, expected_length, abs_tol=1e-12)
+    assert math.isclose(center_z, expected_center_z, abs_tol=1e-12)
     assert math.isclose(center_z - length / 2, config['geometry']['min_z_m'], abs_tol=1e-12)
     assert math.isclose(center_z + length / 2, config['mount_z_m'], abs_tol=1e-12)
     assert math.isclose(config['mount_z_m'] + config['pod']['overall_height_m'], config['geometry']['max_z_m'], abs_tol=1e-12)
-    assert base.findtext('inertial/pose') != collision.findtext('pose'), 'COM 不得跟随截短碰撞几何中心'
     expected_visual = copy.deepcopy(source.find("link[@name='base_link']/visual[@name='fuselage_visual']"))
     expected_visual.find('geometry/mesh/uri').text = f'model://{dynamic.NAME}/meshes/fuselage_cut.stl'
     assert canonical(base.find("visual[@name='fuselage_visual']")) == canonical(expected_visual)
@@ -126,8 +139,16 @@ def check_output(output, manifest):
         assert np.all(np.isfinite(principal)) and np.all(principal > 0)
         assert principal[-1] <= sum(principal[:2]) + 1e-12
     expected_mass = sum(scalar(link, 'inertial/mass') for parent in (source, pod) for link in parent.findall('link'))
-    assert math.isclose(total, expected_mass, abs_tol=1e-12) and math.isclose(total, 7.94, abs_tol=1e-12)
+    assert math.isclose(total, expected_mass, abs_tol=1e-12)
     assert math.isclose(total, manifest['total_mass_kg'], abs_tol=1e-12)
+    source_mass, source_center = mass_and_center(source)
+    pod_mass, pod_center = mass_and_center(pod)
+    expected_center = (source_mass * source_center + pod_mass *
+                       (pod_center + np.array([0., 0., config['mount_z_m']]))) / expected_mass
+    actual_mass, actual_center = mass_and_center(model)
+    assert math.isclose(actual_mass, expected_mass, abs_tol=1e-12)
+    np.testing.assert_allclose(actual_center, expected_center, rtol=0, atol=1e-12,
+                               err_msg='组合 COM 必须由原生惯性位姿与吊舱安装位置合成')
     for uri in model.findall('.//mesh/uri'):
         assert uri.text.startswith(f'model://{dynamic.NAME}/')
         path = output / uri.text.removeprefix(f'model://{dynamic.NAME}/')
@@ -146,13 +167,39 @@ def check_output(output, manifest):
     assert parameters['simulation']['world_name'] == world.get('name') == dynamic.NAME + '_test'
     assert parameters['simulation']['gravity'] == world.findtext('gravity')
     assert parameters['simulation']['spawn_pose'] == world.findtext(f"include[uri='model://{dynamic.NAME}']/pose")
+    # 坐标来自原生 CG，平移到组合零位 CG；只变参考原点，物理安装点保持不变。
+    signs = np.array([1., -1., -1.])
+    translation = signs * (source_center - expected_center)
+    reference_keys = [prefix + axis
+                      for prefix in ([f'CA_ROTOR{index}_P' for index in range(4)] +
+                                     ['EKF2_IMU_POS_', 'EKF2_GPS_POS_']) for axis in 'XYZ']
+    expected_reference = {key: config['px4_parameters'][key] + translation[index % 3]
+                          for index, key in enumerate(reference_keys)}
+    reference = manifest['px4_reference']
+    assert reference == parameters['assembly']['px4_reference']
+    assert set(reference) == {'reference_pose', 'base_cg_flu_m', 'assembly_nominal_cg_flu_m',
+                              'offset_translation_frd_m', 'source_parameters', 'parameters'}
+    assert reference['reference_pose'] == 'zero_joint_positions'
+    np.testing.assert_allclose(reference['base_cg_flu_m'], source_center, rtol=0, atol=1e-12)
+    np.testing.assert_allclose(reference['assembly_nominal_cg_flu_m'], expected_center, rtol=0, atol=1e-12)
+    np.testing.assert_allclose(reference['offset_translation_frd_m'], translation, rtol=0, atol=1e-12)
+    assert reference['source_parameters'] == {key: config['px4_parameters'][key] for key in reference_keys}
+    assert set(reference['parameters']) == set(expected_reference)
+    for key, value in expected_reference.items():
+        assert math.isclose(reference['parameters'][key], value, rel_tol=0, abs_tol=1e-12), key
     airframe = (output / 'px4' / f"{manifest['airframe_id']}_gz_{dynamic.NAME}").read_bytes().decode()
-    assert airframe == dynamic.assembly_airframe(config['airframe_text'], manifest['px4_hover_thrust'])
+    assert airframe == dynamic.assembly_airframe(config['airframe_text'], manifest['px4_hover_thrust'],
+                                                reference['parameters'])
     actual_px4 = dynamic.native.parameter_values(airframe)
     assert actual_px4 == parameters['px4']['parameters']
     assert set(actual_px4) == set(config['px4_parameters'])
     for key, value in config['px4_parameters'].items():
-        if key != 'MPC_THR_HOVER':
+        if key in expected_reference:
+            assert math.isclose(actual_px4[key], expected_reference[key], rel_tol=0, abs_tol=1e-12), key
+            axis = reference_keys.index(key) % 3
+            assert math.isclose(actual_px4[key] + signs[axis] * actual_center[axis],
+                                value + signs[axis] * source_center[axis], rel_tol=0, abs_tol=1e-12), key
+        elif key != 'MPC_THR_HOVER':
             assert actual_px4[key] == value, f'原生 PX4 参数被改变：{key}'
     motor_plugins = model.findall(f"plugin[@name='{dynamic.MOTOR}']")
     thrust = 0.
@@ -181,7 +228,9 @@ def main():
         override = dynamic.generate(temp / 'interface', airframe_id=4999, topic_prefix='/test/rocket_pod')
         check_output(temp / 'interface', override)
         assert override['image_topic'] == '/test/rocket_pod/image'
-        for value in (-1, 0, .9, 1000, float('nan'), float('inf'), True):
+        source_body_mass = scalar(ET.parse(dynamic.ROCKET / 'model.sdf').getroot(),
+                                  "model/link[@name='base_link']/inertial/mass")
+        for value in (-1, 0, source_body_mass / 2, source_body_mass * 2, float('nan'), float('inf'), True):
             try:
                 dynamic.generate(temp / 'invalid', body_mass_kg=value)
             except ValueError:

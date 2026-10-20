@@ -4,12 +4,12 @@
     <self_collide>false</self_collide>
     <link name="base_link">
       <inertial>
-        <pose>0 0 -0.094 0 0 0</pose>
-        <mass>7.44</mass>
+        <pose>0 0 0.0331777777777778 0 0 0</pose>
+        <mass>4.5</mass>
         <inertia>
-          <ixx>0.129598907060</ixx>
-          <iyy>0.129623371000</iyy>
-          <izz>0.175303151860</izz>
+          <ixx>0.139854907060</ixx>
+          <iyy>0.139243371000</iyy>
+          <izz>0.190493151860</izz>
           <ixy>0</ixy>
           <ixz>0</ixz>
           <iyz>0</iyz>
@@ -37,8 +37,19 @@
           <diffuse>0.24 0.29 0.34 1</diffuse>
         </material>
       </visual>
+      <visual name="tail_fins_visual">
+        <geometry>
+          <mesh>
+            <uri>model://rocket_racing_quad/meshes/tail_fins.stl</uri>
+          </mesh>
+        </geometry>
+        <material>
+          <ambient>0.16 0.18 0.21 1</ambient>
+          <diffuse>0.24 0.29 0.34 1</diffuse>
+        </material>
+      </visual>
       <collision name="body_collision">
-        <pose>0 0 0.07 0 0 0</pose>
+        <pose>0 0 0.085 0 0 0</pose>
         <geometry>
           <cylinder>
             <radius>0.045</radius>
@@ -47,7 +58,7 @@
         </geometry>
       </collision>
       <collision name="arm_0_collision">
-        <pose>0.06735192091 -0.06735192091 -0.12 0 1.570796327 -0.7853981634</pose>
+        <pose>0.06735192091 -0.06735192091 0 0 1.570796327 -0.7853981634</pose>
         <geometry>
           <cylinder>
             <radius>0.008</radius>
@@ -56,7 +67,7 @@
         </geometry>
       </collision>
       <collision name="arm_1_collision">
-        <pose>-0.06735192091 0.06735192091 -0.12 0 1.570796327 2.35619449</pose>
+        <pose>-0.06735192091 0.06735192091 0 0 1.570796327 2.35619449</pose>
         <geometry>
           <cylinder>
             <radius>0.008</radius>
@@ -65,7 +76,7 @@
         </geometry>
       </collision>
       <collision name="arm_2_collision">
-        <pose>0.06735192091 0.06735192091 -0.12 0 1.570796327 0.7853981634</pose>
+        <pose>0.06735192091 0.06735192091 0 0 1.570796327 0.7853981634</pose>
         <geometry>
           <cylinder>
             <radius>0.008</radius>
@@ -74,7 +85,7 @@
         </geometry>
       </collision>
       <collision name="arm_3_collision">
-        <pose>-0.06735192091 -0.06735192091 -0.12 0 1.570796327 -2.35619449</pose>
+        <pose>-0.06735192091 -0.06735192091 0 0 1.570796327 -2.35619449</pose>
         <geometry>
           <cylinder>
             <radius>0.008</radius>
@@ -128,6 +139,7 @@
             </z>
           </linear_acceleration>
         </imu>
+        <pose>0 0 0.015 0 0 0</pose>
       </sensor>
       <sensor name="air_pressure_sensor" type="air_pressure">
         <gz_frame_id>base_link</gz_frame_id>
@@ -141,6 +153,7 @@
             </noise>
           </pressure>
         </air_pressure>
+        <pose>0 0 0.015 0 0 0</pose>
       </sensor>
       <sensor name="magnetometer_sensor" type="magnetometer">
         <gz_frame_id>base_link</gz_frame_id>
@@ -166,15 +179,17 @@
             </noise>
           </z>
         </magnetometer>
+        <pose>0 0 0.015 0 0 0</pose>
       </sensor>
       <sensor name="navsat_sensor" type="navsat">
         <gz_frame_id>base_link</gz_frame_id>
         <always_on>1</always_on>
         <update_rate>30</update_rate>
+        <pose>0 0 0.015 0 0 0</pose>
       </sensor>
     </link>
     <link name="nacelle_0">
-      <pose>0.2086 -0.2086 -0.12 0 0 0</pose>
+      <pose>0.2086 -0.2086 0 0 0 0</pose>
       <inertial>
         <mass>0.04</mass>
         <inertia>
@@ -229,7 +244,7 @@
       <child>nacelle_0</child>
     </joint>
     <link name="rotor_0">
-      <pose>0.2086 -0.2086 -0.185 0 0 0</pose>
+      <pose>0.2086 -0.2086 -0.065 0 0 0</pose>
       <inertial>
         <mass>0.025</mass>
         <inertia>
@@ -289,7 +304,7 @@
       <rotorVelocitySlowdownSim>10</rotorVelocitySlowdownSim>
     </plugin>
     <link name="nacelle_1">
-      <pose>-0.2086 0.2086 -0.12 0 0 0</pose>
+      <pose>-0.2086 0.2086 0 0 0 0</pose>
       <inertial>
         <mass>0.04</mass>
         <inertia>
@@ -344,7 +359,7 @@
       <child>nacelle_1</child>
     </joint>
     <link name="rotor_1">
-      <pose>-0.2086 0.2086 -0.185 0 0 0</pose>
+      <pose>-0.2086 0.2086 -0.065 0 0 0</pose>
       <inertial>
         <mass>0.025</mass>
         <inertia>
@@ -404,7 +419,7 @@
       <rotorVelocitySlowdownSim>10</rotorVelocitySlowdownSim>
     </plugin>
     <link name="nacelle_2">
-      <pose>0.2086 0.2086 -0.12 0 0 0</pose>
+      <pose>0.2086 0.2086 0 0 0 0</pose>
       <inertial>
         <mass>0.04</mass>
         <inertia>
@@ -459,7 +474,7 @@
       <child>nacelle_2</child>
     </joint>
     <link name="rotor_2">
-      <pose>0.2086 0.2086 -0.185 0 0 0</pose>
+      <pose>0.2086 0.2086 -0.065 0 0 0</pose>
       <inertial>
         <mass>0.025</mass>
         <inertia>
@@ -519,7 +534,7 @@
       <rotorVelocitySlowdownSim>10</rotorVelocitySlowdownSim>
     </plugin>
     <link name="nacelle_3">
-      <pose>-0.2086 -0.2086 -0.12 0 0 0</pose>
+      <pose>-0.2086 -0.2086 0 0 0 0</pose>
       <inertial>
         <mass>0.04</mass>
         <inertia>
@@ -574,7 +589,7 @@
       <child>nacelle_3</child>
     </joint>
     <link name="rotor_3">
-      <pose>-0.2086 -0.2086 -0.185 0 0 0</pose>
+      <pose>-0.2086 -0.2086 -0.065 0 0 0</pose>
       <inertial>
         <mass>0.025</mass>
         <inertia>
@@ -645,7 +660,7 @@
       <AR>1</AR>
       <eff>1</eff>
       <area>0.0177</area>
-      <cp>0 0 0</cp>
+      <cp>0 0 0.015</cp>
     </plugin>
   </model>
 </sdf>

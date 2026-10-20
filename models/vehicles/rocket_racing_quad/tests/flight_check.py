@@ -10,6 +10,7 @@ from pathlib import Path
 import time
 
 from pymavlink import mavutil
+from gazebo_truth import nominal_cg_reference
 
 # XY 速度 + Z 位置；忽略 XY 位置、Z 速度、加速度和偏航。
 TYPE_MASK = 0b0000110111100011
@@ -67,7 +68,8 @@ class ContinuousHold:
 
 class FlightCheck:
     def __init__(self, settings: dict, report: dict, ground_truth=False,
-                 world_name='rocket_racing_quad_test', model_name='rocket_racing_quad'):
+                 world_name='rocket_racing_quad_test', model_name='rocket_racing_quad',
+                 body_offset_flu_m=(0., 0., 0.)):
         self.cfg = settings
         self.report = report
         self.master = mavutil.mavlink_connection(settings["endpoint"], source_system=255)
@@ -89,7 +91,8 @@ class FlightCheck:
         self.truth = None
         if ground_truth:
             from gazebo_truth import GazeboTruth
-            self.truth = GazeboTruth(world_name=world_name, model_name=model_name)
+            self.truth = GazeboTruth(world_name=world_name, model_name=model_name,
+                                     body_offset_flu_m=body_offset_flu_m)
         self.truth_samples = []
 
     def measurement_samples(self):
@@ -356,6 +359,7 @@ def main():
     args = parser.parse_args()
     snapshot = json.loads(args.config.read_text())
     target = measurement_target(snapshot, args.world_name, args.model_name)
+    reference = nominal_cg_reference(snapshot) if args.ground_truth else None
     settings = load_settings(args.config)
     for arg, key in (("endpoint", "endpoint"), ("cruise_speed", "cruise_speed_km_h"),
         ("sprint_speed", "sprint_speed_km_h"), ("hover_seconds", "hover_seconds"),
@@ -377,12 +381,15 @@ def main():
     report = {"settings": settings, "started_at_unix_s": time.time(), "results": {}, "samples": [], "status_text": [], "landing_confirmed": False, "passed": False}
     report["model_parameters"] = snapshot
     report["measurement_target"] = target
+    if reference is not None:
+        report["measurement_reference"] = reference
     report["config_sha256"] = hashlib.sha256(args.config.read_bytes()).hexdigest()
     report["measurement_source"] = "gazebo_pose" if args.ground_truth else "px4_local_position"
     check = None
     code = 1
     try:
-        check = FlightCheck(settings, report, ground_truth=args.ground_truth, **target)
+        check = FlightCheck(settings, report, ground_truth=args.ground_truth, **target,
+                            body_offset_flu_m=reference['body_offset_flu_m'] if reference else (0., 0., 0.))
         check.run()
         report["passed"] = True
         code = 0

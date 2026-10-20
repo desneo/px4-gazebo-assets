@@ -17,6 +17,7 @@ import generate_dynamic_model as dynamic
 
 ROOT = Path(__file__).resolve().parents[1]
 PHASES = ('hover', 'cruise', 'sprint')
+truth = dynamic.load_module('rocket_pod_archive_truth', dynamic.ROCKET / 'tests/gazebo_truth.py')
 
 
 def finite(value):
@@ -84,6 +85,7 @@ def validate_report(report, current_sources, defaults):
             or snapshot.get('model', {}).get('name') != target['model_name']
             or snapshot.get('simulation', {}).get('world_name') != target['world_name']):
         raise ValueError('报告必须使用当前组合测试世界与组合实体的 Gazebo 真值')
+    truth.validate_measurement_reference(snapshot, report.get('measurement_reference'))
     if report.get('passed') is not True or report.get('landing_confirmed') is not True:
         raise ValueError('完整飞行必须通过且确认降落停机，不能归档为通过')
     if report.get('error') or report.get('recovery_error'):
@@ -181,7 +183,7 @@ def archive_report(raw, *, output_root=ROOT, current_sources=None, defaults=None
         defaults = json.loads((dynamic.ROCKET / 'parameters.json').read_text())['flight_test']
     sources, windows = validate_report(report, current_sources, defaults)
     summary = {key: report[key] for key in ('passed', 'landing_confirmed', 'measurement_source',
-               'measurement_target', 'config_sha256', 'results', 'settings', 'model_parameters')}
+               'measurement_target', 'measurement_reference', 'config_sha256', 'results', 'settings', 'model_parameters')}
     summary.update(validated_at=datetime.fromtimestamp(report['finished_at_unix_s'], ZoneInfo('Asia/Shanghai')).isoformat(),
                    elapsed_wall_s=report['finished_at_unix_s'] - report['started_at_unix_s'],
                    raw_report_sha256=hashlib.sha256(raw).hexdigest(),

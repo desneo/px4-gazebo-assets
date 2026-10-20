@@ -2,32 +2,32 @@
   "passed": true,
   "landing_confirmed": true,
   "measurement_source": "gazebo_pose",
-  "config_sha256": "808990213ac58961903b1eee79a068ff02e6227fc799d90c0f18ec511824a7c8",
+  "config_sha256": "f6c783ba534213a25b26ba4c467b3c9cddf377e62952b6bb73a92084229aef34",
   "results": {
     "hover": {
-      "max_drift_m": 0.12283333144364963,
-      "max_altitude_error_m": 0.4602253159402103,
+      "max_drift_m": 0.07468479115566559,
+      "max_altitude_error_m": 0.5165591425599878,
       "passed": true
     },
     "cruise": {
       "required_speed_km_h": 200,
       "required_continuous_s": 30,
-      "longest_continuous_s": 30.0,
-      "max_altitude_error_m": 0.22220819707285244,
-      "peak_speed_km_h": 217.97375108989513,
+      "longest_continuous_s": 30.012,
+      "max_altitude_error_m": 0.20261125786143808,
+      "peak_speed_km_h": 216.37666912816383,
       "passed": true
     },
     "sprint": {
       "required_speed_km_h": 300,
       "required_continuous_s": 10,
       "longest_continuous_s": 10.0,
-      "max_altitude_error_m": 0.08560067463083953,
-      "peak_speed_km_h": 312.15662948242823,
+      "max_altitude_error_m": 0.7474234262083677,
+      "peak_speed_km_h": 316.402039075569,
       "passed": true
     }
   },
   "settings": {
-    "endpoint": "udpin:0.0.0.0:14541",
+    "endpoint": "udpin:0.0.0.0:14540",
     "setpoint_rate_hz": 20,
     "telemetry_timeout_s": 2,
     "heartbeat_timeout_s": 5,
@@ -80,7 +80,7 @@
         "real_time_update_rate": "250.0"
       },
       "gravity": "0 0 -9.8",
-      "spawn_pose": "0 0 0.23 0 0 0"
+      "spawn_pose": "0 0 0.215 0 0 0"
     },
     "px4": {
       "airframe_id": 4022,
@@ -90,7 +90,7 @@
         "CA_ROTOR_COUNT": 4.0,
         "CA_ROTOR0_PX": 0.2086,
         "CA_ROTOR0_PY": 0.2086,
-        "CA_ROTOR0_PZ": 0.185,
+        "CA_ROTOR0_PZ": 0.095,
         "CA_ROTOR0_KM": 0.02863386,
         "SIM_GZ_EC_FUNC1": 101.0,
         "SIM_GZ_EC_MIN1": 50.0,
@@ -98,7 +98,7 @@
         "SIM_GZ_EC_DIS1": 0.0,
         "CA_ROTOR1_PX": -0.2086,
         "CA_ROTOR1_PY": -0.2086,
-        "CA_ROTOR1_PZ": 0.185,
+        "CA_ROTOR1_PZ": 0.095,
         "CA_ROTOR1_KM": 0.02863386,
         "SIM_GZ_EC_FUNC2": 102.0,
         "SIM_GZ_EC_MIN2": 50.0,
@@ -106,7 +106,7 @@
         "SIM_GZ_EC_DIS2": 0.0,
         "CA_ROTOR2_PX": 0.2086,
         "CA_ROTOR2_PY": -0.2086,
-        "CA_ROTOR2_PZ": 0.185,
+        "CA_ROTOR2_PZ": 0.095,
         "CA_ROTOR2_KM": -0.02863386,
         "SIM_GZ_EC_FUNC3": 103.0,
         "SIM_GZ_EC_MIN3": 50.0,
@@ -114,13 +114,13 @@
         "SIM_GZ_EC_DIS3": 0.0,
         "CA_ROTOR3_PX": -0.2086,
         "CA_ROTOR3_PY": 0.2086,
-        "CA_ROTOR3_PZ": 0.185,
+        "CA_ROTOR3_PZ": 0.095,
         "CA_ROTOR3_KM": -0.02863386,
         "SIM_GZ_EC_FUNC4": 104.0,
         "SIM_GZ_EC_MIN4": 50.0,
         "SIM_GZ_EC_MAX4": 1570.0,
         "SIM_GZ_EC_DIS4": 0.0,
-        "MPC_THR_HOVER": 0.0755504,
+        "MPC_THR_HOVER": 0.04206385775789426,
         "MPC_TILTMAX_AIR": 85.0,
         "MPC_XY_VEL_MAX": 95.0,
         "MPC_XY_CRUISE": 15.0,
@@ -133,6 +133,12 @@
         "MPC_USE_HTE": 0.0,
         "MPC_THR_MIN": 0.03,
         "MPC_THR_MAX": 0.9,
+        "EKF2_IMU_POS_X": 0.0,
+        "EKF2_IMU_POS_Y": 0.0,
+        "EKF2_IMU_POS_Z": 0.015,
+        "EKF2_GPS_POS_X": 0.0,
+        "EKF2_GPS_POS_Y": 0.0,
+        "EKF2_GPS_POS_Z": 0.015,
         "EKF2_HGT_REF": 0.0
       }
     },
@@ -141,19 +147,19 @@
       "links": {
         "base_link": {
           "pose": "0 0 0 0 0 0",
-          "inertial_pose": "0 0 -0.094 0 0 0",
-          "mass_kg": 7.44,
+          "inertial_pose": "0 0 0.0331777777777778 0 0 0",
+          "mass_kg": 4.5,
           "inertia": {
-            "ixx": 0.12959890706,
-            "iyy": 0.129623371,
-            "izz": 0.17530315186,
+            "ixx": 0.13985490706,
+            "iyy": 0.139243371,
+            "izz": 0.19049315186,
             "ixy": 0.0,
             "ixz": 0.0,
             "iyz": 0.0
           }
         },
         "nacelle_0": {
-          "pose": "0.2086 -0.2086 -0.12 0 0 0",
+          "pose": "0.2086 -0.2086 0 0 0 0",
           "inertial_pose": "0 0 0 0 0 0",
           "mass_kg": 0.04,
           "inertia": {
@@ -166,7 +172,7 @@
           }
         },
         "rotor_0": {
-          "pose": "0.2086 -0.2086 -0.185 0 0 0",
+          "pose": "0.2086 -0.2086 -0.065 0 0 0",
           "inertial_pose": "0 0 0 0 0 0",
           "mass_kg": 0.025,
           "inertia": {
@@ -179,7 +185,7 @@
           }
         },
         "nacelle_1": {
-          "pose": "-0.2086 0.2086 -0.12 0 0 0",
+          "pose": "-0.2086 0.2086 0 0 0 0",
           "inertial_pose": "0 0 0 0 0 0",
           "mass_kg": 0.04,
           "inertia": {
@@ -192,7 +198,7 @@
           }
         },
         "rotor_1": {
-          "pose": "-0.2086 0.2086 -0.185 0 0 0",
+          "pose": "-0.2086 0.2086 -0.065 0 0 0",
           "inertial_pose": "0 0 0 0 0 0",
           "mass_kg": 0.025,
           "inertia": {
@@ -205,7 +211,7 @@
           }
         },
         "nacelle_2": {
-          "pose": "0.2086 0.2086 -0.12 0 0 0",
+          "pose": "0.2086 0.2086 0 0 0 0",
           "inertial_pose": "0 0 0 0 0 0",
           "mass_kg": 0.04,
           "inertia": {
@@ -218,7 +224,7 @@
           }
         },
         "rotor_2": {
-          "pose": "0.2086 0.2086 -0.185 0 0 0",
+          "pose": "0.2086 0.2086 -0.065 0 0 0",
           "inertial_pose": "0 0 0 0 0 0",
           "mass_kg": 0.025,
           "inertia": {
@@ -231,7 +237,7 @@
           }
         },
         "nacelle_3": {
-          "pose": "-0.2086 -0.2086 -0.12 0 0 0",
+          "pose": "-0.2086 -0.2086 0 0 0 0",
           "inertial_pose": "0 0 0 0 0 0",
           "mass_kg": 0.04,
           "inertia": {
@@ -244,7 +250,7 @@
           }
         },
         "rotor_3": {
-          "pose": "-0.2086 -0.2086 -0.185 0 0 0",
+          "pose": "-0.2086 -0.2086 -0.065 0 0 0",
           "inertial_pose": "0 0 0 0 0 0",
           "mass_kg": 0.025,
           "inertia": {
@@ -336,54 +342,69 @@
           "AR": 1.0,
           "eff": 1.0,
           "area": 0.0177,
-          "cp": "0 0 0"
+          "cp": "0 0 0.015"
         }
       ],
-      "total_mass_kg": 7.7
+      "total_mass_kg": 4.76
     },
     "runtime": {
       "source_sha256": {
-        "model.sdf": "5464d2fc37a7d4a472946a1a470d7247f6757f1569abefe824066b899d5b0ef5",
+        "model.sdf": "aa1a13c96411baebc0e1401b4e592e9c1c4ee9662045b600204c9ddd70de2b8f",
         "model.config": "4c6d734e4282c31db46c20e4f6487a69c02c4860da5aaa360c618ea8ce4267df",
-        "tests/world.sdf": "5d9548c8899cf7718e21d65411e5b2f1e2aeb6029cfe7657771bebd5afb3a7f0",
-        "meshes/fuselage.stl": "3e865f573c826e96afa34485753dd3036d49b55a9f579aa83f57512c753aa831",
+        "tests/world.sdf": "80ffea55d651da9ddf46ee9541bc37acd6a230c64dc528a21f3c4d7bedd3e912",
+        "meshes/fuselage.stl": "e3d99db10f307426d291655cd4f6c83226c097f583635b5134174cd4fc25f338",
         "meshes/nacelle.stl": "98eef3ec9a370598a56dcb7c4c2ddc6278f724a755266a25a3cffe572106c099",
         "meshes/propeller_10in.stl": "cc2841227d7a8151a1e8180e6d1b5f16848d13420c0fb771df3c249e70a181b1",
-        "meshes/tail.stl": "4ccb9282de40eecc22ff84788ddd95fb64be2f0c37204b68d4fd4e3585b00462",
-        "px4/4022_gz_rocket_racing_quad": "bd17c2caf56b73f4708c512c6b03d1452af4e172eaa00f96753e3b815980ad88",
+        "meshes/tail.stl": "2d954e31e76b7845fe3b8bfda111b2a4ff786618bb1dc493d306aaa7a7b6cd1c",
+        "meshes/tail_fins.stl": "c3a00c796cdc38a07088f5c939e751a7692040d5a8f31df0524ea87a2646d445",
+        "px4/4022_gz_rocket_racing_quad": "e38f4d555055fdc82ce660ba13a556ea0cd5c11dbe8025c4e9e883659fd486af",
         "parameters.json": "d8a342faf0d98ec5e49a9de20319e80124d3a65d96f60cf4a654aebc30d8b333",
         "tools/prepare_runtime.py": "c91af9c700a90769fe9e3730a915ca87235a6b810b36da63ff069bbdae69e416",
         "tests/run.sh": "cd449190cfa15bf565a53d8ba8b65899f0d46835fc0b45c0092f2bd3aed4fd68",
         "tests/run_check.sh": "e23490808e25bf9026bc74b99eda534917706cc335a82c26db3336a9a984936b",
-        "tests/flight_check.py": "60e7918cd918ae07e4f099aaa26566533c26428e7911cc50b903eb2ecc098c3e",
-        "tests/gazebo_truth.py": "5a2b440165a7d25185ff3c7f401a10c3f1a7ab174ca47025b8d0a1ec5d121d6c"
+        "tests/flight_check.py": "e5c023b414698e47d71bec8df595c3ad1a7f5116a406f206398e21ce188c1e29",
+        "tests/gazebo_truth.py": "5b714e5984754394373eea355c571b39836b941b853b4c8eeaa5658d9a6330df"
       },
       "flight_config_source": "/home/aeroarx/zsh/px4-gazebo-assets/models/vehicles/rocket_racing_quad/parameters.json",
       "flight_config_sha256": "d8a342faf0d98ec5e49a9de20319e80124d3a65d96f60cf4a654aebc30d8b333"
     }
   },
-  "validated_at": "2026-10-20T12:54:08.910008+08:00",
-  "elapsed_wall_s": 212.23776507377625,
-  "raw_report_sha256": "11c90026c3b78dad707a739196ba385a2430860b06b63b2c434937be073139ea",
+  "measurement_target": {
+    "world_name": "rocket_racing_quad_test",
+    "model_name": "rocket_racing_quad"
+  },
+  "measurement_reference": {
+    "kind": "nominal_cg",
+    "body_offset_flu_m": [
+      0.0,
+      0.0,
+      0.030000000000000023
+    ],
+    "reference_pose": "zero_joint_positions"
+  },
+  "validated_at": "2026-10-20T15:49:01.063291+08:00",
+  "elapsed_wall_s": 210.29522037506104,
+  "raw_report_sha256": "a93629a1f28bde3fb9504b0dcc3fedc5006e6513846076eb9c673c35e92bc844",
   "raw_report": "../tests/results/flight_result.json.gz",
   "sample_counts": {
-    "samples": 6241,
-    "ground_truth_samples": 10401
+    "samples": 6211,
+    "ground_truth_samples": 10350
   },
   "asset_sha256": {
-    "model.sdf": "5464d2fc37a7d4a472946a1a470d7247f6757f1569abefe824066b899d5b0ef5",
+    "model.sdf": "aa1a13c96411baebc0e1401b4e592e9c1c4ee9662045b600204c9ddd70de2b8f",
     "model.config": "4c6d734e4282c31db46c20e4f6487a69c02c4860da5aaa360c618ea8ce4267df",
-    "tests/world.sdf": "5d9548c8899cf7718e21d65411e5b2f1e2aeb6029cfe7657771bebd5afb3a7f0",
-    "meshes/fuselage.stl": "3e865f573c826e96afa34485753dd3036d49b55a9f579aa83f57512c753aa831",
+    "tests/world.sdf": "80ffea55d651da9ddf46ee9541bc37acd6a230c64dc528a21f3c4d7bedd3e912",
+    "meshes/fuselage.stl": "e3d99db10f307426d291655cd4f6c83226c097f583635b5134174cd4fc25f338",
     "meshes/nacelle.stl": "98eef3ec9a370598a56dcb7c4c2ddc6278f724a755266a25a3cffe572106c099",
     "meshes/propeller_10in.stl": "cc2841227d7a8151a1e8180e6d1b5f16848d13420c0fb771df3c249e70a181b1",
-    "meshes/tail.stl": "4ccb9282de40eecc22ff84788ddd95fb64be2f0c37204b68d4fd4e3585b00462",
-    "px4/4022_gz_rocket_racing_quad": "bd17c2caf56b73f4708c512c6b03d1452af4e172eaa00f96753e3b815980ad88",
+    "meshes/tail.stl": "2d954e31e76b7845fe3b8bfda111b2a4ff786618bb1dc493d306aaa7a7b6cd1c",
+    "meshes/tail_fins.stl": "c3a00c796cdc38a07088f5c939e751a7692040d5a8f31df0524ea87a2646d445",
+    "px4/4022_gz_rocket_racing_quad": "e38f4d555055fdc82ce660ba13a556ea0cd5c11dbe8025c4e9e883659fd486af",
     "parameters.json": "d8a342faf0d98ec5e49a9de20319e80124d3a65d96f60cf4a654aebc30d8b333",
     "tools/prepare_runtime.py": "c91af9c700a90769fe9e3730a915ca87235a6b810b36da63ff069bbdae69e416",
     "tests/run.sh": "cd449190cfa15bf565a53d8ba8b65899f0d46835fc0b45c0092f2bd3aed4fd68",
     "tests/run_check.sh": "e23490808e25bf9026bc74b99eda534917706cc335a82c26db3336a9a984936b",
-    "tests/flight_check.py": "60e7918cd918ae07e4f099aaa26566533c26428e7911cc50b903eb2ecc098c3e",
-    "tests/gazebo_truth.py": "5a2b440165a7d25185ff3c7f401a10c3f1a7ab174ca47025b8d0a1ec5d121d6c"
+    "tests/flight_check.py": "e5c023b414698e47d71bec8df595c3ad1a7f5116a406f206398e21ce188c1e29",
+    "tests/gazebo_truth.py": "5b714e5984754394373eea355c571b39836b941b853b4c8eeaa5658d9a6330df"
   }
 }

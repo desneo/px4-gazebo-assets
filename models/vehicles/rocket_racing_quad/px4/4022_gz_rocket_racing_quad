@@ -1,7 +1,7 @@
 #!/bin/sh
 # @name Gazebo rocket racing quad
 # @type Quadrotor
-# 原生 PX4 机体配置；电机位置与反扭矩系数和 model.sdf 配套。
+# 原生 PX4 机体配置；电机位置采用相对整机重心的 FRD 坐标，反扭矩系数与 SDF 配套。
 . ${R}etc/init.d/rc.mc_defaults
 PX4_SIMULATOR=${PX4_SIMULATOR:=gz}
 PX4_GZ_WORLD=${PX4_GZ_WORLD:=default}
@@ -11,7 +11,7 @@ param set-default CA_AIRFRAME 0
 param set-default CA_ROTOR_COUNT 4
 param set-default CA_ROTOR0_PX 0.2086
 param set-default CA_ROTOR0_PY 0.2086
-param set-default CA_ROTOR0_PZ 0.185
+param set-default CA_ROTOR0_PZ 0.095
 param set-default CA_ROTOR0_KM 0.02863386
 param set-default SIM_GZ_EC_FUNC1 101
 param set-default SIM_GZ_EC_MIN1 50
@@ -19,7 +19,7 @@ param set-default SIM_GZ_EC_MAX1 1570
 param set-default SIM_GZ_EC_DIS1 0
 param set-default CA_ROTOR1_PX -0.2086
 param set-default CA_ROTOR1_PY -0.2086
-param set-default CA_ROTOR1_PZ 0.185
+param set-default CA_ROTOR1_PZ 0.095
 param set-default CA_ROTOR1_KM 0.02863386
 param set-default SIM_GZ_EC_FUNC2 102
 param set-default SIM_GZ_EC_MIN2 50
@@ -27,7 +27,7 @@ param set-default SIM_GZ_EC_MAX2 1570
 param set-default SIM_GZ_EC_DIS2 0
 param set-default CA_ROTOR2_PX 0.2086
 param set-default CA_ROTOR2_PY -0.2086
-param set-default CA_ROTOR2_PZ 0.185
+param set-default CA_ROTOR2_PZ 0.095
 param set-default CA_ROTOR2_KM -0.02863386
 param set-default SIM_GZ_EC_FUNC3 103
 param set-default SIM_GZ_EC_MIN3 50
@@ -35,13 +35,13 @@ param set-default SIM_GZ_EC_MAX3 1570
 param set-default SIM_GZ_EC_DIS3 0
 param set-default CA_ROTOR3_PX -0.2086
 param set-default CA_ROTOR3_PY 0.2086
-param set-default CA_ROTOR3_PZ 0.185
+param set-default CA_ROTOR3_PZ 0.095
 param set-default CA_ROTOR3_KM -0.02863386
 param set-default SIM_GZ_EC_FUNC4 104
 param set-default SIM_GZ_EC_MIN4 50
 param set-default SIM_GZ_EC_MAX4 1570
 param set-default SIM_GZ_EC_DIS4 0
-param set-default MPC_THR_HOVER 0.0755504
+param set-default MPC_THR_HOVER 0.04206385775789426
 param set-default MPC_TILTMAX_AIR 85
 param set-default MPC_XY_VEL_MAX 95
 param set-default MPC_XY_CRUISE 15
@@ -54,4 +54,10 @@ param set-default THR_MDL_FAC 1
 param set-default MPC_USE_HTE 0
 param set-default MPC_THR_MIN 0.03
 param set-default MPC_THR_MAX 0.9
+param set-default EKF2_IMU_POS_X 0
+param set-default EKF2_IMU_POS_Y 0
+param set-default EKF2_IMU_POS_Z 0.015
+param set-default EKF2_GPS_POS_X 0
+param set-default EKF2_GPS_POS_Y 0
+param set-default EKF2_GPS_POS_Z 0.015
 param set-default EKF2_HGT_REF 0

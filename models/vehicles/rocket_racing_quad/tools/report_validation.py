@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """将飞行JSON整理为压缩原始证据、验证摘要和科学曲线。"""
 import argparse
+import copy
 from datetime import datetime
 import gzip
 import hashlib
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -34,6 +36,35 @@ def validate_source_fingerprints(sources, current_sources):
     return dict(sources)
 
 
+def report_measurement_metadata(report):
+    """核对报告实际测量实体和参考点，拒绝将旧原点测量当作重心测量。"""
+    snapshot = report.get('model_parameters')
+    if not isinstance(snapshot, dict):
+        raise ValueError('报告缺少模型参数快照，无法核对测量参考点')
+    model, simulation = snapshot.get('model'), snapshot.get('simulation')
+    if not isinstance(model, dict) or not isinstance(simulation, dict):
+        raise ValueError('报告快照缺少模型或世界，无法核对测量目标')
+    expected_target = dict(world_name=simulation.get('world_name'), model_name=model.get('name'))
+    if (not all(isinstance(value, str) and value.strip() for value in expected_target.values())
+            or report.get('measurement_target') != expected_target):
+        raise ValueError('报告测量目标与运行快照中的世界或模型不一致')
+    source = report.get('measurement_source')
+    if source not in ('gazebo_pose', 'px4_local_position'):
+        raise ValueError('报告缺少有效测量来源')
+    reference = report.get('measurement_reference')
+    if source == 'gazebo_pose':
+        if not isinstance(reference, dict) or not reference:
+            raise ValueError('报告缺少测量参考点元数据，不能归档为当前配置')
+        spec = importlib.util.spec_from_file_location('rocket_archive_truth_reference', ROOT / 'tests/gazebo_truth.py')
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        module.validate_measurement_reference(snapshot, reference)
+    metadata = dict(measurement_target=copy.deepcopy(report['measurement_target']))
+    if 'measurement_reference' in report:
+        metadata['measurement_reference'] = copy.deepcopy(reference)
+    return metadata
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('input', type=Path)
@@ -43,6 +74,7 @@ def main():
     reported_sources = report_source_fingerprints(report)
     from prepare_runtime import source_fingerprints
     asset_sources = validate_source_fingerprints(reported_sources, source_fingerprints(ROOT))
+    measurement = report_measurement_metadata(report)
     os.environ.setdefault('MPLCONFIGDIR', '/tmp/rocket-matplotlib')
     import matplotlib
     matplotlib.use('Agg')
@@ -53,6 +85,7 @@ def main():
     archive = results / 'flight_result.json.gz'
     archive.write_bytes(gzip.compress(raw, mtime=0))
     summary = {key: report[key] for key in ('passed', 'landing_confirmed', 'measurement_source', 'config_sha256', 'results', 'settings', 'model_parameters')}
+    summary.update(measurement)
     summary['validated_at'] = datetime.fromtimestamp(report['finished_at_unix_s'], ZoneInfo('Asia/Shanghai')).isoformat()
     summary['elapsed_wall_s'] = report['finished_at_unix_s'] - report['started_at_unix_s']
     summary['raw_report_sha256'] = hashlib.sha256(raw).hexdigest()

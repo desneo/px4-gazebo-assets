@@ -170,13 +170,57 @@ def hover_configuration(model, parameters, gravity):
                 disarmed_velocity_rad_s=parameters['SIM_GZ_EC_DIS1'])
 
 
-def assembly_airframe(source, hover):
+def center_of_mass(model):
+    """零关节位姿下的模型坐标系重心；惯性位姿相对所在 link。"""
+    total = 0.
+    moment = [0., 0., 0.]
+    for link in model.findall('link'):
+        mass = native.number(link.findtext('inertial/mass'))
+        if mass <= 0:
+            raise ValueError('装配重心计算需要每个 link 的质量为正')
+        for pose in (link.find('pose'), link.find('inertial/pose')):
+            if pose is not None and pose.get('relative_to'):
+                raise ValueError('装配重心计算需要 link/model 与 inertial/link 的直接位姿')
+        transform = (appearance.transform(link.findtext('pose')) @
+                     appearance.transform(link.findtext('inertial/pose')))
+        for axis in range(3):
+            position = float(transform[axis, 3])
+            if not math.isfinite(position):
+                raise ValueError('装配重心计算需要有限惯性位置')
+            moment[axis] += mass * position
+        total += mass
+    if total <= 0:
+        raise ValueError('装配重心计算需要显式 link 质量')
+    return [value / total for value in moment]
+
+
+def px4_reference_configuration(source_model, assembly_model, source_parameters):
+    base_center = center_of_mass(source_model)
+    assembly_center = center_of_mass(assembly_model)
+    translation = [(base_center[axis] - assembly_center[axis]) * sign
+                   for axis, sign in enumerate((1., -1., -1.))]
+    prefixes = [f'CA_ROTOR{channel}_P' for channel in range(4)] + ['EKF2_IMU_POS_', 'EKF2_GPS_POS_']
+    original, derived = {}, {}
+    for prefix in prefixes:
+        for axis, suffix in enumerate('XYZ'):
+            key = prefix + suffix
+            if key not in source_parameters:
+                raise ValueError(f'原生机体须显式配置重心参考参数 {key}')
+            original[key] = source_parameters[key]
+            derived[key] = original[key] + translation[axis]
+    return dict(reference_pose='zero_joint_positions', base_cg_flu_m=base_center,
+                assembly_nominal_cg_flu_m=assembly_center, offset_translation_frd_m=translation,
+                source_parameters=original, parameters=derived)
+
+
+def assembly_airframe(source, hover, reference_parameters):
     text = source.replace('gz_rocket_racing_quad', f'gz_{NAME}')
     text = text.replace('# @name Gazebo rocket racing quad', '# @name Gazebo rocket with two axis pod')
-    text, count = re.subn(r'^(param[ \t]+(?:set-default|set)[ \t]+MPC_THR_HOVER[ \t]+)[^\r\n]+',
-                          lambda match: match[1] + format(hover, '.16g'), text, flags=re.MULTILINE)
-    if count != 1:
-        raise ValueError('原生机体文件须显式且仅一次配置 MPC_THR_HOVER')
+    for key, value in {'MPC_THR_HOVER': hover, **reference_parameters}.items():
+        text, count = re.subn(r'^(param[ \t]+(?:set-default|set)[ \t]+' + re.escape(key) + r'[ \t]+)[^\r\n]+',
+                              lambda match: match[1] + format(value, '.16g'), text, flags=re.MULTILINE)
+        if count != 1:
+            raise ValueError(f'原生机体文件须显式且仅一次配置 {key}')
     return text
 
 
@@ -216,13 +260,15 @@ def generate(output_dir, *, body_mass_kg=None, airframe_id=None, topic_prefix=No
     world = component_world()
     gravity = math.sqrt(sum(float(value)**2 for value in world.findtext('world/gravity').split()))
     hover = hover_configuration(root.find('model'), config['px4_parameters'], gravity)
-    airframe_text = assembly_airframe(config['airframe_text'], hover['px4_hover_thrust'])
+    reference = px4_reference_configuration(config['source_model'].find('model'), root.find('model'),
+                                            config['px4_parameters'])
+    airframe_text = assembly_airframe(config['airframe_text'], hover['px4_hover_thrust'], reference['parameters'])
     parameters = native.parameter_values(airframe_text)
     assembly = dict(model_name=NAME, mount_z_m=config['mount_z_m'],
                     retained_body_length_m=config['retained_body_length_m'],
                     pod_mass_kg=sum(native.number(link.findtext('inertial/mass'))
                                     for link in ET.parse(POD / 'model.sdf').getroot().findall('model/link')),
-                    total_mass_kg=hover['total_mass_kg'])
+                    total_mass_kg=hover['total_mass_kg'], px4_reference=reference)
     world_element = world.find('world')
     snapshot = dict(model=model_snapshot(root.find('model')),
                     px4=dict(airframe_id=config['airframe_id'], parameters=parameters),
@@ -267,7 +313,7 @@ def generate(output_dir, *, body_mass_kg=None, airframe_id=None, topic_prefix=No
     manifest.update(model_name=NAME,
                     mass_approximation='完整保留基础机质量、重心和惯量，另加原生吊舱；顶部外形和碰撞截短不扣除机头质量。',
                     image_topic=config['topic_prefix'] + '/image', gravity_m_s2=gravity,
-                    source_sha256=before, **hover)
+                    source_sha256=before, px4_reference=reference, **hover)
     (output / 'manifest.json').write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + '\n')
     return manifest
 

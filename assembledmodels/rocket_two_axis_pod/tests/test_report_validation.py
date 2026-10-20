@@ -27,7 +27,8 @@ def fixture():
                'models/vehicles/rocket_racing_quad/model.sdf': 'b' * 64,
                'models/vehicles/rocket_racing_quad/tests/flight_check.py': 'c' * 64}
     settings = copy.deepcopy(defaults)
-    snapshot = dict(model=dict(name='rocket_two_axis_pod', total_mass_kg=7.94),
+    model = archive.dynamic.build_model(archive.dynamic.settings()).find('model')
+    snapshot = dict(model=archive.dynamic.model_snapshot(model),
                     simulation=dict(world_name='rocket_two_axis_pod_test'),
                     flight_test=copy.deepcopy(defaults), runtime=dict(source_sha256=copy.deepcopy(sources)))
     results = {'hover': dict(passed=True, max_drift_m=.1, max_altitude_error_m=.2)}
@@ -50,6 +51,7 @@ def fixture():
     report = dict(model_parameters=snapshot, settings=settings, passed=True, landing_confirmed=True,
                   measurement_source='gazebo_pose',
                   measurement_target=dict(world_name='rocket_two_axis_pod_test', model_name='rocket_two_axis_pod'),
+                  measurement_reference=archive.truth.nominal_cg_reference(snapshot),
                   results=results, samples=samples, ground_truth_samples=copy.deepcopy(truth),
                   started_at_unix_s=100., finished_at_unix_s=200.)
     config_hash(report)
@@ -109,6 +111,55 @@ class FlightArchiveTests(unittest.TestCase):
                 report[key] = value
                 with self.assertRaisesRegex(ValueError, 'Gazebo 真值'):
                     self.validate(report)
+
+    def test_missing_or_wrong_cg_measurement_reference_is_rejected(self):
+        reference = self.report['measurement_reference']
+        invalid = [None,
+                   dict(reference, undocumented_reference='origin'),
+                   dict(reference, kind='model_origin'),
+                   dict(reference, reference_pose='current_joint_positions'),
+                   dict(reference, body_offset_flu_m=[0., 0., 0.]),
+                   dict(reference, body_offset_flu_m=[*reference['body_offset_flu_m'][:2],
+                                                      reference['body_offset_flu_m'][2] + .01]),
+                   dict(reference, body_offset_flu_m=[0., 0.]),
+                   dict(reference, body_offset_flu_m=[float('nan'), 0., 0.]),
+                   dict(reference, body_offset_flu_m=[True, 0., 0.])]
+        for value in invalid:
+            with self.subTest(reference=value):
+                report = copy.deepcopy(self.report)
+                report['measurement_reference'] = value
+                with self.assertRaises(ValueError):
+                    self.validate(report)
+
+    def test_reference_requires_full_valid_native_link_mass_and_poses(self):
+        for reason in ('links_missing', 'links_empty', 'mass', 'link_pose', 'inertial_pose'):
+            with self.subTest(reason=reason):
+                report = copy.deepcopy(self.report)
+                model = report['model_parameters']['model']
+                if reason == 'links_missing':
+                    model.pop('links')
+                elif reason == 'links_empty':
+                    model['links'] = {}
+                elif reason == 'mass':
+                    model['links']['base_link']['mass_kg'] = -1.
+                elif reason == 'link_pose':
+                    model['links']['base_link'].pop('pose')
+                else:
+                    model['links']['base_link'].pop('inertial_pose')
+                config_hash(report)
+                with self.assertRaises(ValueError):
+                    self.validate(report)
+
+    def test_reference_is_recomputed_from_snapshot_instead_of_nominal_metadata(self):
+        report = copy.deepcopy(self.report)
+        link = report['model_parameters']['model']['links']['base_link']
+        link['pose'] = '.02 -.03 .05 .3 .2 .1'
+        link['inertial_pose'] = '.01 .02 -.03 -.4 .1 .2'
+        config_hash(report)
+        with self.assertRaises(ValueError):
+            self.validate(report)
+        report['measurement_reference'] = archive.truth.nominal_cg_reference(report['model_parameters'])
+        self.validate(report)
 
     def test_shortened_test_or_relaxed_tolerance_is_not_full_validation(self):
         for key, value in (('hover_seconds', 3), ('cruise_seconds', 3), ('sprint_seconds', 1),
@@ -171,6 +222,7 @@ class FlightArchiveTests(unittest.TestCase):
                 defaults=self.defaults, renderer=lambda _: b'test-only-renderer')
             self.assertEqual(gzip.decompress((output / 'tests/results/flight_result.json.gz').read_bytes()), raw)
             self.assertEqual(summary['asset_sha256'], self.sources)
+            self.assertEqual(summary['measurement_reference'], self.report['measurement_reference'])
             self.assertEqual(summary['raw_report_sha256'], hashlib.sha256(raw).hexdigest())
             self.assertEqual(summary['verified_continuous_s'], {'cruise': 30., 'sprint': 10.})
             self.assertEqual(json.loads((output / 'docs/validation.json').read_text()), summary)

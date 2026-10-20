@@ -1,6 +1,6 @@
 # 火箭穿越机自验证
 
-本目录包含 `rocket_racing_quad` 的自验证世界、启动脚本和飞行验收工具。
+本目录包含 `rocket_racing_quad`自验证世界、启动与飞行验收工具。基础外形已获人工确认，当前4.76 kg配置已通过完整无风组件世界真值验收；组合体以自身快照独立测试。
 
 - [world.sdf](world.sdf)：独立自验证世界，内置模型与所需系统插件。
 - [run.sh](run.sh)：资源路径、IMU 就绪等待及 PX4 SITL 启动入口。
@@ -55,11 +55,13 @@ python3 models/vehicles/rocket_racing_quad/tests/flight_check.py \
 
 运行副本中的 `parameters.json` 是提取快照：`model` 保存所有 link 的质量、惯性和姿态及电机/气动插件配置，`px4` 保存实际机体参数，`simulation` 保存世界名称、物理引擎设置、重力、生成位置和 IMU 等待期限，`runtime.source_sha256` 保存原生资产、完整世界文件与默认 JSON 的 SHA-256。该快照不沿用源 JSON 中未生效的物理字段。
 
-世界名为 `rocket_racing_quad_test`。原点WGS84为 `(47.397971057728974, 8.546163739800146)`，海拔0 m。模型机头朝+z，全部显示网格与碰撞体的 z 包络为-0.225～+0.365 m，本体总高度0.590 m；几何轴向中点与机身碰撞圆柱中心为 z=+0.070 m，`base_link` 原点不在几何中点。当前初始 `base_link` 原点 z=0.230 m，机尾离地5 mm、顶部离地0.595 m。世界参数直接来自 `tests/world.sdf`；`tools/world_template.sdf` 仅供显式离线生成器使用。
+世界名为 `rocket_racing_quad_test`，WGS84原点 `(47.397971057728974,8.546163739800146)`、海拔0 m。当前机身包络z=-0.210～+0.380 m，总高0.590 m，几何轴向中点和碰撞圆柱中心z=+0.085 m；整机重心z=+0.030 m。世界初始 `base_link`原点z=0.215 m，尾端离地5 mm、顶部离地0.595 m。原生世界由 `tests/world.sdf`生效，`tools/world_template.sdf`仅供离线生成器使用。
 
 飞行脚本默认读取模型根目录的 [parameters.json](../parameters.json)，但用启动器复测时应通过 `--config` 指定**本次运行副本中的配置**，使验收与实际模型、PX4设置一致。源文件改变不会改变已启动的模型；模型、动力、PX4或世界配置变化后须停止并重新启动。常调参数的单位、影响和离线生成边界见[参数说明](../docs/parameters.md)。
 
 真值目标默认取运行快照的 `simulation.world_name` 和 `model.name`；未提供这些字段时，使用基础单机默认值 `rocket_racing_quad_test` 与 `rocket_racing_quad`。可用 `--world-name`、`--model-name` 显式指定已运行的世界名和实体名。真值模块订阅 `/world/<世界名>/dynamic_pose/info`，仅采集所选实体的位姿；这两个选项不改写世界或模型，也不改变速度、高度及连续保持时间的验收门槛。动态组合的运行快照可提供其对应名称供同一验收工具使用。
+
+`--ground-truth`要求运行快照含有效 `model.links`，按各link质量及惯性位姿加权得到固定零关节名义重心；每条模型姿态先旋转机体系偏移并加到世界ENU原点，再转换到本地NED，速度由该参考点位置差分计算。单机偏移为 `[0,0,0.03]` m FLU，组合中立偏移为 `[0.000204,0,0.043856]` m FLU。它是固定名义点，不实时重算运动关节的瞬时重心。报告记录 `measurement_reference={kind:nominal_cg,body_offset_flu_m:[...],reference_pose:zero_joint_positions}`，归档核对声明与快照一致；无效真值及采样错误传播到主线程终止验收，严格门槛不变。
 
 常用覆盖项见 `--help`。`--target-speed` 保留兼容，单位为m/s；`--cruise-speed` 与 `--sprint-speed` 单位为km/h。命令行覆盖只影响本次验收，不会改写配置文件或飞控。脚本启动前检查目标速度加控制余量不超过配置中的 `MPC_XY_VEL_MAX`；提高目标速度时应先调整实际PX4参数并重启。`MPC_XY_CRUISE` 是PX4任务模式设置，本脚本的OFFBOARD巡航目标取自 `flight_test.cruise_speed_km_h`。
 
@@ -118,8 +120,8 @@ XY 方向使用速度设定值，Z 方向使用位置设定值，由 PX4 保持�
 
 ## 日志与验证状态
 
-独立飞行脚本默认写入 `/tmp/rocket-flight-<时间戳>.json`，可用 `--log` 指定路径；`run_check.sh` 默认写入本次运行目录的 `flight_result.json`。日志包含实际配置与SHA-256、判定数据来源、`measurement_target` 中的世界名和实体名、Gazebo真值（启用时）、PX4 NED 位置和速度、仿真时间、航段、控制设定值、飞控状态文本、各项结果、错误及落地确认。使用运行快照时还包含原生资产指纹。只有所有航段通过且确认落地时，顶层 `passed` 才为 `true`，程序退出码为 0；其余情况为 1。可依据原始样本重新计算漂移、连续时长和高度误差。
+独立脚本默认写入 `/tmp/rocket-flight-<时间戳>.json`，可用 `--log`指定；`run_check.sh`默认结果为运行目录 `flight_result.json`。日志包含实际配置与SHA-256、测量来源、`measurement_target`世界/实体名、`measurement_reference`固定名义重心声明、真值和PX4遥测、仿真时间、航段、设定值、状态、结果及错误。使用运行快照时保留源资产指纹。只有所有航段通过且确认落地，`passed`才为true，退出码为0；其余为1。
 
-当前0.590 m总高度的外形尚未获得人工确认，7.70 kg、约0.590 m电机轴距和自定义重心/惯性的当前配置已通过完整无风组件世界SITL飞行自验证。质量、惯性与气动为独立配置，不由几何尺寸自动计算。PX4 电机位置、反扭矩系数和最大转速与 SDF 配套；`MPC_THR_HOVER=0.0755504`，静态理论值约0.0727901，两者分别记录；当前配置的悬停、200 km/h巡航连续30 s、300 km/h冲刺连续10 s及落地停机均通过。显示翼面与动力舱连续连接；机臂碰撞体保留较短的近似，当前不考察连接处碰撞精度，不阻断无接触自由飞行验证。具体状态见[项目状态](../docs/status.md)和[验证说明](../docs/validation.md)。
+当前4.76 kg配置已通过30 s悬停、200 km/h连续30.012 s巡航、300 km/h连续10.000 s冲刺及落地停机。悬停最大漂移0.074685 m，测量点为固定零关节名义重心 `(0,0,0.030) m` FLU；51项基础离线回归通过。`MPC_THR_HOVER`文件值0.04206385775789426与PX4内部0.05下限分别记录。当前摘要和15项源资产指纹见[验证结果](../docs/validation.md)。
 
 独立运行真值验收时，先将 `GZ_PARTITION` 设置为启动器打印的分区，并给 `flight_check.py` 加 `--ground-truth`。真值模式不会改写飞控传感器；遥测和真值任一失联都会终止验收。地面显示为平面，碰撞采用顶部位于 z=0 的实体箱体。

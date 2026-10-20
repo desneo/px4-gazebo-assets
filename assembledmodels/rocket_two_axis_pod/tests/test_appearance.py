@@ -20,10 +20,17 @@ spec.loader.exec_module(appearance)
 class AppearanceTests(unittest.TestCase):
     def test_native_extent_and_mount(self):
         source = appearance.source_geometry()
-        self.assertAlmostEqual(source['min_z_m'], -.225)
-        self.assertAlmostEqual(source['max_z_m'], .365)
-        self.assertAlmostEqual(source['length_m'], .59)
-        np.testing.assert_allclose(appearance.dimensions(), [.59, .274, .262], atol=1e-12)
+        model = ET.parse(appearance.ROCKET / 'model.sdf').getroot().find('model')
+        collision = model.find("link[@name='base_link']/collision[@name='body_collision']")
+        length = float(collision.findtext('geometry/cylinder/length'))
+        center = appearance.transform(collision.findtext('pose'))[2, 3]
+        self.assertAlmostEqual(source['min_z_m'], center - length / 2)
+        self.assertAlmostEqual(source['max_z_m'], center + length / 2)
+        self.assertAlmostEqual(source['length_m'], length)
+        assembly, _, pod = appearance.configuration()
+        mount = center + length / 2 - pod['overall_height_m']
+        np.testing.assert_allclose(appearance.dimensions(),
+                                   [length, mount, mount - assembly['shoulder_length_m']], atol=1e-12)
 
     def test_cut_preserves_native_lower_triangles_and_is_closed(self):
         source, pose, scale = appearance.source_mesh('fuselage_visual')
@@ -33,7 +40,7 @@ class AppearanceTests(unittest.TestCase):
         original = source[np.all(source[:, :, 2] < shoulder, axis=1)]
         retained = triangles[np.all(triangles[:, :, 2] < shoulder, axis=1)]
         np.testing.assert_allclose(retained, original, atol=1e-12)
-        self.assertAlmostEqual(triangles[:, :, 2].min(), -.225)
+        self.assertAlmostEqual(triangles[:, :, 2].min(), source[:, :, 2].min())
         self.assertAlmostEqual(triangles[:, :, 2].max(), mount)
         rim = triangles.reshape(-1, 3)
         rim = rim[np.isclose(rim[:, 2], mount) & (np.linalg.norm(rim[:, :2], axis=1) > 1e-10)]
@@ -65,6 +72,8 @@ class AppearanceTests(unittest.TestCase):
                     self.assertEqual(ET.tostring(expected_geometry).strip(), ET.tostring(actual_geometry).strip())
                 count += 1
         self.assertEqual(len([v for v in output.findall('visual') if v.get('name').startswith('rocket_')]), count)
+        pod = ET.parse(appearance.POD / 'model.sdf').getroot().find('model')
+        self.assertEqual(len(output.findall('visual')), count + len(pod.findall('link/visual')))
         self.assertEqual(len(output.findall('collision')), 0)
 
     def test_preview_location_and_navigation(self):
@@ -74,9 +83,11 @@ class AppearanceTests(unittest.TestCase):
             marker = world.find("model[@name='ROCKET_POD_LOCATION_MARKER']")
             self.assertEqual(len(marker.findall('.//collision')), 0)
             marker_z = appearance.transform(marker.findtext('link/visual/pose'))[2, 3]
-            self.assertAlmostEqual(marker_z, .55)
             model_z = appearance.transform(world.findtext('include/pose'))[2, 3]
-            self.assertAlmostEqual(model_z + appearance.dimensions()[1], .514)
+            geometry = appearance.source_geometry()
+            self.assertAlmostEqual(model_z + geometry['min_z_m'], .015)
+            self.assertAlmostEqual(model_z + geometry['max_z_m'], geometry['length_m'] + .015)
+            self.assertAlmostEqual(marker_z, model_z + appearance.dimensions()[1] + .036)
         self.assertEqual(appearance.configuration()[0]['view']['mouse_sensitivity'], .1)
 
     def test_regeneration_matches_checked_assets(self):

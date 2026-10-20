@@ -8,6 +8,7 @@ import importlib.util
 import json
 import math
 from pathlib import Path
+import struct
 import xml.etree.ElementTree as ET
 
 import numpy as np
@@ -33,20 +34,71 @@ def write_xml(path, root):
 
 
 def configuration():
-    return tuple(json.loads(p.read_text()) for p in
-                 (ROOT / 'parameters.json', ROCKET / 'parameters.json', POD / 'parameters.json'))
+    return (json.loads((ROOT / 'parameters.json').read_text()), source_geometry(),
+            json.loads((POD / 'parameters.json').read_text()))
+
+
+def read_stl(path):
+    """读取当前资产，不从基础模型的离线生成参数推导几何。"""
+    raw = path.read_bytes()
+    if len(raw) >= 84:
+        count = struct.unpack_from('<I', raw, 80)[0]
+        if len(raw) == 84 + count * 50:
+            dtype = np.dtype([('normal', '<f4', (3,)), ('vertices', '<f4', (3, 3)), ('attribute', '<u2')])
+            return np.frombuffer(raw, dtype=dtype, count=count, offset=84)['vertices'].astype(float)
+    vertices = [list(map(float, line.split()[1:])) for line in raw.decode('ascii').splitlines()
+                if line.strip().startswith('vertex ')]
+    result = np.asarray(vertices).reshape(-1, 3, 3)
+    if not len(result) or not np.isfinite(result).all():
+        raise ValueError(f'无效的 STL 网格：{path}')
+    return result
+
+
+def source_mesh(visual_name):
+    """返回实际基础视觉网格在模型坐标系中的三角面，以及原网格变换。"""
+    source = ET.parse(ROCKET / 'model.sdf').getroot().find('model')
+    matches = [(link, visual) for link in source.findall('link')
+               for visual in link.findall('visual') if visual.get('name') == visual_name]
+    if len(matches) != 1:
+        raise ValueError(f'基础模型必须有唯一的 {visual_name}')
+    link, visual = matches[0]
+    mesh = visual.find('geometry/mesh')
+    uri = mesh.findtext('uri')
+    if uri.startswith('model://rocket_racing_quad/'):
+        path = ROCKET / uri.split('/', 3)[3]
+    else:
+        path = Path(uri.removeprefix('file://'))
+        if not path.is_absolute():
+            path = ROCKET / path
+    if path.suffix.lower() != '.stl':
+        raise ValueError(f'装配裁切目前需要基础 STL 资产：{path}')
+    scale = np.fromstring(mesh.findtext('scale', '1 1 1'), sep=' ')
+    if len(scale) != 3 or not np.isfinite(scale).all() or np.any(scale <= 0):
+        raise ValueError('基础网格缩放必须是三个正数')
+    pose = transform(link.findtext('pose')) @ transform(visual.findtext('pose'))
+    vertices = read_stl(path) * scale
+    return vertices @ pose[:3, :3].T + pose[:3, 3], pose, scale
+
+
+def source_geometry():
+    """读取原生机身和尾翼的实际包络；机身原点不随总长变化而移动。"""
+    body, _, _ = source_mesh('fuselage_visual')
+    tail, _, _ = source_mesh('tail_visual')
+    min_z, max_z = float(body[:, :, 2].min()), float(body[:, :, 2].max())
+    return {'min_z_m': min_z, 'max_z_m': max_z, 'length_m': max_z - min_z,
+            'fin_max_z_m': float(tail[:, :, 2].max())}
 
 
 def dimensions():
     assembly, rocket, pod = configuration()
     length = assembly['overall_length_m']
-    if not math.isclose(length, rocket['geometry']['body_length_m']):
+    if not math.isclose(length, rocket['length_m'], abs_tol=1e-9):
         raise ValueError('静态装配保留原机尾、电机与翼面位置，总长必须与原机身长度一致')
-    mount_z = length / 2 - pod['overall_height_m']
+    mount_z = rocket['max_z_m'] - pod['overall_height_m']
     shoulder_start = mount_z - assembly['shoulder_length_m']
-    if not -length / 2 < shoulder_start < mount_z:
+    if not rocket['min_z_m'] < shoulder_start < mount_z:
         raise ValueError('过渡肩部必须位于保留的机身内')
-    if mount_z <= -length / 2 + rocket['geometry']['fin_root_length_m']:
+    if shoulder_start <= rocket['fin_max_z_m']:
         raise ValueError('顶部替换不得切入翼根')
     return length, mount_z, shoulder_start
 
@@ -59,23 +111,46 @@ def rocket_mesh_tools():
 
 
 def cut_fuselage():
-    """沿用原机身下段剖面，替换头部并过渡至吊舱底环。"""
-    _, rocket, pod = configuration()
+    """裁切真实机身三角面，保留下段并以肩部接到底环；返回原网格局部坐标。"""
+    _, _, pod = configuration()
     _, mount_z, shoulder_start = dimensions()
-    tools = rocket_mesh_tools()
-    vertices = tools.build_fuselage(rocket['geometry']).reshape(-1, 3)
-    rings = {}
-    for x, y, z in vertices:
-        key = round(float(z), 12)
-        rings[key] = max(rings.get(key, 0), float(np.hypot(x, y)))
-    source = sorted(rings.items())
-    z, radius = np.array(source).T
-    start_radius = float(np.interp(shoulder_start, z, radius))
-    profile = [(zi, ri) for zi, ri in source if zi < shoulder_start]
-    profile.append((shoulder_start, start_radius))
-    profile.append((mount_z, pod['housing_diameter_m'] / 2))
-    profile.append((mount_z, 0.0))
-    return tools.revolve_around_x(profile) @ tools.X_AXIS_TO_Z_AXIS.T
+    vertices, source_pose, source_scale = source_mesh('fuselage_visual')
+    triangles, boundary = [], {}
+    for triangle in vertices:
+        polygon = []
+        for i, point in enumerate(triangle):
+            following = triangle[(i + 1) % 3]
+            inside, next_inside = point[2] <= shoulder_start, following[2] <= shoulder_start
+            if inside:
+                polygon.append(point)
+            if inside != next_inside:
+                crossing = point + (following - point) * ((shoulder_start - point[2]) /
+                                                           (following[2] - point[2]))
+                crossing[2] = shoulder_start
+                polygon.append(crossing)
+        for point in polygon:
+            if abs(point[2] - shoulder_start) < 1e-10:
+                boundary[tuple(np.round(point, 11))] = point
+        for i in range(1, len(polygon) - 1):
+            candidate = np.asarray([polygon[0], polygon[i], polygon[i + 1]])
+            if np.linalg.norm(np.cross(candidate[1] - candidate[0], candidate[2] - candidate[0])) > 1e-14:
+                triangles.append(candidate)
+    if len(boundary) < 3:
+        raise ValueError('机身裁切平面没有闭合轮廓')
+    ring = np.asarray(sorted(boundary.values(), key=lambda point: math.atan2(point[1], point[0])))
+    radii = np.linalg.norm(ring[:, :2], axis=1)
+    if radii.min() <= 0 or np.max(np.abs(np.mean(ring[:, :2], axis=0))) > 1e-5:
+        raise ValueError('当前同轴安装要求裁切轮廓以机体 Z 轴为中心')
+    upper = ring.copy()
+    upper[:, :2] *= (pod['housing_diameter_m'] / 2 / radii)[:, None]
+    upper[:, 2] = mount_z
+    center = np.array([0., 0., mount_z])
+    for i in range(len(ring)):
+        j = (i + 1) % len(ring)
+        triangles.extend(([ring[i], ring[j], upper[j]], [ring[i], upper[j], upper[i]],
+                          [center, upper[i], upper[j]]))
+    # 保持 source visual 的 pose / scale，避免装配侧改变原生坐标和缩放。
+    return ((np.asarray(triangles) - source_pose[:3, 3]) @ source_pose[:3, :3]) / source_scale
 
 
 def rotation(rpy):
@@ -147,10 +222,11 @@ def marker(world):
     model = node(world, 'model', name='ROCKET_POD_LOCATION_MARKER')
     node(model, 'static', 'true')
     link = node(model, 'link', name='arrow')
+    height = .24 + dimensions()[1] + .036
     for name, position, size in (
-        ('shaft', '-.20 0 .41 0 0 0', '.12 .009 .009'),
-        ('head_upper', '-.125 0 .42 0 .7853981634 0', '.04 .009 .009'),
-        ('head_lower', '-.125 0 .40 0 -.7853981634 0', '.04 .009 .009'),
+        ('shaft', f'-.20 0 {height:.12g} 0 0 0', '.12 .009 .009'),
+        ('head_upper', f'-.125 0 {height + .01:.12g} 0 .7853981634 0', '.04 .009 .009'),
+        ('head_lower', f'-.125 0 {height - .01:.12g} 0 -.7853981634 0', '.04 .009 .009'),
     ):
         visual = node(link, 'visual', name=name)
         node(visual, 'pose', position)
@@ -179,7 +255,7 @@ def build_world(view='overall'):
     render = node(gui, 'plugin', filename='MinimalScene', name='3D View')
     node(render, 'engine', 'ogre2')
     node(render, 'scene', 'scene')
-    camera = assembly['view']['camera_pose'] if view == 'overall' else [.23, -.28, .54, 0, .3, 2.258]
+    camera = assembly['view']['camera_pose' if view == 'overall' else 'close_camera_pose']
     node(render, 'camera_pose', ' '.join(str(v) for v in camera))
     clip = node(render, 'camera_clip')
     node(clip, 'near', assembly['view']['near_clip_m'])
@@ -225,7 +301,7 @@ def main():
     node(config, 'name', NAME)
     node(config, 'version', '1.0')
     node(config, 'sdf', 'model.sdf', version='1.9')
-    node(config, 'description', '450 mm 火箭机与顶部两轴吊舱静态造型预览；无飞行动力学与活动控制。')
+    node(config, 'description', f'{dimensions()[0]*1000:g} mm 火箭机与顶部两轴吊舱静态造型预览；无飞行动力学与活动控制。')
     write_xml(args.output_dir / 'model.config', config)
     for view, filename in (('overall', 'world.sdf'), ('close', 'closeup.sdf')):
         write_xml(args.output_dir / 'tests' / filename, build_world(view))

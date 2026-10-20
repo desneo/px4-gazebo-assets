@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""从 parameters.json 生成 Gazebo 资产和可安装的 PX4 机体配置。"""
+"""从 JSON 离线导出 Gazebo 资产和 PX4 配置；标准启动直接使用原生文件。"""
 from __future__ import annotations
 import argparse
 import json
@@ -246,11 +246,13 @@ def airframe(config):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--config', type=Path, default=ROOT / 'parameters.json')
-    parser.add_argument('--output-dir', type=Path, default=ROOT, help='另存完整资产用于参数对比，默认更新模型目录')
+    parser.add_argument('--output-dir', type=Path, required=True, help='离线导出目录，须在当前模型目录之外')
     args = parser.parse_args()
+    output = args.output_dir.resolve()
+    if output == ROOT or output.is_relative_to(ROOT) or ROOT.is_relative_to(output):
+        parser.error('离线生成须另存到模型目录之外，不能覆盖当前原生配置')
     config = json.loads(args.config.read_text())
     validate(config)
-    output = args.output_dir
     output.mkdir(parents=True, exist_ok=True)
     generate_meshes.generate(config, output / 'meshes')
     write_xml(output / 'model.sdf', build_model(config))

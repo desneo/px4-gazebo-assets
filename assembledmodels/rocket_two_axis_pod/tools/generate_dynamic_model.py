@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""生成保留真实关节、传感器和 PX4 动力接口的 450 mm 动态装配模型。"""
+"""从当前原生火箭机与吊舱资产生成 590 mm 动态装配及 PX4 运行配置。"""
 from __future__ import annotations
 
 import argparse
@@ -11,7 +11,6 @@ import math
 from pathlib import Path
 import re
 import shutil
-import sys
 import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -19,6 +18,8 @@ REPO = ROOT.parents[1]
 ROCKET = REPO / 'models/vehicles/rocket_racing_quad'
 POD = REPO / 'models/gimbals/two_axis_pod'
 NAME = 'rocket_two_axis_pod'
+MOTOR = 'gz::sim::systems::MulticopterMotorModel'
+AERO = 'gz::sim::systems::AdvancedLiftDrag'
 
 
 def load_module(name, path):
@@ -30,16 +31,7 @@ def load_module(name, path):
 
 appearance = load_module('rocket_pod_appearance', ROOT / 'tools/generate_model.py')
 mesh_tools = appearance.rocket_mesh_tools()
-# 基础生成器使用同目录 import；暂存模块以便被其他工具导入时不污染它们。
-previous_mesh_module = sys.modules.get('generate_meshes')
-sys.modules['generate_meshes'] = mesh_tools
-try:
-    rocket_tools = load_module('rocket_pod_vehicle', ROCKET / 'tools/generate_model.py')
-finally:
-    if previous_mesh_module is None:
-        del sys.modules['generate_meshes']
-    else:
-        sys.modules['generate_meshes'] = previous_mesh_module
+native = load_module('rocket_native_runtime', ROCKET / 'tools/prepare_runtime.py')
 
 
 def set_text(parent, tag, value):
@@ -51,55 +43,54 @@ def set_text(parent, tag, value):
 
 
 def settings(body_mass_kg=None, airframe_id=None, topic_prefix=None):
-    assembly, rocket, pod = appearance.configuration()
-    rocket_tools.validate(rocket)
+    assembly, _, pod = appearance.configuration()
+    geometry = appearance.source_geometry()
     length, mount_z, _ = appearance.dimensions()
-    retained_length = length / 2 + mount_z
+    source = ET.parse(ROCKET / 'model.sdf').getroot()
+    base = source.find("model/link[@name='base_link']")
+    mass = native.number(base.findtext('inertial/mass'))
+    configured_mass = assembly.get('dynamic', {}).get('body_mass_kg')
+    for value in (body_mass_kg, configured_mass):
+        if value is not None and (isinstance(value, bool) or not isinstance(value, (int, float)) or
+                                  not math.isfinite(value) or not math.isclose(value, mass, abs_tol=1e-12)):
+            raise ValueError('当前装配完整继承基础质量与惯量，不能单独覆盖 body_mass_kg')
     dynamic = assembly.get('dynamic', {})
-    configured_mass = dynamic.get('body_mass_kg')
-    mass = body_mass_kg if body_mass_kg is not None else configured_mass
-    if mass is None:
-        mass = rocket['mass']['body_kg'] * retained_length / length
-    if isinstance(mass, bool) or not isinstance(mass, (int, float)) or not math.isfinite(mass) or mass <= 0:
-        raise ValueError('body_mass_kg 必须为有限正数')
     airframe = airframe_id if airframe_id is not None else dynamic.get('airframe_id', 4023)
     if isinstance(airframe, bool) or not isinstance(airframe, int) or airframe <= 0:
         raise ValueError('airframe_id 必须为正整数')
     prefix = topic_prefix if topic_prefix is not None else dynamic.get('topic_prefix', f'/{NAME}')
     if not isinstance(prefix, str) or not re.fullmatch(r'/[A-Za-z0-9_]+(?:/[A-Za-z0-9_]+)*', prefix):
         raise ValueError('topic_prefix 必须为绝对 Gazebo 话题前缀，不含末尾斜线')
-    idle = rocket['motor']['idle_velocity_rad_s']
-    maximum = rocket['motor']['max_velocity_rad_s']
-    if (isinstance(idle, bool) or not isinstance(idle, (int, float)) or
-            not math.isfinite(idle) or idle != int(idle) or not 0 < idle < maximum):
-        raise ValueError('基础火箭模型的 idle_velocity_rad_s 必须为小于电机最大转速的正整数')
-    return dict(assembly=assembly, rocket=rocket, pod=pod, mount_z_m=mount_z,
-                retained_body_length_m=retained_length, body_mass_kg=float(mass),
-                body_mass_method='override' if body_mass_kg is not None or configured_mass is not None else 'retained_length_ratio',
-                airframe_id=airframe, topic_prefix=prefix, armed_idle_velocity_rad_s=int(idle))
+    airframes = sorted((ROCKET / 'px4').glob('*_gz_rocket_racing_quad'))
+    if len(airframes) != 1 or not re.fullmatch(r'[0-9]+_gz_rocket_racing_quad', airframes[0].name):
+        raise ValueError('基础模型须包含唯一的原生 PX4 机体文件')
+    text = airframes[0].read_bytes().decode('utf-8')
+    parameters = native.parameter_values(text)
+    defaults = json.loads((ROCKET / 'parameters.json').read_text())
+    return dict(assembly=assembly, pod=pod, geometry=geometry, source_model=source,
+                source_airframe=airframes[0], airframe_text=text, px4_parameters=parameters,
+                flight_test=defaults['flight_test'], imu_wait_timeout_s=defaults['simulation']['imu_wait_timeout_s'],
+                overall_length_m=length, mount_z_m=mount_z,
+                retained_body_length_m=mount_z - geometry['min_z_m'],
+                body_mass_kg=mass, body_mass_method='native_inertial_preserved',
+                airframe_id=airframe, topic_prefix=prefix,
+                armed_idle_velocity_rad_s=parameters['SIM_GZ_EC_MIN1'])
 
 
 def build_model(config):
-    root = rocket_tools.build_model(config['rocket'])
+    root = copy.deepcopy(config['source_model'])
     model = root.find('model')
     model.set('name', NAME)
     model.set('canonical_link', 'base_link')
     set_text(model, 'static', 'false')
     base = model.find("link[@name='base_link']")
-    retained = config['retained_body_length_m']
-    center_z = config['mount_z_m'] - retained / 2
-    mass = config['body_mass_kg']
-    radius = config['rocket']['geometry']['body_radius_m']
-    inertia = base.find('inertial')
-    set_text(inertia, 'mass', mass)
-    set_text(inertia, 'pose', f'0 0 {center_z:.12g} 0 0 0')
-    transverse = mass * (3 * radius**2 + retained**2) / 12
-    for axis, value in (('ixx', transverse), ('iyy', transverse), ('izz', mass * radius**2 / 2)):
-        set_text(inertia.find('inertia'), axis, value)
     collision = base.find("collision[@name='body_collision']")
-    set_text(collision, 'pose', f'0 0 {center_z:.12g} 0 0 0')
-    set_text(collision.find('geometry/cylinder'), 'length', retained)
+    pose = [float(value) for value in collision.findtext('pose', '0 0 0 0 0 0').split()]
+    pose[2] = (config['geometry']['min_z_m'] + config['mount_z_m']) / 2
+    set_text(collision, 'pose', ' '.join(f'{value:.12g}' for value in pose))
+    set_text(collision.find('geometry/cylinder'), 'length', f"{config['retained_body_length_m']:.12g}")
     base.find("visual[@name='fuselage_visual']/geometry/mesh/uri").text = f'model://{NAME}/meshes/fuselage_cut.stl'
+    # 显示与碰撞截短；原生机身质量、惯性位姿和完整惯量张量保持不变。
     pod_model = ET.parse(POD / 'model.sdf').getroot().find('model')
     for child in pod_model:
         if child.tag not in ('link', 'joint', 'plugin'):
@@ -123,7 +114,6 @@ def build_model(config):
     set_text(fixed, 'child', 'mount_link')
     camera = model.find("link[@name='camera_link']/sensor[@name='camera']")
     set_text(camera, 'topic', config['topic_prefix'] + '/image')
-    # 输出包含实际使用的基础网格，可作为独立 model 放入 Gazebo 资源路径。
     for uri in model.findall('.//mesh/uri'):
         for name, prefix in (('rocket_racing_quad', 'rocket'), ('two_axis_pod', 'pod')):
             source_prefix = f'model://{name}/meshes/'
@@ -133,86 +123,151 @@ def build_model(config):
 
 
 def source_fingerprints():
-    files = [ROOT / 'parameters.json', ROOT / 'tools/generate_model.py',
-             ROCKET / 'parameters.json', ROCKET / 'model.sdf',
-             ROCKET / 'tools/generate_model.py', ROCKET / 'tools/generate_meshes.py',
-             POD / 'parameters.json', POD / 'model.sdf', POD / 'tools/generate_model.py']
-    files.extend(sorted((ROCKET / 'meshes').glob('*')))
-    files.extend(sorted((POD / 'meshes').glob('*')))
+    files = [ROOT / 'parameters.json', ROOT / 'tools/generate_model.py', Path(__file__),
+             ROOT / 'tests/run_flight_check.sh',
+             ROCKET / 'parameters.json', ROCKET / 'tools/prepare_runtime.py',
+             ROCKET / 'tools/generate_meshes.py', ROCKET / 'tests/flight_check.py',
+             ROCKET / 'tests/gazebo_truth.py', POD / 'parameters.json', POD / 'model.sdf']
+    files += native.asset_paths(ROCKET)
+    files += sorted((POD / 'meshes').rglob('*'))
     return {str(path.relative_to(REPO)): hashlib.sha256(path.read_bytes()).hexdigest()
             for path in files if path.is_file()}
 
 
+def hover_configuration(model, parameters, gravity):
+    if parameters.get('THR_MDL_FAC', 0) != 1:
+        raise ValueError('装配悬停推力归一化需要 THR_MDL_FAC=1')
+    total_mass = sum(native.number(link.findtext('inertial/mass')) for link in model.findall('link'))
+    motors = sorted(model.findall(f"plugin[@name='{MOTOR}']"), key=lambda p: int(p.findtext('motorNumber')))
+    if [int(plugin.findtext('motorNumber')) for plugin in motors] != list(range(4)):
+        raise ValueError('当前装配需要原生四电机通道 0～3')
+    coefficient_a = coefficient_b = idle_thrust = 0.
+    limits = []
+    for channel, motor in enumerate(motors, 1):
+        idle = parameters[f'SIM_GZ_EC_MIN{channel}']
+        maximum = parameters[f'SIM_GZ_EC_MAX{channel}']
+        constant = native.number(motor.findtext('motorConstant'))
+        sdf_maximum = native.number(motor.findtext('maxRotVelocity'))
+        if not 0 < idle < maximum <= sdf_maximum or constant <= 0:
+            raise ValueError('原生电机怠速、最大转速或推力系数不支持悬停标定')
+        delta = maximum - idle
+        coefficient_a += constant * delta**2
+        coefficient_b += 2 * constant * idle * delta
+        idle_thrust += constant * idle**2
+        limits.append((idle, maximum, constant))
+    weight = total_mass * gravity
+    if not idle_thrust < weight < coefficient_a + coefficient_b + idle_thrust:
+        raise ValueError('悬停所需推力必须位于原生怠速与最大推力之间')
+    command = (2 * (weight - idle_thrust) /
+               (coefficient_b + math.sqrt(coefficient_b**2 + 4 * coefficient_a * (weight - idle_thrust))))
+    hover = command**2
+    if not 0 <= parameters['MPC_THR_MIN'] < hover < parameters['MPC_THR_MAX'] <= 1:
+        raise ValueError('组合悬停推力必须位于 PX4 推力上下限之间')
+    velocities = [idle + (maximum - idle) * command for idle, maximum, _ in limits]
+    return dict(total_mass_kg=total_mass, px4_hover_thrust=hover,
+                hover_motor_velocity_rad_s=velocities[0], hover_motor_velocities_rad_s=velocities,
+                armed_idle_total_thrust_n=idle_thrust,
+                disarmed_velocity_rad_s=parameters['SIM_GZ_EC_DIS1'])
+
+
+def assembly_airframe(source, hover):
+    text = source.replace('gz_rocket_racing_quad', f'gz_{NAME}')
+    text = text.replace('# @name Gazebo rocket racing quad', '# @name Gazebo rocket with two axis pod')
+    text, count = re.subn(r'^(param[ \t]+(?:set-default|set)[ \t]+MPC_THR_HOVER[ \t]+)[^\r\n]+',
+                          lambda match: match[1] + format(hover, '.16g'), text, flags=re.MULTILINE)
+    if count != 1:
+        raise ValueError('原生机体文件须显式且仅一次配置 MPC_THR_HOVER')
+    return text
+
+
+def component_world():
+    root = ET.parse(ROCKET / 'tests/world.sdf').getroot()
+    world = root.find('world')
+    world.set('name', NAME + '_test')
+    include = world.find("include[uri='model://rocket_racing_quad']")
+    if include is None:
+        raise ValueError('基础自验证世界缺少原生火箭模型 include')
+    include.find('uri').text = f'model://{NAME}'
+    return root
+
+
+def model_snapshot(model):
+    links = {}
+    for link in model.findall('link'):
+        inertial = link.find('inertial')
+        links[link.get('name')] = dict(
+            pose=link.findtext('pose', '0 0 0 0 0 0'),
+            inertial_pose=inertial.findtext('pose', '0 0 0 0 0 0'),
+            mass_kg=native.number(inertial.findtext('mass')),
+            inertia={axis: native.number(inertial.findtext(f'inertia/{axis}'))
+                     for axis in ('ixx', 'iyy', 'izz', 'ixy', 'ixz', 'iyz')})
+    return dict(name=NAME, links=links, total_mass_kg=sum(link['mass_kg'] for link in links.values()),
+                motors=[native.plugin_values(p) for p in model.findall(f"plugin[@name='{MOTOR}']")],
+                aerodynamics=[native.plugin_values(p) for p in model.findall(f"plugin[@name='{AERO}']")])
+
+
 def generate(output_dir, *, body_mass_kg=None, airframe_id=None, topic_prefix=None):
     output = Path(output_dir).resolve()
-    if output == ROOT.resolve() or output.is_relative_to((REPO / 'models').resolve()):
+    if output == ROOT.resolve() or ROOT.resolve().is_relative_to(output) or output.is_relative_to((REPO / 'models').resolve()):
         raise ValueError('动态模型不得覆盖已确认的静态装配或基础组件目录')
-    config = settings(body_mass_kg, airframe_id, topic_prefix)
     before = source_fingerprints()
+    config = settings(body_mass_kg, airframe_id, topic_prefix)
     root = build_model(config)
-    total_mass = sum(float(link.findtext('inertial/mass')) for link in root.findall('model/link'))
-    flight = copy.deepcopy(config['rocket'])
-    flight['mass']['body_kg'] = config['body_mass_kg']
-    idle = config['armed_idle_velocity_rad_s']
-    maximum = flight['motor']['max_velocity_rad_s']
-    flight['motor']['idle_velocity_rad_s'] = idle
-    flight['px4']['airframe_id'] = config['airframe_id']
-    if flight['px4']['parameters'].get('THR_MDL_FAC', 0) != 1:
-        raise ValueError('装配悬停推力归一化需要 THR_MDL_FAC=1')
-    required_velocity = math.sqrt(total_mass * 9.8 / (4 * flight['motor']['thrust_constant']))
-    if not idle < required_velocity < maximum:
-        raise ValueError('悬停所需转速必须位于解锁怠速与最大转速之间')
-    # PX4 FunctionMotors 将推力开方，再由 MixingOutput 映射到 [MIN, MAX]。
-    # 保持实际悬停转速不变，需要把非零解锁怠速从输出区间中扣除。
-    flight['px4']['parameters']['MPC_THR_HOVER'] = ((required_velocity - idle) / (maximum - idle)) ** 2
-    for channel in range(1, 5):
-        flight['px4']['parameters'][f'SIM_GZ_EC_DIS{channel}'] = 0
-    # 所有参数先验证，通过后才写运行资产；不可飞行的质量不能留下部分结果。
-    rocket_tools.validate(flight)
-    flight['assembly'] = dict(model_name=NAME, mount_z_m=config['mount_z_m'],
-                              retained_body_length_m=config['retained_body_length_m'],
-                              pod_mass_kg=sum(float(link.findtext('inertial/mass'))
-                                              for link in root.findall('model/link')
-                                              if link.get('name') in ('mount_link', 'yaw_arm_link', 'camera_link')),
-                              total_mass_kg=total_mass)
+    world = component_world()
+    gravity = math.sqrt(sum(float(value)**2 for value in world.findtext('world/gravity').split()))
+    hover = hover_configuration(root.find('model'), config['px4_parameters'], gravity)
+    airframe_text = assembly_airframe(config['airframe_text'], hover['px4_hover_thrust'])
+    parameters = native.parameter_values(airframe_text)
+    assembly = dict(model_name=NAME, mount_z_m=config['mount_z_m'],
+                    retained_body_length_m=config['retained_body_length_m'],
+                    pod_mass_kg=sum(native.number(link.findtext('inertial/mass'))
+                                    for link in ET.parse(POD / 'model.sdf').getroot().findall('model/link')),
+                    total_mass_kg=hover['total_mass_kg'])
+    world_element = world.find('world')
+    snapshot = dict(model=model_snapshot(root.find('model')),
+                    px4=dict(airframe_id=config['airframe_id'], parameters=parameters),
+                    flight_test=copy.deepcopy(config['flight_test']),
+                    simulation=dict(imu_wait_timeout_s=config['imu_wait_timeout_s'],
+                                    world_name=world_element.get('name'),
+                                    physics={child.tag: child.text for child in world_element.find('physics')},
+                                    gravity=world_element.findtext('gravity'),
+                                    spawn_pose=world_element.findtext(f"include[uri='model://{NAME}']/pose")),
+                    assembly=assembly, runtime=dict(source_sha256=before))
+    cut_mesh = appearance.cut_fuselage()
+    if before != source_fingerprints():
+        raise RuntimeError('生成期间基础组件或装配参数发生变动，请重新生成')
     output.mkdir(parents=True, exist_ok=True)
-    meshes = output / 'meshes'
-    meshes.mkdir(exist_ok=True)
-    mesh_tools.write_stl(meshes / 'fuselage_cut.stl', appearance.cut_fuselage())
-    # 仅复制模型引用的网格；不修改基础组件资产。
+    mesh_tools.write_stl(output / 'meshes/fuselage_cut.stl', cut_mesh)
     for uri in root.findall('.//mesh/uri'):
         relative = uri.text.removeprefix(f'model://{NAME}/meshes/')
         for prefix, source in (('rocket_', ROCKET), ('pod_', POD)):
             if relative.startswith(prefix):
-                shutil.copyfile(source / 'meshes' / relative[len(prefix):], meshes / relative)
+                target = output / 'meshes' / relative
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(source / 'meshes' / relative[len(prefix):], target)
     appearance.write_xml(output / 'model.sdf', root)
+    appearance.write_xml(output / 'tests/world.sdf', world)
     model_config = ET.Element('model')
     for tag, value in (('name', NAME), ('version', '1.0'),
-                       ('description', '450 mm 火箭穿越机与顶部两轴吊舱动态装配，包含 PX4 动力接口与真实云台关节。')):
+                       ('description', f"{config['overall_length_m']*1000:g} mm 火箭穿越机与顶部两轴吊舱动态装配，包含 PX4 动力接口与真实云台关节。")):
         set_text(model_config, tag, value)
     ET.SubElement(model_config, 'sdf', version='1.9').text = 'model.sdf'
     appearance.write_xml(output / 'model.config', model_config)
-    (output / 'parameters.json').write_text(json.dumps(flight, indent=2, ensure_ascii=False) + '\n')
-    text = rocket_tools.airframe(flight).replace('gz_rocket_racing_quad', f'gz_{NAME}')
-    text = text.replace('# @name Gazebo rocket racing quad', '# @name Gazebo rocket with two axis pod')
+    (output / 'parameters.json').write_text(json.dumps(snapshot, indent=2, ensure_ascii=False) + '\n')
     px4_dir = output / 'px4'
     px4_dir.mkdir(exist_ok=True)
     airframe_path = px4_dir / f"{config['airframe_id']}_gz_{NAME}"
-    airframe_path.write_text(text)
-    after = source_fingerprints()
-    if before != after:
+    airframe_path.write_bytes(airframe_text.encode('utf-8'))
+    airframe_path.chmod(config['source_airframe'].stat().st_mode & 0o777)
+    if before != source_fingerprints():
         raise RuntimeError('生成期间基础组件或装配参数发生变动，请重新生成')
     manifest = {key: config[key] for key in ('mount_z_m', 'retained_body_length_m', 'body_mass_kg',
                                            'body_mass_method', 'airframe_id', 'topic_prefix',
                                            'armed_idle_velocity_rad_s')}
-    manifest.update(model_name=NAME, total_mass_kg=total_mass,
-                    mass_approximation='截短机身采用均匀圆柱惯量与截短中心质心；其余动力舱、旋翼、吊舱沿用组件参数。',
-                    image_topic=config['topic_prefix'] + '/image',
-                    px4_hover_thrust=flight['px4']['parameters']['MPC_THR_HOVER'],
-                    hover_motor_velocity_rad_s=required_velocity,
-                    disarmed_velocity_rad_s=0,
-                    armed_idle_total_thrust_n=4 * flight['motor']['thrust_constant'] * idle**2,
-                    source_sha256=before)
+    manifest.update(model_name=NAME,
+                    mass_approximation='完整保留基础机质量、重心和惯量，另加原生吊舱；顶部外形和碰撞截短不扣除机头质量。',
+                    image_topic=config['topic_prefix'] + '/image', gravity_m_s2=gravity,
+                    source_sha256=before, **hover)
     (output / 'manifest.json').write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + '\n')
     return manifest
 
@@ -220,7 +275,7 @@ def generate(output_dir, *, body_mass_kg=None, airframe_id=None, topic_prefix=No
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output-dir', type=Path, default=ROOT / 'runtime' / NAME)
-    parser.add_argument('--body-mass-kg', type=float)
+    parser.add_argument('--body-mass-kg', type=float, help='只能与原生机身质量相同，完整继承惯性')
     parser.add_argument('--airframe-id', type=int)
     parser.add_argument('--topic-prefix')
     args = parser.parse_args()

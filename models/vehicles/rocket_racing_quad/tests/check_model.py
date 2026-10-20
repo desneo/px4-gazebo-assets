@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""离线检查参数、生成资产、旋翼净空与 PX4 坐标映射；不启动仿真。
+"""离线检查生成工具及原生资产的运行复制；不启动仿真。
 
 运行：python3 tests/check_model.py。输出使用临时目录，失败时返回非零退出码。
 """
@@ -52,7 +52,7 @@ class ModelChecks(unittest.TestCase):
                         str(config_path), '--output-dir', str(output)], check=True,
                        stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
-    def test_reproducible_assets_match_repository(self):
+    def test_explicit_generator_is_reproducible(self):
         repeated = Path(self.workspace.name) / 'repeated'
         self.generate(self.config, repeated)
         assets = ['model.sdf', 'tests/world.sdf', 'model.config',
@@ -62,7 +62,16 @@ class ModelChecks(unittest.TestCase):
             with self.subTest(asset=asset):
                 expected = (self.output / asset).read_bytes()
                 self.assertEqual(expected, (repeated / asset).read_bytes(), '生成结果不可复现')
-                self.assertEqual(expected, (ROOT / asset).read_bytes(), '仓库资产未与配置同步，请重新生成')
+
+    def test_runtime_preserves_native_assets(self):
+        import prepare_runtime
+        output = Path(self.workspace.name) / 'native'
+        before = prepare_runtime.source_fingerprints(ROOT)
+        snapshot = prepare_runtime.prepare(output)
+        for path in prepare_runtime.asset_paths(ROOT):
+            self.assertEqual(path.read_bytes(), (output / path.relative_to(ROOT)).read_bytes())
+        self.assertEqual(snapshot['runtime']['source_sha256'], before)
+        self.assertEqual(prepare_runtime.source_fingerprints(ROOT), before)
 
     def test_mesh_quality_and_clearance(self):
         g = self.config['geometry']

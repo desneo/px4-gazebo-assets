@@ -25,7 +25,7 @@ px4-gazebo-assets/
 │   └── props/                 # 建筑、树木、障碍物与静态美术展示
 │       └── delta_wing_display/ # 小摩托外观所用的平滑三角翼独立美术展示
 ├── assembledmodels/           # 由基础 model 组合的复杂模型
-│   └── rocket_two_axis_pod/   # 450 mm 火箭机与顶部两轴吊舱的造型与动态装配
+│   └── rocket_two_axis_pod/   # 590 mm 火箭机与顶部两轴吊舱的造型与动态装配
 ├── assemblies/                # 已有固定支架三轴吊舱装配
 ├── worlds/                    # 静态环境定义、专用资源和说明
 └── scenarios/                 # 大型综合测试场景的配置、启动和辅助脚本(组件自己用的测试跟model放一起)
@@ -61,11 +61,11 @@ px4-gazebo-assets/
 - 场景：运行 `bash scenarios/geographic_camera/run.sh --gui`，使用上述真实地理 world 的运行副本验证立装/悬挂三轴吊舱、移动小车跟踪、NVENC 视频与 2 秒实体遮挡重捕获；不启动 PX4。目标、遮挡操作及安装方向见[场景说明](scenarios/geographic_camera/README.md)。
 - 三轴吊舱：见 [组件说明](models/gimbals/three_axis_pod/README.md)和[使用说明](models/gimbals/three_axis_pod/scripts/README.md)；功能、协议和当前限制见 [系统说明](models/gimbals/three_axis_pod/docs/system.md)，自验证结果见 [验证说明](models/gimbals/three_axis_pod/docs/validation.md)。
 - 两轴地理测试：运行 `bash scenarios/geographic_two_axis_pod/run.sh --gui`，在完整地理环境中测试标准立装两轴吊舱、三个飞机夹具、多目标检测、自动锁定、动态目标跟踪、实体遮挡与 UDP/RTSP 地面站；不加载载机或 PX4，见[测试场景说明](scenarios/geographic_two_axis_pod/README.md)。
-- 火箭机机载两轴场景：`scenarios/geographic_rocket_two_axis_pod/` 使用现有地理 world、动态组合模型和 PX4，提供 80 m 相对起飞高度、15 m/s、300 m 航段的往返飞行入口及空中纹理靶标；当前配置通过两次完整往返、降落及约70仿真秒真实图像跟踪自动检查，并验证非默认飞机ID的视频路径、帧表绑定与地面站误配ID控制拦截，场景效果已通过人工确认，见[场景说明](scenarios/geographic_rocket_two_axis_pod/README.md)与[验收结果](scenarios/geographic_rocket_two_axis_pod/docs/validation.md)。
-- 火箭机速度对照：`scenarios/rocket_speed_comparison/` 在同一无风地理世界顺序运行当前单机和组合体，比较80 m高度下连续10秒的最高稳定平飞速度。实测单机340.53 km/h、组合体340.44 km/h，均在95 m/s控制上限的设定容差内并正常降落；当前相同简化阻力配置下组合体达到单机速度水平，见[场景说明](scenarios/rocket_speed_comparison/README.md)和[实测结果](scenarios/rocket_speed_comparison/docs/validation.md)。
+- 火箭机机载两轴场景：`scenarios/geographic_rocket_two_axis_pod/` 使用现有地理 world、动态组合模型和 PX4，提供80 m相对起飞高度、15 m/s、300 m航段的往返飞行入口及空中纹理靶标。当前590 mm、7.94 kg组合已通过独立组件世界完整飞行自验证，完整地理场景往返、视频与目标跟踪仍待复测；既有其他配置的往返和图像检查结果不能直接沿用，见[场景说明](scenarios/geographic_rocket_two_axis_pod/README.md)与[验收结果](scenarios/geographic_rocket_two_axis_pod/docs/validation.md)。
+- 火箭机速度对照：`scenarios/rocket_speed_comparison/` 在同一无风地理世界顺序运行单机和组合体，比较80 m高度下连续10秒的最高稳定平飞速度。单机使用当前原生基础模型运行副本，组合体从相同原生模型继承动力和完整基础机惯性配置并加入吊舱；当前质量分别为7.70 kg和7.94 kg。现有不同配置的速度结果不能直接沿用，采用结果前须核对报告配置与运行资产指纹，见[场景说明](scenarios/rocket_speed_comparison/README.md)和[实测结果](scenarios/rocket_speed_comparison/docs/validation.md)。
 - 两轴立装吊舱：见[组件说明](models/gimbals/two_axis_pod/README.md)、[安装与运动学](models/gimbals/two_axis_pod/docs/mounting.md)和[验证说明](models/gimbals/two_axis_pod/docs/validation.md)。Ø84 mm 底部圆环与地面平行，导引头整体向上高 91 mm。偏航绕竖直 +Z 轴转动，范围 ±90°；俯仰绕随动水平 +Y 轴转动，范围 −45°～+90°，机械零位朝天，正值朝前。组件使用单类 YOLO11 飞机模型和多目标轨迹确认；检测/自动搜索显示服务端红框与编号，自动选中中心最近目标后转入 CSRT 单目标跟踪并显示绿色框。关闭视觉、检测、自动锁定和手动框选互斥。视频强制硬件编解码，Linux 地面站使用 NVDEC，Windows 地面站显式请求并校验 D3D11 硬件解码，不可用时均直接报错。网关支持多机共用 RTSP 8555，按 `/two_axis_pod_<aircraft_id>` 路径末尾的飞机 ID 区分；网关与地面站配置相同 ID，默认 1。网关可配置额外的 UDP JSON 状态接收地址和频率，默认 20 Hz，与 station 会话独立。Windows 专用入口使用隔离 Python 虚拟环境，安装与启动见[地面站说明](models/gimbals/two_axis_pod/ground_station/README.md#windows-专用版本)。
-- 火箭穿越机：见 [模型说明](models/vehicles/rocket_racing_quad/README.md)和[自验证说明](models/vehicles/rocket_racing_quad/tests/README.md)；采用机头朝上起飞、整机倾转加速的布局，机身轴向长度 0.45 m、对角轴距 15 英寸、桨径 10 英寸，目标为 200 km/h 巡航及 300 km/h 连续冲刺 10 秒。参数集中在模型的 `parameters.json`，修改与复测见[参数说明](models/vehicles/rocket_racing_quad/docs/parameters.md)；启动器生成独立 Gazebo 资产、PX4 机体配置和运行目录，当前验收进度见[项目状态](models/vehicles/rocket_racing_quad/docs/status.md)。
-- 火箭机与顶部两轴吊舱：组合资产位于 `assembledmodels/rocket_two_axis_pod/`，以 91 mm 高的吊舱替换原机头顶部，整体轴向长 450 mm，吊舱各轴与机体同名轴对齐。静态组合造型已通过人工确认；整机及近景入口见[装配说明](assembledmodels/rocket_two_axis_pod/README.md)。
+- 火箭穿越机：见 [模型说明](models/vehicles/rocket_racing_quad/README.md)和[自验证说明](models/vehicles/rocket_racing_quad/tests/README.md)；采用机头朝上起飞、整机倾转加速的布局，模型总高度 0.59 m、当前对角电机轴距约 0.590 m、桨径 10 英寸、整机质量 7.70 kg，目标为 200 km/h 巡航及 300 km/h 连续冲刺 10 秒。基础模型标准入口以模型目录中的 `model.sdf`、网格、`px4/` 和 `tests/world.sdf` 为准，复制为独立运行资产；`parameters.json` 提供飞行测试设置和 IMU 启动等待期限，其物理字段不影响该入口或当前动态装配，仅供显式离线生成器使用。当前 PX4 电机位置、反扭矩系数及最大转速与 SDF 配套；当前7.70 kg配置已通过30 s悬停、200 km/h连续30 s巡航、300 km/h连续10 s冲刺及落地停机的Gazebo真值自验证，外形仍待人工确认，见[参数说明](models/vehicles/rocket_racing_quad/docs/parameters.md)和[项目状态](models/vehicles/rocket_racing_quad/docs/status.md)。
+- 火箭机与顶部两轴吊舱：组合资产位于 `assembledmodels/rocket_two_axis_pod/`，以91 mm高的吊舱替换机头顶部，整体轴向长590 mm，安装面 z=0.274 m、最高点 z=0.365 m，吊舱采用零安装旋转并对齐机体同名轴。动态组合完整继承当前原生基础机7.70 kg的质量、重心、惯性与动力，另加0.24 kg吊舱，总质量7.94 kg。基础单机与当前7.94 kg组合体均已通过各自30 s悬停、200 km/h连续30 s巡航、300 km/h连续10 s冲刺及落地停机的Gazebo真值自验证，组合外形仍待人工确认；整机与近景入口见[装配说明](assembledmodels/rocket_two_axis_pod/README.md)。
 
 空目录中的 `.gitkeep` 用于让 Git 保存目录；添加实际文件后可以移除。
 

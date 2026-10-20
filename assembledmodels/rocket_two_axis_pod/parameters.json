@@ -1,5 +1,5 @@
 {
-  "overall_length_m": 0.45,
+  "overall_length_m": 0.59,
   "shoulder_length_m": 0.012,
   "yaw_deg": 0.0,
   "pitch_deg": 0.0,
@@ -12,6 +12,7 @@
     "mouse_sensitivity": 0.1,
     "near_clip_m": 0.005,
     "far_clip_m": 100.0,
-    "camera_pose": [0.75, -0.9, 0.6, 0.0, 0.29, 2.2655]
+    "camera_pose": [0.75, -0.9, 0.67, 0.0, 0.29, 2.2655],
+    "close_camera_pose": [0.23, -0.28, 0.68, 0.0, 0.3, 2.258]
   }
 }

@@ -6,9 +6,12 @@ import time
 
 
 class GazeboTruth:
-    def __init__(self):
+    def __init__(self, world_name='rocket_racing_quad_test', model_name='rocket_racing_quad'):
+        if not all(isinstance(value, str) and value.strip() for value in (world_name, model_name)):
+            raise ValueError('Gazebo 真值世界名和实体名不能为空')
         from gz.transport13 import Node
         from gz.msgs10.pose_v_pb2 import Pose_V
+        self.model_name = model_name
         self.lock = threading.Lock()
         self.rows = deque()
         self.latest = None
@@ -16,13 +19,13 @@ class GazeboTruth:
         self.origin = None
         self.last_wall = 0
         self.node = Node()
-        self.topic = '/world/rocket_racing_quad_test/dynamic_pose/info'
+        self.topic = f'/world/{world_name}/dynamic_pose/info'
         self.node.subscribe(Pose_V, self.topic, self.receive)
 
     def receive(self, message):
         stamp = message.header.stamp.sec + message.header.stamp.nsec * 1e-9
         for pose in message.pose:
-            if pose.name != 'rocket_racing_quad':
+            if pose.name != self.model_name:
                 continue
             row = (stamp, pose.position.x, pose.position.y, pose.position.z)
             with self.lock:

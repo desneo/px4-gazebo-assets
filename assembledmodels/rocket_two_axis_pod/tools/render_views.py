@@ -26,6 +26,13 @@ plt.rcParams.update({"font.family": ["Noto Sans CJK SC", "DejaVu Sans"],
                      "axes.unicode_minus": False, "font.size": 10})
 
 
+def assembly_generator():
+    spec = importlib.util.spec_from_file_location("assembled_preview_generator", ROOT / "tools/generate_model.py")
+    generator = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(generator)
+    return generator
+
+
 def rotation(rpy):
     r, p, y = rpy
     cr, sr, cp, sp, cy, sy = np.cos(r), np.sin(r), np.cos(p), np.sin(p), np.cos(y), np.sin(y)
@@ -182,14 +189,15 @@ def axis_arrow(ax, origin, direction, length, color, label, label_offset=(0, 0, 
 
 
 def head_axes(ax, yaw_deg=0, pitch_deg=0):
+    mount = assembly_generator().dimensions()[1] * 1000
     yaw = np.deg2rad(yaw_deg)
     ry = rotation([0, 0, yaw])
-    axis_arrow(ax, [0, 0, 142], [0, 0, 1], 95, "#1e64b4", "yaw / +Z", (-30, 0, 0))
-    center = np.array([0, 0, 142]) + ry @ [15, 0, 48]
+    axis_arrow(ax, [0, 0, mount + 8], [0, 0, 1], 95, "#1e64b4", "yaw / +Z", (-30, 0, 0))
+    center = np.array([0, 0, mount + 8]) + ry @ [15, 0, 48]
     axis_arrow(ax, center, ry @ [0, 1, 0], 55, "#148050", "pitch / +Y′")
     direction = ry @ rotation([0, np.deg2rad(pitch_deg), 0]) @ [0, 0, 1]
     axis_arrow(ax, center, direction, 48, "#dc7722", "视线", (8, -5, 0))
-    axis_arrow(ax, [0, 0, 128], [1, 0, 0], 62, "#bd3434", "+X")
+    axis_arrow(ax, [0, 0, mount - 6], [1, 0, 0], 62, "#bd3434", "+X")
 
 
 def save(fig, path):
@@ -200,8 +208,10 @@ def save(fig, path):
 
 
 def main_views(pieces, output_dir):
+    geometry = assembly_generator().source_geometry()
+    min_z, max_z, length = (geometry[key] * 1000 for key in ('min_z_m', 'max_z_m', 'length_m'))
     extent = max(np.abs(vertices[:, :, :2]).max() for vertices, _color, _name in pieces) + 25
-    limits = [(-extent, extent), (-extent, extent), (-245, 245)]
+    limits = [(-extent, extent), (-extent, extent), (min_z - 20, max_z + 20)]
     fig = plt.figure(figsize=(14, 12))
     for index, (title, elev, azim) in enumerate([
             ("正视 · 从 −Y 看", 0, -90), ("侧视 · 从 +X 看", 0, 0),
@@ -211,52 +221,55 @@ def main_views(pieces, output_dir):
         if index == 1:
             ax.set_yticks([]); ax.set_ylabel("")
             offset = -extent*.78
-            ax.plot([offset, offset], [0, 0], [-225, 225], color="#253345", linewidth=1)
-            for z in (-225, 225):
+            ax.plot([offset, offset], [0, 0], [min_z, max_z], color="#253345", linewidth=1)
+            for z in (min_z, max_z):
                 ax.plot([offset-7, offset+7], [0, 0], [z, z], color="#253345")
-            ax.text(offset-15, 0, 0, "450 mm", ha="right", fontsize=10)
+            ax.text(offset+10, 0, (min_z + max_z) / 2, f"{length:g} mm", ha="left", fontsize=10)
         elif index == 2:
             ax.set_xticks([]); ax.set_xlabel("")
         elif index == 3:
             ax.set_zticks([]); ax.set_zlabel("")
-    fig.suptitle("火箭穿越机 + 两轴立装吊舱  |  总长 450 mm\n顶部替换式组合；吊舱 +X / +Y / +Z 与机体同向；机械零位视线朝 +Z", fontsize=15, y=.985)
+    fig.suptitle(f"火箭穿越机 + 两轴立装吊舱  |  总长 {length:g} mm\n顶部替换式组合；吊舱 +X / +Y / +Z 与机体同向；机械零位视线朝 +Z", fontsize=15, y=.985)
     fig.text(.5, .015, "由装配 SDF 实际几何生成的静态评审图（非 Gazebo 截图） · 沿用源 diffuse 材质，明亮工作室曝光", ha="center", color="#5a6470", fontsize=10)
     fig.subplots_adjust(left=.02, right=.98, top=.92, bottom=.05, wspace=.01, hspace=.10)
     save(fig, output_dir / "model_views.png")
 
 
 def head_detail(pieces, output_dir):
+    generator = assembly_generator()
+    geometry = generator.source_geometry()
+    mount = generator.dimensions()[1] * 1000
+    min_z, max_z = geometry['min_z_m'] * 1000, geometry['max_z_m'] * 1000
     fig = plt.figure(figsize=(14, 8.2))
-    limits = [(-70, 85), (-75, 75), (105, 245)]
+    limits = [(-70, 85), (-75, 75), (mount - 29, max_z + 20)]
     ax = fig.add_subplot(1, 2, 1, projection="3d")
     draw(ax, pieces, limits, 0, -90, "头部正视 · 机械零位")
     ax.set_yticks([]); ax.set_ylabel("")
-    for z, text in [(134, "底环安装面 Z = 134 mm"), (225, "最高点 Z = 225 mm")]:
+    for z in (mount, max_z):
         ax.plot([-50, 50], [0, 0], [z, z], color="#808a97", linestyle="--", linewidth=.8)
-    ax.text2D(.08, .72, "最高点 Z = 225 mm", transform=ax.transAxes, fontsize=9, color="#3d4856")
-    ax.text2D(.08, .34, "底环安装面 Z = 134 mm", transform=ax.transAxes, fontsize=9, color="#3d4856")
+    ax.text2D(.08, .72, f"最高点 Z = {max_z:g} mm", transform=ax.transAxes, fontsize=9, color="#3d4856")
+    ax.text2D(.08, .34, f"底环安装面 Z = {mount:g} mm", transform=ax.transAxes, fontsize=9, color="#3d4856")
     ax = fig.add_subplot(1, 2, 2, projection="3d")
     draw(ax, pieces, limits, 25, -55, "头部斜视 · 轴向示意")
     head_axes(ax)
     fig.suptitle("顶部替换式安装  |  底环 Ø84 mm  /  机身最大 Ø90 mm  /  吊舱高 91 mm", fontsize=15, y=.96)
-    fig.text(.5, .10, "yaw：绕机体 +Z；pitch：绕随 yaw 转动的 +Y′；零位镜头朝 +Z，正 pitch 转向 +X\n机尾 Z = −225 mm；整机最高点 Z = +225 mm；所有尺寸单位为 mm", ha="center", fontsize=11)
+    fig.text(.5, .10, f"yaw：绕机体 +Z；pitch：绕随 yaw 转动的 +Y′；零位镜头朝 +Z，正 pitch 转向 +X\n机尾 Z = {min_z:g} mm；整机最高点 Z = +{max_z:g} mm；所有尺寸单位为 mm", ha="center", fontsize=11)
     fig.text(.5, .025, "由装配 SDF 实际几何生成的静态评审图（非 Gazebo 截图） · 坐标箭头为评审标注", ha="center", color="#5a6470", fontsize=10)
     fig.subplots_adjust(left=.01, right=.99, top=.90, bottom=.20, wspace=.03)
     save(fig, output_dir / "head_detail.png")
 
 
 def pose_comparison(output_dir, model_path):
-    script = ROOT / "tools/generate_model.py"
-    spec = importlib.util.spec_from_file_location("assembled_preview_generator", script)
-    generator = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(generator)
+    generator = assembly_generator()
+    mount = generator.dimensions()[1] * 1000
+    max_z = generator.source_geometry()['max_z_m'] * 1000
     fig = plt.figure(figsize=(14, 13))
     for index, (yaw, pitch, note) in enumerate([(0, 0, "朝 +Z"), (0, 90, "朝 +X"),
                                               (45, 45, "朝 +X/+Y/+Z"), (0, -45, "朝 −X/+Z")], 1):
         sdf = generator.build_model(yaw_deg=yaw, pitch_deg=pitch)
         pieces = load_pieces(sdf, model_path)
         ax = fig.add_subplot(2, 2, index, projection="3d")
-        draw(ax, pieces, [(-75, 90), (-75, 90), (115, 245)], 22, -55,
+        draw(ax, pieces, [(-75, 90), (-75, 90), (mount - 19, max_z + 20)], 22, -55,
              f"yaw = {yaw}° / pitch = {pitch}°\n视线{note}", ticks=False)
         head_axes(ax, yaw, pitch)
     fig.suptitle("两轴机械角与视线对比  |  载机固定，吊舱真实几何随关节旋转", fontsize=15, y=.975)

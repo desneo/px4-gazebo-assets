@@ -1,5 +1,5 @@
 #!/bin/sh
-# 从参数文件生成独立运行副本，启动 Gazebo / PX4；日志保存在运行目录。
+# 复制当前原生配置为独立运行副本，启动 Gazebo / PX4；日志保存在运行目录。
 set -eu
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 MODEL_DIR=$(CDPATH= cd -- "${SCRIPT_DIR}/.." && pwd)
@@ -14,7 +14,8 @@ if [ "$MODE" != view ] && [ ! -x "$PX4_BIN" ]; then
 fi
 RUN_DIR=$(mktemp -d "${TMPDIR:-/tmp}/rocket-racing.XXXXXX")
 GENERATED="${RUN_DIR}/models/rocket_racing_quad"
-python3 "${MODEL_DIR}/tools/generate_model.py" --config "$CONFIG" --output-dir "$GENERATED"
+python3 "${MODEL_DIR}/tools/prepare_runtime.py" --config "$CONFIG" --output-dir "$GENERATED"
+CONFIG="${GENERATED}/parameters.json"
 export GZ_SIM_RESOURCE_PATH="${RUN_DIR}/models${GZ_SIM_RESOURCE_PATH:+:${GZ_SIM_RESOURCE_PATH}}"
 # 只作用于本次仿真，避免与其他 Gazebo 世界共享通信分区。
 export GZ_PARTITION=${GZ_PARTITION:-rocket_racing_$$}

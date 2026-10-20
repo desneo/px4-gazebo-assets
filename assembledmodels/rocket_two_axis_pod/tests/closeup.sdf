@@ -19,7 +19,7 @@
       <plugin filename="MinimalScene" name="3D View">
         <engine>ogre2</engine>
         <scene>scene</scene>
-        <camera_pose>0.23 -0.28 0.54 0 0.3 2.258</camera_pose>
+        <camera_pose>0.23 -0.28 0.68 0.0 0.3 2.258</camera_pose>
         <camera_clip>
           <near>0.005</near>
           <far>100.0</far>
@@ -63,7 +63,7 @@
       <static>true</static>
       <link name="arrow">
         <visual name="shaft">
-          <pose>-.20 0 .41 0 0 0</pose>
+          <pose>-.20 0 0.55 0 0 0</pose>
           <geometry>
             <box>
               <size>.12 .009 .009</size>
@@ -75,7 +75,7 @@
           </material>
         </visual>
         <visual name="head_upper">
-          <pose>-.125 0 .42 0 .7853981634 0</pose>
+          <pose>-.125 0 0.56 0 .7853981634 0</pose>
           <geometry>
             <box>
               <size>.04 .009 .009</size>
@@ -87,7 +87,7 @@
           </material>
         </visual>
         <visual name="head_lower">
-          <pose>-.125 0 .40 0 -.7853981634 0</pose>
+          <pose>-.125 0 0.54 0 -.7853981634 0</pose>
           <geometry>
             <box>
               <size>.04 .009 .009</size>

@@ -1,0 +1,455 @@
+{
+  "passed": true,
+  "landing_confirmed": true,
+  "measurement_source": "gazebo_pose",
+  "measurement_target": {
+    "world_name": "rocket_two_axis_pod_test",
+    "model_name": "rocket_two_axis_pod"
+  },
+  "config_sha256": "830ee7f2f16a84a271e82eb3f9803a9aa65f8791f3c0a73a9d4784a18f0e89ad",
+  "results": {
+    "hover": {
+      "max_drift_m": 0.08657888270106692,
+      "max_altitude_error_m": 0.26910215195098175,
+      "passed": true
+    },
+    "cruise": {
+      "required_speed_km_h": 200,
+      "required_continuous_s": 30,
+      "longest_continuous_s": 30.012,
+      "max_altitude_error_m": 0.3148574063877909,
+      "peak_speed_km_h": 217.80964882231868,
+      "passed": true
+    },
+    "sprint": {
+      "required_speed_km_h": 300,
+      "required_continuous_s": 10,
+      "longest_continuous_s": 10.015999999999991,
+      "max_altitude_error_m": 0.3559328383656606,
+      "peak_speed_km_h": 312.86048009404533,
+      "passed": true
+    }
+  },
+  "settings": {
+    "endpoint": "udpin:0.0.0.0:14541",
+    "setpoint_rate_hz": 20,
+    "telemetry_timeout_s": 2,
+    "heartbeat_timeout_s": 5,
+    "command_timeout_s": 30,
+    "phase_wall_timeout_s": 600,
+    "takeoff_altitude_m": 30,
+    "climb_speed_m_s": 2,
+    "altitude_tolerance_m": 2,
+    "hover_seconds": 30,
+    "hover_drift_limit_m": 1,
+    "cruise_speed_km_h": 200,
+    "cruise_seconds": 30,
+    "sprint_speed_km_h": 300,
+    "sprint_seconds": 10,
+    "ramp_seconds": 30,
+    "speed_setpoint_margin_km_h": 15,
+    "speed_acquire_timeout_s": 60,
+    "deceleration_m_s2": 4,
+    "landing_timeout_s": 120
+  },
+  "model_parameters": {
+    "model": {
+      "name": "rocket_two_axis_pod",
+      "links": {
+        "base_link": {
+          "pose": "0 0 0 0 0 0",
+          "inertial_pose": "0 0 -0.094 0 0 0",
+          "mass_kg": 7.44,
+          "inertia": {
+            "ixx": 0.12959890706,
+            "iyy": 0.129623371,
+            "izz": 0.17530315186,
+            "ixy": 0.0,
+            "ixz": 0.0,
+            "iyz": 0.0
+          }
+        },
+        "nacelle_0": {
+          "pose": "0.2086 -0.2086 -0.12 0 0 0",
+          "inertial_pose": "0 0 0 0 0 0",
+          "mass_kg": 0.04,
+          "inertia": {
+            "ixx": 4.2999999999999995e-05,
+            "iyy": 4.2999999999999995e-05,
+            "izz": 3.2000000000000005e-05,
+            "ixy": 0.0,
+            "ixz": 0.0,
+            "iyz": 0.0
+          }
+        },
+        "rotor_0": {
+          "pose": "0.2086 -0.2086 -0.185 0 0 0",
+          "inertial_pose": "0 0 0 0 0 0",
+          "mass_kg": 0.025,
+          "inertia": {
+            "ixx": 0.00010090833333333334,
+            "iyy": 0.00010090833333333334,
+            "izz": 0.00020161250000000003,
+            "ixy": 0.0,
+            "ixz": 0.0,
+            "iyz": 0.0
+          }
+        },
+        "nacelle_1": {
+          "pose": "-0.2086 0.2086 -0.12 0 0 0",
+          "inertial_pose": "0 0 0 0 0 0",
+          "mass_kg": 0.04,
+          "inertia": {
+            "ixx": 4.2999999999999995e-05,
+            "iyy": 4.2999999999999995e-05,
+            "izz": 3.2000000000000005e-05,
+            "ixy": 0.0,
+            "ixz": 0.0,
+            "iyz": 0.0
+          }
+        },
+        "rotor_1": {
+          "pose": "-0.2086 0.2086 -0.185 0 0 0",
+          "inertial_pose": "0 0 0 0 0 0",
+          "mass_kg": 0.025,
+          "inertia": {
+            "ixx": 0.00010090833333333334,
+            "iyy": 0.00010090833333333334,
+            "izz": 0.00020161250000000003,
+            "ixy": 0.0,
+            "ixz": 0.0,
+            "iyz": 0.0
+          }
+        },
+        "nacelle_2": {
+          "pose": "0.2086 0.2086 -0.12 0 0 0",
+          "inertial_pose": "0 0 0 0 0 0",
+          "mass_kg": 0.04,
+          "inertia": {
+            "ixx": 4.2999999999999995e-05,
+            "iyy": 4.2999999999999995e-05,
+            "izz": 3.2000000000000005e-05,
+            "ixy": 0.0,
+            "ixz": 0.0,
+            "iyz": 0.0
+          }
+        },
+        "rotor_2": {
+          "pose": "0.2086 0.2086 -0.185 0 0 0",
+          "inertial_pose": "0 0 0 0 0 0",
+          "mass_kg": 0.025,
+          "inertia": {
+            "ixx": 0.00010090833333333334,
+            "iyy": 0.00010090833333333334,
+            "izz": 0.00020161250000000003,
+            "ixy": 0.0,
+            "ixz": 0.0,
+            "iyz": 0.0
+          }
+        },
+        "nacelle_3": {
+          "pose": "-0.2086 -0.2086 -0.12 0 0 0",
+          "inertial_pose": "0 0 0 0 0 0",
+          "mass_kg": 0.04,
+          "inertia": {
+            "ixx": 4.2999999999999995e-05,
+            "iyy": 4.2999999999999995e-05,
+            "izz": 3.2000000000000005e-05,
+            "ixy": 0.0,
+            "ixz": 0.0,
+            "iyz": 0.0
+          }
+        },
+        "rotor_3": {
+          "pose": "-0.2086 -0.2086 -0.185 0 0 0",
+          "inertial_pose": "0 0 0 0 0 0",
+          "mass_kg": 0.025,
+          "inertia": {
+            "ixx": 0.00010090833333333334,
+            "iyy": 0.00010090833333333334,
+            "izz": 0.00020161250000000003,
+            "ixy": 0.0,
+            "ixz": 0.0,
+            "iyz": 0.0
+          }
+        },
+        "mount_link": {
+          "pose": "0 0 0.274 0 0 0",
+          "inertial_pose": "0 0 0.004 0 0 0",
+          "mass_kg": 0.1,
+          "inertia": {
+            "ixx": 9e-05,
+            "iyy": 9e-05,
+            "izz": 9e-05,
+            "ixy": 0.0,
+            "ixz": 0.0,
+            "iyz": 0.0
+          }
+        },
+        "yaw_arm_link": {
+          "pose": "0 0 0.282 0 0 0",
+          "inertial_pose": "-.012 0 0.02 0 0 0",
+          "mass_kg": 0.04,
+          "inertia": {
+            "ixx": 4e-05,
+            "iyy": 5e-05,
+            "izz": 5e-05,
+            "ixy": 0.0,
+            "ixz": 0.0,
+            "iyz": 0.0
+          }
+        },
+        "camera_link": {
+          "pose": "0.015 0 0.33 0 0 0",
+          "inertial_pose": "0 0 0 0 0 0",
+          "mass_kg": 0.1,
+          "inertia": {
+            "ixx": 2.3040000000000003e-05,
+            "iyy": 2.3040000000000003e-05,
+            "izz": 2.3040000000000003e-05,
+            "ixy": 0.0,
+            "ixz": 0.0,
+            "iyz": 0.0
+          }
+        }
+      },
+      "total_mass_kg": 7.94,
+      "motors": [
+        {
+          "jointName": "rotor_0_joint",
+          "linkName": "rotor_0",
+          "turningDirection": "ccw",
+          "commandSubTopic": "command/motor_speed",
+          "motorNumber": 0.0,
+          "motorType": "velocity",
+          "maxRotVelocity": 1570.0,
+          "motorConstant": 8.9119e-05,
+          "momentConstant": 0.02863386,
+          "timeConstantUp": 0.0125,
+          "timeConstantDown": 0.025,
+          "rotorDragCoefficient": 0.00012,
+          "rollingMomentCoefficient": 1e-06,
+          "rotorVelocitySlowdownSim": 10.0
+        },
+        {
+          "jointName": "rotor_1_joint",
+          "linkName": "rotor_1",
+          "turningDirection": "ccw",
+          "commandSubTopic": "command/motor_speed",
+          "motorNumber": 1.0,
+          "motorType": "velocity",
+          "maxRotVelocity": 1570.0,
+          "motorConstant": 8.9119e-05,
+          "momentConstant": 0.02863386,
+          "timeConstantUp": 0.0125,
+          "timeConstantDown": 0.025,
+          "rotorDragCoefficient": 0.00012,
+          "rollingMomentCoefficient": 1e-06,
+          "rotorVelocitySlowdownSim": 10.0
+        },
+        {
+          "jointName": "rotor_2_joint",
+          "linkName": "rotor_2",
+          "turningDirection": "cw",
+          "commandSubTopic": "command/motor_speed",
+          "motorNumber": 2.0,
+          "motorType": "velocity",
+          "maxRotVelocity": 1570.0,
+          "motorConstant": 8.9119e-05,
+          "momentConstant": 0.02863386,
+          "timeConstantUp": 0.0125,
+          "timeConstantDown": 0.025,
+          "rotorDragCoefficient": 0.00012,
+          "rollingMomentCoefficient": 1e-06,
+          "rotorVelocitySlowdownSim": 10.0
+        },
+        {
+          "jointName": "rotor_3_joint",
+          "linkName": "rotor_3",
+          "turningDirection": "cw",
+          "commandSubTopic": "command/motor_speed",
+          "motorNumber": 3.0,
+          "motorType": "velocity",
+          "maxRotVelocity": 1570.0,
+          "motorConstant": 8.9119e-05,
+          "momentConstant": 0.02863386,
+          "timeConstantUp": 0.0125,
+          "timeConstantDown": 0.025,
+          "rotorDragCoefficient": 0.00012,
+          "rollingMomentCoefficient": 1e-06,
+          "rotorVelocitySlowdownSim": 10.0
+        }
+      ],
+      "aerodynamics": [
+        {
+          "link_name": "base_link",
+          "air_density": 1.225,
+          "forward": "0 0 1",
+          "upward": "1 0 0",
+          "CL0": 0.0,
+          "CLa": 0.0,
+          "CD0": 0.73,
+          "alpha_stall": 1.5707963267948966,
+          "AR": 1.0,
+          "eff": 1.0,
+          "area": 0.0177,
+          "cp": "0 0 0"
+        }
+      ]
+    },
+    "px4": {
+      "airframe_id": 4023,
+      "parameters": {
+        "SIM_GZ_EN": 1.0,
+        "CA_AIRFRAME": 0.0,
+        "CA_ROTOR_COUNT": 4.0,
+        "CA_ROTOR0_PX": 0.2086,
+        "CA_ROTOR0_PY": 0.2086,
+        "CA_ROTOR0_PZ": 0.185,
+        "CA_ROTOR0_KM": 0.02863386,
+        "SIM_GZ_EC_FUNC1": 101.0,
+        "SIM_GZ_EC_MIN1": 50.0,
+        "SIM_GZ_EC_MAX1": 1570.0,
+        "SIM_GZ_EC_DIS1": 0.0,
+        "CA_ROTOR1_PX": -0.2086,
+        "CA_ROTOR1_PY": -0.2086,
+        "CA_ROTOR1_PZ": 0.185,
+        "CA_ROTOR1_KM": 0.02863386,
+        "SIM_GZ_EC_FUNC2": 102.0,
+        "SIM_GZ_EC_MIN2": 50.0,
+        "SIM_GZ_EC_MAX2": 1570.0,
+        "SIM_GZ_EC_DIS2": 0.0,
+        "CA_ROTOR2_PX": 0.2086,
+        "CA_ROTOR2_PY": -0.2086,
+        "CA_ROTOR2_PZ": 0.185,
+        "CA_ROTOR2_KM": -0.02863386,
+        "SIM_GZ_EC_FUNC3": 103.0,
+        "SIM_GZ_EC_MIN3": 50.0,
+        "SIM_GZ_EC_MAX3": 1570.0,
+        "SIM_GZ_EC_DIS3": 0.0,
+        "CA_ROTOR3_PX": -0.2086,
+        "CA_ROTOR3_PY": 0.2086,
+        "CA_ROTOR3_PZ": 0.185,
+        "CA_ROTOR3_KM": -0.02863386,
+        "SIM_GZ_EC_FUNC4": 104.0,
+        "SIM_GZ_EC_MIN4": 50.0,
+        "SIM_GZ_EC_MAX4": 1570.0,
+        "SIM_GZ_EC_DIS4": 0.0,
+        "MPC_THR_HOVER": 0.07533786517482499,
+        "MPC_TILTMAX_AIR": 85.0,
+        "MPC_XY_VEL_MAX": 95.0,
+        "MPC_XY_CRUISE": 15.0,
+        "MPC_VEL_MANUAL": 20.0,
+        "NAV_DLL_ACT": 2.0,
+        "EKF2_BCOEF_X": 0.0,
+        "EKF2_BCOEF_Y": 0.0,
+        "EKF2_MCOEF": 0.12,
+        "THR_MDL_FAC": 1.0,
+        "MPC_USE_HTE": 0.0,
+        "MPC_THR_MIN": 0.03,
+        "MPC_THR_MAX": 0.9,
+        "EKF2_HGT_REF": 0.0
+      }
+    },
+    "flight_test": {
+      "endpoint": "udpin:0.0.0.0:14540",
+      "setpoint_rate_hz": 20,
+      "telemetry_timeout_s": 2,
+      "heartbeat_timeout_s": 5,
+      "command_timeout_s": 30,
+      "phase_wall_timeout_s": 600,
+      "takeoff_altitude_m": 30,
+      "climb_speed_m_s": 2,
+      "altitude_tolerance_m": 2,
+      "hover_seconds": 30,
+      "hover_drift_limit_m": 1,
+      "cruise_speed_km_h": 200,
+      "cruise_seconds": 30,
+      "sprint_speed_km_h": 300,
+      "sprint_seconds": 10,
+      "ramp_seconds": 30,
+      "speed_setpoint_margin_km_h": 15,
+      "speed_acquire_timeout_s": 60,
+      "deceleration_m_s2": 4,
+      "landing_timeout_s": 120
+    },
+    "simulation": {
+      "imu_wait_timeout_s": 90,
+      "world_name": "rocket_two_axis_pod_test",
+      "physics": {
+        "max_step_size": "0.004",
+        "real_time_factor": "1",
+        "real_time_update_rate": "250.0"
+      },
+      "gravity": "0 0 -9.8",
+      "spawn_pose": "0 0 0.23 0 0 0"
+    },
+    "assembly": {
+      "model_name": "rocket_two_axis_pod",
+      "mount_z_m": 0.274,
+      "retained_body_length_m": 0.499,
+      "pod_mass_kg": 0.24000000000000002,
+      "total_mass_kg": 7.94
+    },
+    "runtime": {
+      "source_sha256": {
+        "assembledmodels/rocket_two_axis_pod/parameters.json": "72a2c00c15fb2b9c9f4c8dd07a80c97dae898e03689602e39b0e360420b47bae",
+        "assembledmodels/rocket_two_axis_pod/tools/generate_model.py": "2cc787fdfa03f9fa2087a19a6026aacac54c093cf9f5f84f6f671bd1c7cfe76c",
+        "assembledmodels/rocket_two_axis_pod/tools/generate_dynamic_model.py": "62a39c44b57cfeaff9173103a9876bd706619b951317916ae129b6938c8bd508",
+        "assembledmodels/rocket_two_axis_pod/tests/run_flight_check.sh": "5a16e39d6ba1838fa166a00621de74f570e9800a9a45d75f35611f1eb0576c97",
+        "models/vehicles/rocket_racing_quad/parameters.json": "d8a342faf0d98ec5e49a9de20319e80124d3a65d96f60cf4a654aebc30d8b333",
+        "models/vehicles/rocket_racing_quad/tools/prepare_runtime.py": "c91af9c700a90769fe9e3730a915ca87235a6b810b36da63ff069bbdae69e416",
+        "models/vehicles/rocket_racing_quad/tools/generate_meshes.py": "b39af90c98a264603f62dca588e9dca673e946ea1d33d98ffcecfd800f6b7462",
+        "models/vehicles/rocket_racing_quad/tests/flight_check.py": "60e7918cd918ae07e4f099aaa26566533c26428e7911cc50b903eb2ecc098c3e",
+        "models/vehicles/rocket_racing_quad/tests/gazebo_truth.py": "5a2b440165a7d25185ff3c7f401a10c3f1a7ab174ca47025b8d0a1ec5d121d6c",
+        "models/gimbals/two_axis_pod/parameters.json": "2ce76d39785a9ecea368d898691bd6bdab5571cdad4a82d500a732ea3476ff5d",
+        "models/gimbals/two_axis_pod/model.sdf": "b9081ed3d897cfde56501eb2050494d133d0e954919497e10946c2b8122019ed",
+        "models/vehicles/rocket_racing_quad/model.sdf": "5464d2fc37a7d4a472946a1a470d7247f6757f1569abefe824066b899d5b0ef5",
+        "models/vehicles/rocket_racing_quad/model.config": "4c6d734e4282c31db46c20e4f6487a69c02c4860da5aaa360c618ea8ce4267df",
+        "models/vehicles/rocket_racing_quad/tests/world.sdf": "5d9548c8899cf7718e21d65411e5b2f1e2aeb6029cfe7657771bebd5afb3a7f0",
+        "models/vehicles/rocket_racing_quad/meshes/fuselage.stl": "3e865f573c826e96afa34485753dd3036d49b55a9f579aa83f57512c753aa831",
+        "models/vehicles/rocket_racing_quad/meshes/nacelle.stl": "98eef3ec9a370598a56dcb7c4c2ddc6278f724a755266a25a3cffe572106c099",
+        "models/vehicles/rocket_racing_quad/meshes/propeller_10in.stl": "cc2841227d7a8151a1e8180e6d1b5f16848d13420c0fb771df3c249e70a181b1",
+        "models/vehicles/rocket_racing_quad/meshes/tail.stl": "4ccb9282de40eecc22ff84788ddd95fb64be2f0c37204b68d4fd4e3585b00462",
+        "models/vehicles/rocket_racing_quad/px4/4022_gz_rocket_racing_quad": "bd17c2caf56b73f4708c512c6b03d1452af4e172eaa00f96753e3b815980ad88",
+        "models/gimbals/two_axis_pod/meshes/carrier_ring.dae": "4f304aa55ca6451f1c2bd4f2caaa1b19a98b7bc787830f74d04f4a7d82d55fb6",
+        "models/gimbals/two_axis_pod/meshes/rear_shell.dae": "d81914bed4367e0364839f9ad0e2440c8cb443c4805ca53b6654f1c22e873381"
+      }
+    }
+  },
+  "validated_at": "2026-10-20T12:58:43.625091+08:00",
+  "elapsed_wall_s": 212.24146032333374,
+  "raw_report_sha256": "2dc7eebc5ebe09c980ca706bfc0c5bd5e10207a8c6dbc103d82058602b0153b7",
+  "raw_report": "../tests/results/flight_result.json.gz",
+  "asset_sha256": {
+    "assembledmodels/rocket_two_axis_pod/parameters.json": "72a2c00c15fb2b9c9f4c8dd07a80c97dae898e03689602e39b0e360420b47bae",
+    "assembledmodels/rocket_two_axis_pod/tools/generate_model.py": "2cc787fdfa03f9fa2087a19a6026aacac54c093cf9f5f84f6f671bd1c7cfe76c",
+    "assembledmodels/rocket_two_axis_pod/tools/generate_dynamic_model.py": "62a39c44b57cfeaff9173103a9876bd706619b951317916ae129b6938c8bd508",
+    "assembledmodels/rocket_two_axis_pod/tests/run_flight_check.sh": "5a16e39d6ba1838fa166a00621de74f570e9800a9a45d75f35611f1eb0576c97",
+    "models/vehicles/rocket_racing_quad/parameters.json": "d8a342faf0d98ec5e49a9de20319e80124d3a65d96f60cf4a654aebc30d8b333",
+    "models/vehicles/rocket_racing_quad/tools/prepare_runtime.py": "c91af9c700a90769fe9e3730a915ca87235a6b810b36da63ff069bbdae69e416",
+    "models/vehicles/rocket_racing_quad/tools/generate_meshes.py": "b39af90c98a264603f62dca588e9dca673e946ea1d33d98ffcecfd800f6b7462",
+    "models/vehicles/rocket_racing_quad/tests/flight_check.py": "60e7918cd918ae07e4f099aaa26566533c26428e7911cc50b903eb2ecc098c3e",
+    "models/vehicles/rocket_racing_quad/tests/gazebo_truth.py": "5a2b440165a7d25185ff3c7f401a10c3f1a7ab174ca47025b8d0a1ec5d121d6c",
+    "models/gimbals/two_axis_pod/parameters.json": "2ce76d39785a9ecea368d898691bd6bdab5571cdad4a82d500a732ea3476ff5d",
+    "models/gimbals/two_axis_pod/model.sdf": "b9081ed3d897cfde56501eb2050494d133d0e954919497e10946c2b8122019ed",
+    "models/vehicles/rocket_racing_quad/model.sdf": "5464d2fc37a7d4a472946a1a470d7247f6757f1569abefe824066b899d5b0ef5",
+    "models/vehicles/rocket_racing_quad/model.config": "4c6d734e4282c31db46c20e4f6487a69c02c4860da5aaa360c618ea8ce4267df",
+    "models/vehicles/rocket_racing_quad/tests/world.sdf": "5d9548c8899cf7718e21d65411e5b2f1e2aeb6029cfe7657771bebd5afb3a7f0",
+    "models/vehicles/rocket_racing_quad/meshes/fuselage.stl": "3e865f573c826e96afa34485753dd3036d49b55a9f579aa83f57512c753aa831",
+    "models/vehicles/rocket_racing_quad/meshes/nacelle.stl": "98eef3ec9a370598a56dcb7c4c2ddc6278f724a755266a25a3cffe572106c099",
+    "models/vehicles/rocket_racing_quad/meshes/propeller_10in.stl": "cc2841227d7a8151a1e8180e6d1b5f16848d13420c0fb771df3c249e70a181b1",
+    "models/vehicles/rocket_racing_quad/meshes/tail.stl": "4ccb9282de40eecc22ff84788ddd95fb64be2f0c37204b68d4fd4e3585b00462",
+    "models/vehicles/rocket_racing_quad/px4/4022_gz_rocket_racing_quad": "bd17c2caf56b73f4708c512c6b03d1452af4e172eaa00f96753e3b815980ad88",
+    "models/gimbals/two_axis_pod/meshes/carrier_ring.dae": "4f304aa55ca6451f1c2bd4f2caaa1b19a98b7bc787830f74d04f4a7d82d55fb6",
+    "models/gimbals/two_axis_pod/meshes/rear_shell.dae": "d81914bed4367e0364839f9ad0e2440c8cb443c4805ca53b6654f1c22e873381"
+  },
+  "sample_counts": {
+    "samples": 6241,
+    "ground_truth_samples": 10401
+  },
+  "verified_continuous_s": {
+    "cruise": 30.012,
+    "sprint": 10.015999999999991
+  }
+}

@@ -54,6 +54,19 @@ class FlightCheckTests(unittest.TestCase):
         self.check = flight.FlightCheck(settings, self.report)
         self.check.flight_z = -30.
 
+    def test_truth_target_uses_snapshot_and_explicit_overrides(self):
+        snapshot = {'model': {'name': 'rocket_two_axis_pod'},
+                    'simulation': {'world_name': 'rocket_two_axis_pod_test'}}
+        target = flight.measurement_target(snapshot)
+        self.assertEqual(target, {'world_name': 'rocket_two_axis_pod_test', 'model_name': 'rocket_two_axis_pod'})
+        self.assertEqual(flight.measurement_target(snapshot, 'other_world', 'other_entity'),
+                         {'world_name': 'other_world', 'model_name': 'other_entity'})
+        truth_module = ModuleType('gazebo_truth')
+        truth_module.GazeboTruth = Mock()
+        with patch.dict('sys.modules', {'gazebo_truth': truth_module}):
+            flight.FlightCheck(self.check.cfg, self.report, ground_truth=True, **target)
+        truth_module.GazeboTruth.assert_called_once_with(**target)
+
     def service_messages(self, *messages):
         self.master.recv_match.side_effect = [*messages, None]
         with patch.object(flight.time, "monotonic", return_value=100.), patch.object(flight.time, "sleep"):

@@ -16,6 +16,13 @@ TYPE_MASK = 0b0000110111100011
 DEFAULT_CONFIG = Path(__file__).resolve().parents[1] / "parameters.json"
 
 
+def measurement_target(snapshot, world_name=None, model_name=None):
+    return {
+        'world_name': world_name or snapshot.get('simulation', {}).get('world_name', 'rocket_racing_quad_test'),
+        'model_name': model_name or snapshot.get('model', {}).get('name', 'rocket_racing_quad'),
+    }
+
+
 def load_settings(path: Path) -> dict:
     settings = json.loads(path.read_text())["flight_test"]
     positive = (
@@ -59,7 +66,8 @@ class ContinuousHold:
 
 
 class FlightCheck:
-    def __init__(self, settings: dict, report: dict, ground_truth=False):
+    def __init__(self, settings: dict, report: dict, ground_truth=False,
+                 world_name='rocket_racing_quad_test', model_name='rocket_racing_quad'):
         self.cfg = settings
         self.report = report
         self.master = mavutil.mavlink_connection(settings["endpoint"], source_system=255)
@@ -81,7 +89,7 @@ class FlightCheck:
         self.truth = None
         if ground_truth:
             from gazebo_truth import GazeboTruth
-            self.truth = GazeboTruth()
+            self.truth = GazeboTruth(world_name=world_name, model_name=model_name)
         self.truth_samples = []
 
     def measurement_samples(self):
@@ -343,7 +351,11 @@ def main():
     parser.add_argument("--altitude", type=float, help="起飞相对高度 m")
     parser.add_argument("--log", type=Path, default=Path(f"/tmp/rocket-flight-{time.time_ns()}.json"))
     parser.add_argument("--ground-truth", action="store_true", help="使用同一GZ_PARTITION下的Gazebo真值判定速度、漂移与高度")
+    parser.add_argument("--world-name", help="Gazebo 真值世界名；默认取运行快照")
+    parser.add_argument("--model-name", help="Gazebo 真值实体名；默认取运行快照")
     args = parser.parse_args()
+    snapshot = json.loads(args.config.read_text())
+    target = measurement_target(snapshot, args.world_name, args.model_name)
     settings = load_settings(args.config)
     for arg, key in (("endpoint", "endpoint"), ("cruise_speed", "cruise_speed_km_h"),
         ("sprint_speed", "sprint_speed_km_h"), ("hover_seconds", "hover_seconds"),
@@ -355,7 +367,7 @@ def main():
     for key, value in settings.items():
         if isinstance(value, (int, float)) and (not math.isfinite(value) or value < 0 or (value == 0 and key != "speed_setpoint_margin_km_h")):
             parser.error(f"{key} 必须为有限正数")
-    px4_limit = json.loads(args.config.read_text())["px4"]["parameters"]["MPC_XY_VEL_MAX"]
+    px4_limit = snapshot["px4"]["parameters"]["MPC_XY_VEL_MAX"]
     requested = (max(settings["cruise_speed_km_h"], settings["sprint_speed_km_h"])
         + settings["speed_setpoint_margin_km_h"]) / 3.6
     if requested > px4_limit:
@@ -363,13 +375,14 @@ def main():
     if settings["setpoint_rate_hz"] < 10:
         parser.error("setpoint_rate_hz 必须至少为 10 Hz")
     report = {"settings": settings, "started_at_unix_s": time.time(), "results": {}, "samples": [], "status_text": [], "landing_confirmed": False, "passed": False}
-    report["model_parameters"] = json.loads(args.config.read_text())
+    report["model_parameters"] = snapshot
+    report["measurement_target"] = target
     report["config_sha256"] = hashlib.sha256(args.config.read_bytes()).hexdigest()
     report["measurement_source"] = "gazebo_pose" if args.ground_truth else "px4_local_position"
     check = None
     code = 1
     try:
-        check = FlightCheck(settings, report, ground_truth=args.ground_truth)
+        check = FlightCheck(settings, report, ground_truth=args.ground_truth, **target)
         check.run()
         report["passed"] = True
         code = 0

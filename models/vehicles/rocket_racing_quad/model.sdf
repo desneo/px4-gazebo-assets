@@ -4,11 +4,12 @@
     <self_collide>false</self_collide>
     <link name="base_link">
       <inertial>
-        <mass>1.1</mass>
+        <pose>0 0 -0.094 0 0 0</pose>
+        <mass>7.44</mass>
         <inertia>
-          <ixx>0.019119375000000004</ixx>
-          <iyy>0.019119375000000004</iyy>
-          <izz>0.00111375</izz>
+          <ixx>0.129598907060</ixx>
+          <iyy>0.129623371000</iyy>
+          <izz>0.175303151860</izz>
           <ixy>0</ixy>
           <ixz>0</ixz>
           <iyz>0</iyz>
@@ -37,10 +38,11 @@
         </material>
       </visual>
       <collision name="body_collision">
+        <pose>0 0 0.07 0 0 0</pose>
         <geometry>
           <cylinder>
             <radius>0.045</radius>
-            <length>0.45</length>
+            <length>0.59</length>
           </cylinder>
         </geometry>
       </collision>
@@ -172,7 +174,7 @@
       </sensor>
     </link>
     <link name="nacelle_0">
-      <pose>0.1347038418 -0.1347038418 -0.12 0 0 0</pose>
+      <pose>0.2086 -0.2086 -0.12 0 0 0</pose>
       <inertial>
         <mass>0.04</mass>
         <inertia>
@@ -227,7 +229,7 @@
       <child>nacelle_0</child>
     </joint>
     <link name="rotor_0">
-      <pose>0.1347038418 -0.1347038418 -0.185 0 0 0</pose>
+      <pose>0.2086 -0.2086 -0.185 0 0 0</pose>
       <inertial>
         <mass>0.025</mass>
         <inertia>
@@ -277,9 +279,9 @@
       <commandSubTopic>command/motor_speed</commandSubTopic>
       <motorNumber>0</motorNumber>
       <motorType>velocity</motorType>
-      <maxRotVelocity>1250</maxRotVelocity>
-      <motorConstant>1.9e-05</motorConstant>
-      <momentConstant>0.02</momentConstant>
+      <maxRotVelocity>1570</maxRotVelocity>
+      <motorConstant>8.9119e-05</motorConstant>
+      <momentConstant>0.02863386</momentConstant>
       <timeConstantUp>0.0125</timeConstantUp>
       <timeConstantDown>0.025</timeConstantDown>
       <rotorDragCoefficient>0.00012</rotorDragCoefficient>
@@ -287,7 +289,7 @@
       <rotorVelocitySlowdownSim>10</rotorVelocitySlowdownSim>
     </plugin>
     <link name="nacelle_1">
-      <pose>-0.1347038418 0.1347038418 -0.12 0 0 0</pose>
+      <pose>-0.2086 0.2086 -0.12 0 0 0</pose>
       <inertial>
         <mass>0.04</mass>
         <inertia>
@@ -342,7 +344,7 @@
       <child>nacelle_1</child>
     </joint>
     <link name="rotor_1">
-      <pose>-0.1347038418 0.1347038418 -0.185 0 0 0</pose>
+      <pose>-0.2086 0.2086 -0.185 0 0 0</pose>
       <inertial>
         <mass>0.025</mass>
         <inertia>
@@ -392,9 +394,9 @@
       <commandSubTopic>command/motor_speed</commandSubTopic>
       <motorNumber>1</motorNumber>
       <motorType>velocity</motorType>
-      <maxRotVelocity>1250</maxRotVelocity>
-      <motorConstant>1.9e-05</motorConstant>
-      <momentConstant>0.02</momentConstant>
+      <maxRotVelocity>1570</maxRotVelocity>
+      <motorConstant>8.9119e-05</motorConstant>
+      <momentConstant>0.02863386</momentConstant>
       <timeConstantUp>0.0125</timeConstantUp>
       <timeConstantDown>0.025</timeConstantDown>
       <rotorDragCoefficient>0.00012</rotorDragCoefficient>
@@ -402,7 +404,7 @@
       <rotorVelocitySlowdownSim>10</rotorVelocitySlowdownSim>
     </plugin>
     <link name="nacelle_2">
-      <pose>0.1347038418 0.1347038418 -0.12 0 0 0</pose>
+      <pose>0.2086 0.2086 -0.12 0 0 0</pose>
       <inertial>
         <mass>0.04</mass>
         <inertia>
@@ -457,7 +459,7 @@
       <child>nacelle_2</child>
     </joint>
     <link name="rotor_2">
-      <pose>0.1347038418 0.1347038418 -0.185 0 0 0</pose>
+      <pose>0.2086 0.2086 -0.185 0 0 0</pose>
       <inertial>
         <mass>0.025</mass>
         <inertia>
@@ -507,9 +509,9 @@
       <commandSubTopic>command/motor_speed</commandSubTopic>
       <motorNumber>2</motorNumber>
       <motorType>velocity</motorType>
-      <maxRotVelocity>1250</maxRotVelocity>
-      <motorConstant>1.9e-05</motorConstant>
-      <momentConstant>0.02</momentConstant>
+      <maxRotVelocity>1570</maxRotVelocity>
+      <motorConstant>8.9119e-05</motorConstant>
+      <momentConstant>0.02863386</momentConstant>
       <timeConstantUp>0.0125</timeConstantUp>
       <timeConstantDown>0.025</timeConstantDown>
       <rotorDragCoefficient>0.00012</rotorDragCoefficient>
@@ -517,7 +519,7 @@
       <rotorVelocitySlowdownSim>10</rotorVelocitySlowdownSim>
     </plugin>
     <link name="nacelle_3">
-      <pose>-0.1347038418 -0.1347038418 -0.12 0 0 0</pose>
+      <pose>-0.2086 -0.2086 -0.12 0 0 0</pose>
       <inertial>
         <mass>0.04</mass>
         <inertia>
@@ -572,7 +574,7 @@
       <child>nacelle_3</child>
     </joint>
     <link name="rotor_3">
-      <pose>-0.1347038418 -0.1347038418 -0.185 0 0 0</pose>
+      <pose>-0.2086 -0.2086 -0.185 0 0 0</pose>
       <inertial>
         <mass>0.025</mass>
         <inertia>
@@ -622,9 +624,9 @@
       <commandSubTopic>command/motor_speed</commandSubTopic>
       <motorNumber>3</motorNumber>
       <motorType>velocity</motorType>
-      <maxRotVelocity>1250</maxRotVelocity>
-      <motorConstant>1.9e-05</motorConstant>
-      <momentConstant>0.02</momentConstant>
+      <maxRotVelocity>1570</maxRotVelocity>
+      <motorConstant>8.9119e-05</motorConstant>
+      <momentConstant>0.02863386</momentConstant>
       <timeConstantUp>0.0125</timeConstantUp>
       <timeConstantDown>0.025</timeConstantDown>
       <rotorDragCoefficient>0.00012</rotorDragCoefficient>

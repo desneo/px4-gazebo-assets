@@ -8,13 +8,30 @@ import json
 import os
 from pathlib import Path
 from zoneinfo import ZoneInfo
-os.environ.setdefault('MPLCONFIGDIR', '/tmp/rocket-matplotlib')
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def report_source_fingerprints(report):
+    """先核对报告快照自身的摘要，再读取其原生资产来源指纹。"""
+    snapshot = report.get('model_parameters')
+    if not isinstance(snapshot, dict):
+        raise ValueError('报告缺少模型参数快照，不能归档为当前配置')
+    encoded = (json.dumps(snapshot, indent=2, ensure_ascii=False) + '\n').encode('utf-8')
+    if report.get('config_sha256') != hashlib.sha256(encoded).hexdigest():
+        raise ValueError('报告配置摘要与记录的模型参数快照不一致')
+    runtime = snapshot.get('runtime')
+    sources = runtime.get('source_sha256') if isinstance(runtime, dict) else None
+    if not isinstance(sources, dict) or not sources:
+        raise ValueError('报告缺少原生资产来源指纹，不能归档为当前配置；请使用当前入口重新验收')
+    return dict(sources)
+
+
+def validate_source_fingerprints(sources, current_sources):
+    """要求报告覆盖的原生资产及验收脚本与当前来源完全一致。"""
+    if not current_sources or sources != current_sources:
+        raise ValueError('报告原生资产来源与当前模型或验收脚本不同，请重新验收后归档')
+    return dict(sources)
 
 
 def main():
@@ -23,9 +40,14 @@ def main():
     args = parser.parse_args()
     raw = gzip.decompress(args.input.read_bytes()) if args.input.suffix == '.gz' else args.input.read_bytes()
     report = json.loads(raw)
-    current_hash = hashlib.sha256((ROOT / 'parameters.json').read_bytes()).hexdigest()
-    if report['config_sha256'] != current_hash:
-        raise ValueError('报告配置与当前模型配置不同，请使用对应配置生成资产后再归档')
+    reported_sources = report_source_fingerprints(report)
+    from prepare_runtime import source_fingerprints
+    asset_sources = validate_source_fingerprints(reported_sources, source_fingerprints(ROOT))
+    os.environ.setdefault('MPLCONFIGDIR', '/tmp/rocket-matplotlib')
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    import numpy as np
     docs = ROOT / 'docs'; docs.mkdir(exist_ok=True)
     results = ROOT / 'tests/results'; results.mkdir(exist_ok=True)
     archive = results / 'flight_result.json.gz'
@@ -36,9 +58,7 @@ def main():
     summary['raw_report_sha256'] = hashlib.sha256(raw).hexdigest()
     summary['raw_report'] = '../tests/results/flight_result.json.gz'
     summary['sample_counts'] = {key: len(report.get(key, [])) for key in ('samples', 'ground_truth_samples')}
-    assets = ['parameters.json', 'model.sdf', 'tests/world.sdf', 'tools/generate_model.py', 'tools/generate_meshes.py', 'tests/flight_check.py', 'tests/gazebo_truth.py', 'tests/run.sh', 'tests/run_check.sh']
-    assets += [str(p.relative_to(ROOT)) for folder in ('meshes', 'px4') for p in sorted((ROOT / folder).iterdir()) if p.is_file()]
-    summary['asset_sha256'] = {name: hashlib.sha256((ROOT / name).read_bytes()).hexdigest() for name in assets}
+    summary['asset_sha256'] = asset_sources
     (docs / 'validation.json').write_text(json.dumps(summary, ensure_ascii=False, indent=2) + '\n')
     truth = report.get('ground_truth_samples', [])
     estimated = report['samples']

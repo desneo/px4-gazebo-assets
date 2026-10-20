@@ -6,8 +6,8 @@
 - [run.sh](run.sh)：资源路径、IMU 就绪等待及 PX4 SITL 启动入口。
 - [run_check.sh](run_check.sh)：自动启动、使用实际运行配置验收、退出时停止仿真的单入口。
 - [flight_check.py](flight_check.py)：通过 MAVLink 控制飞行，使用选定数据源验收悬停、巡航和冲刺，并正常降落。
-- [gazebo_truth.py](gazebo_truth.py)：订阅Gazebo世界位姿，转换坐标并计算物理真值速度。
-- [check_model.py](check_model.py)：检查生成一致性、几何净空、质量、坐标映射和参数输入。
+- [gazebo_truth.py](gazebo_truth.py)：按指定世界和实体订阅Gazebo位姿，转换坐标并计算物理真值速度。
+- [check_model.py](check_model.py)：检查原生资产复制一致性，以及显式离线生成器的几何、质量、坐标映射和输入约束。
 - [test_flight_check.py](test_flight_check.py)：MAVLink筛选、通信、仿真时间和连续达标逻辑回归。
 
 ## 使用
@@ -18,17 +18,17 @@
 # 单入口：自动启动、验收、停止仿真；默认结果为运行目录/flight_result.json
 sh models/vehicles/rocket_racing_quad/tests/run_check.sh headless
 
-# 自定义配置和结果路径；带界面可将headless改为sitl
+# 自定义测试/启动等待配置和结果路径；带界面可将headless改为sitl
 sh models/vehicles/rocket_racing_quad/tests/run_check.sh headless \
   /tmp/rocket-test.json /tmp/rocket-flight-review.json
 
-# 查看外形：自动从配置生成独立资产，无需PX4
+# 查看当前原生资产：复制为独立运行副本，无需PX4
 sh models/vehicles/rocket_racing_quad/tests/run.sh view
 
 # 接入PX4，无图形界面；带界面使用sitl
 sh models/vehicles/rocket_racing_quad/tests/run.sh headless
 
-# 自定义配置（第二个参数）与PX4工作区
+# 自定义测试/启动等待配置（第二个参数）与PX4工作区
 PX4_ROOT=/path/to/PX4-Autopilot \
   sh models/vehicles/rocket_racing_quad/tests/run.sh headless /tmp/rocket-test.json
 
@@ -45,32 +45,38 @@ python3 models/vehicles/rocket_racing_quad/tests/flight_check.py \
   --log /tmp/rocket-flight-review.json
 ```
 
-`run_check.sh` 自动选择启动器生成的配置快照和通信分区，使用 Gazebo 世界位姿真值判定速度、漂移和高度，并在验收结束、失败或Ctrl+C时停止本次仿真，运行目录及日志保留；验收退出码仍反映是否完整通过。分步启动模式适合保留仿真进行诊断。
+`run_check.sh` 自动选择启动器提取的运行配置快照和通信分区，使用 Gazebo 世界位姿真值判定速度、漂移和高度，并在验收结束、失败或Ctrl+C时停止本次仿真，运行目录及日志保留；验收退出码仍反映是否完整通过。分步启动模式适合保留仿真进行诊断。
 
 `XXXXXX` 为示例占位符，使用启动器输出中的真实目录。默认PX4工作区为 `/home/aeroarx/test/codex_gimbal_test/PX4-Autopilot`，可用 `PX4_ROOT` 覆盖；脚本要求该工作区有 `build/px4_sitl_default/bin/px4` 和构建的 `etc`。
 
-`run.sh` 从所选JSON生成 `/tmp/rocket-racing.XXXXXX/models/rocket_racing_quad`，设置 `GZ_SIM_RESOURCE_PATH` 和独立 `GZ_PARTITION`。SITL模式复制已构建PX4的 `etc` 并装入本次生成的机体文件，使用独立rootfs，不修改相邻PX4源码或其已有参数存储。等待IMU首帧后，以 `PX4_GZ_STANDALONE=1` 接入PX4，估计器仍需初始化。运行目录保留 `gazebo.log`、`px4.log`、`imu_sample.txt`、配置快照和资产；按Ctrl+C停止启动器及其仿真进程。MAVLink的UDP端口未因Gazebo分区自动隔离，同时运行其他SITL时应检查端口冲突。
+`run.sh` 的 view/sitl/headless 模式均通过 `tools/prepare_runtime.py` 复制当前模型目录中的 `model.sdf`、`model.config`、`meshes/`、`px4/` 和 `tests/world.sdf` 到 `/tmp/rocket-racing.XXXXXX/models/rocket_racing_quad`，设置 `GZ_SIM_RESOURCE_PATH` 和独立 `GZ_PARTITION`，不从 JSON 重生成这些资产。SITL模式复制已构建PX4的 `etc` 并装入本次复制的机体文件，使用独立rootfs，不修改相邻PX4源码或其已有参数存储。等待IMU首帧后，以 `PX4_GZ_STANDALONE=1` 接入PX4，估计器仍需初始化。运行目录保留 `gazebo.log`、`px4.log`、`imu_sample.txt`、配置快照和资产；按Ctrl+C停止启动器及其仿真进程。MAVLink的UDP端口未因Gazebo分区自动隔离，同时运行其他SITL时应检查端口冲突。
 
-世界名为 `rocket_racing_quad_test`。原点WGS84为 `(47.397971057728974, 8.546163739800146)`，海拔0 m。模型机头朝+z，生成器按机身半长与离地间隙计算初始高度。世界参数来自JSON，非参数化场景内容来自 `tools/world_template.sdf`。
+第二个可选 JSON 参数仅提供 `flight_test` 和 `simulation.imu_wait_timeout_s`。修改其中的质量、几何、动力、气动、传感器、PX4 或其他世界字段不会改变运行资产；这些设置应修改对应原生文件。默认不传第二个参数时，从模型目录的 `parameters.json` 读取测试设置和启动等待期限。
 
-飞行脚本默认读取模型根目录的 [parameters.json](../parameters.json)，但用启动器复测时应通过 `--config` 指定**本次运行副本中的配置**，使验收与实际模型、PX4设置一致。源配置改变不会改变已启动的模型；模型、动力、PX4或仿真配置变化后须停止并重新启动。常调参数的单位、影响和生成流程见[参数说明](../docs/parameters.md)。
+运行副本中的 `parameters.json` 是提取快照：`model` 保存所有 link 的质量、惯性和姿态及电机/气动插件配置，`px4` 保存实际机体参数，`simulation` 保存世界名称、物理引擎设置、重力、生成位置和 IMU 等待期限，`runtime.source_sha256` 保存原生资产、完整世界文件与默认 JSON 的 SHA-256。该快照不沿用源 JSON 中未生效的物理字段。
+
+世界名为 `rocket_racing_quad_test`。原点WGS84为 `(47.397971057728974, 8.546163739800146)`，海拔0 m。模型机头朝+z，全部显示网格与碰撞体的 z 包络为-0.225～+0.365 m，本体总高度0.590 m；几何轴向中点与机身碰撞圆柱中心为 z=+0.070 m，`base_link` 原点不在几何中点。当前初始 `base_link` 原点 z=0.230 m，机尾离地5 mm、顶部离地0.595 m。世界参数直接来自 `tests/world.sdf`；`tools/world_template.sdf` 仅供显式离线生成器使用。
+
+飞行脚本默认读取模型根目录的 [parameters.json](../parameters.json)，但用启动器复测时应通过 `--config` 指定**本次运行副本中的配置**，使验收与实际模型、PX4设置一致。源文件改变不会改变已启动的模型；模型、动力、PX4或世界配置变化后须停止并重新启动。常调参数的单位、影响和离线生成边界见[参数说明](../docs/parameters.md)。
+
+真值目标默认取运行快照的 `simulation.world_name` 和 `model.name`；未提供这些字段时，使用基础单机默认值 `rocket_racing_quad_test` 与 `rocket_racing_quad`。可用 `--world-name`、`--model-name` 显式指定已运行的世界名和实体名。真值模块订阅 `/world/<世界名>/dynamic_pose/info`，仅采集所选实体的位姿；这两个选项不改写世界或模型，也不改变速度、高度及连续保持时间的验收门槛。动态组合的运行快照可提供其对应名称供同一验收工具使用。
 
 常用覆盖项见 `--help`。`--target-speed` 保留兼容，单位为m/s；`--cruise-speed` 与 `--sprint-speed` 单位为km/h。命令行覆盖只影响本次验收，不会改写配置文件或飞控。脚本启动前检查目标速度加控制余量不超过配置中的 `MPC_XY_VEL_MAX`；提高目标速度时应先调整实际PX4参数并重启。`MPC_XY_CRUISE` 是PX4任务模式设置，本脚本的OFFBOARD巡航目标取自 `flight_test.cruise_speed_km_h`。
 
 ## 静态检查与预览
 
 ```sh
-# 从仓库根目录执行；静态检查会生成临时资产用于比对
+# 从仓库根目录执行
 python3 models/vehicles/rocket_racing_quad/tests/check_model.py
 python3 -m unittest discover -s models/vehicles/rocket_racing_quad/tests -p 'test_*.py' -v
 
-# 根据配置和网格生成docs/model_views.png；需要matplotlib
+# 离线 JSON 几何预览，不能代表当前手调 SDF；需要matplotlib
 python3 models/vehicles/rocket_racing_quad/tools/render_views.py
 ```
 
-`check_model.py` 核对仓库资产与配置重生成结果、桨盘/机身净空、网格质量、关节及总质量、世界地面显示/碰撞大小、PX4电机位置和参数映射，并检查修改配置确实影响输出及无效输入被拒绝。飞行回归测试验证遥测过滤、心跳、命令确认、时钟和严格连续速度/高度门槛；这些离线检查不能代替SITL飞行。
+`check_model.py` 核对当前原生资产与运行副本逐文件一致，并独立检查离线生成器的可复现性、几何净空、质量、坐标映射和输入约束；不要求手调 SDF 与离线 JSON 生成结果相同。生成器的几何和控制映射检查不代表当前手调模型与 PX4 已经匹配。离线回归还验证遥测过滤、心跳、命令确认、时钟和严格连续速度/高度门槛；这些检查不能代替SITL飞行。
 
-[多视图预览](../docs/model_views.png) 由网格和配置绘制，包含多个观察方向；它不是Gazebo运行截图，仍需人工确认外形。默认地面边长50 km，显示与碰撞同步，以容纳高速航段。
+[多视图预览](../docs/model_views.png) 从源 JSON 重建几何，包含多个观察方向；它不是Gazebo运行截图，也不代表当前外移电机的 SDF。当前原生外形检查使用 `run.sh view`。默认地面边长50 km，显示与碰撞同步，以容纳高速航段。
 
 ## 飞行流程与判定
 
@@ -112,8 +118,8 @@ XY 方向使用速度设定值，Z 方向使用位置设定值，由 PX4 保持�
 
 ## 日志与验证状态
 
-每次运行写入 `/tmp/rocket-flight-<时间戳>.json`，可用 `--log` 指定路径。包含实际配置与SHA-256、判定数据来源、Gazebo真值（启用时）、PX4 NED 位置和速度、仿真时间、航段、控制设定值、飞控状态文本、各项结果、错误及落地确认。只有所有航段通过且确认落地时，顶层 `passed` 才为 `true`，程序退出码为 0；其余情况为 1。可依据原始样本重新计算漂移、连续时长和高度误差。
+独立飞行脚本默认写入 `/tmp/rocket-flight-<时间戳>.json`，可用 `--log` 指定路径；`run_check.sh` 默认写入本次运行目录的 `flight_result.json`。日志包含实际配置与SHA-256、判定数据来源、`measurement_target` 中的世界名和实体名、Gazebo真值（启用时）、PX4 NED 位置和速度、仿真时间、航段、控制设定值、飞控状态文本、各项结果、错误及落地确认。使用运行快照时还包含原生资产指纹。只有所有航段通过且确认落地时，顶层 `passed` 才为 `true`，程序退出码为 0；其余情况为 1。可依据原始样本重新计算漂移、连续时长和高度误差。
 
-当前低位电机与下置桨布局已通过静态/SDF检查，脚本回归通过；80 mm 动力舱外形已通过人工验收，当前配置完整SITL飞行验收待复测。具体状态见[验证说明](../docs/validation.md)。
+当前0.590 m总高度的外形尚未获得人工确认，7.70 kg、约0.590 m电机轴距和自定义重心/惯性的当前配置已通过完整无风组件世界SITL飞行自验证。质量、惯性与气动为独立配置，不由几何尺寸自动计算。PX4 电机位置、反扭矩系数和最大转速与 SDF 配套；`MPC_THR_HOVER=0.0755504`，静态理论值约0.0727901，两者分别记录；当前配置的悬停、200 km/h巡航连续30 s、300 km/h冲刺连续10 s及落地停机均通过。显示翼面与动力舱连续连接；机臂碰撞体保留较短的近似，当前不考察连接处碰撞精度，不阻断无接触自由飞行验证。具体状态见[项目状态](../docs/status.md)和[验证说明](../docs/validation.md)。
 
 独立运行真值验收时，先将 `GZ_PARTITION` 设置为启动器打印的分区，并给 `flight_check.py` 加 `--ground-truth`。真值模式不会改写飞控传感器；遥测和真值任一失联都会终止验收。地面显示为平面，碰撞采用顶部位于 z=0 的实体箱体。

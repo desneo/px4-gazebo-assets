@@ -146,7 +146,7 @@ start_service() {
 }
 GENERATED="$RUN_DIR/models/$MODEL_NAME"
 if [[ "$VARIANT" == standalone ]]; then
-  python3 "$PROJ/models/vehicles/rocket_racing_quad/tools/generate_model.py" --output-dir "$GENERATED"
+  python3 "$PROJ/models/vehicles/rocket_racing_quad/tools/prepare_runtime.py" --output-dir "$GENERATED"
 else
   python3 "$PROJ/assembledmodels/rocket_two_axis_pod/tools/generate_dynamic_model.py" --output-dir "$GENERATED"
 fi
@@ -154,7 +154,7 @@ fi
 "$FLIGHT_PYTHON" "$HERE/flight_trial.py" --config "$CONFIG" --model-config "$GENERATED/parameters.json" \
   --model-name "$MODEL_NAME" --log "$RUN_DIR/trial.json" --validate-only
 python3 "$HERE/prepare_world.py" --variant "$VARIANT" --model "$GENERATED/model.sdf" \
-  --output "$RUN_DIR/world.sdf" --view "$VIEW" --near-clip "$NEAR_CLIP"
+  --output "$RUN_DIR/world.sdf" --view "$VIEW" --near-clip "$NEAR_CLIP" --update-model-snapshot
 ROOTFS="$RUN_DIR/rootfs"
 mkdir -p "$ROOTFS"
 printf '%s\n' "$ROOTFS" > "$RUN_DIR/rootfs_path.txt"

@@ -28,7 +28,7 @@ def sha256(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def prepare(output, model_path, variant, *, view='overall', near_clip=.005):
+def prepare(output, model_path, variant, *, view='overall', near_clip=.005, update_snapshot=False):
     if not math.isfinite(near_clip) or near_clip <= 0:
         raise ValueError('浏览相机近裁剪距离必须为有限正数')
     expected = VARIANTS[variant]
@@ -65,13 +65,33 @@ def prepare(output, model_path, variant, *, view='overall', near_clip=.005):
     output.parent.mkdir(parents=True, exist_ok=True)
     ET.indent(tree, space='  ')
     tree.write(output, encoding='utf-8', xml_declaration=True)
+    # 飞行报告读取的模型快照也必须描述实际场景，而非基础组件的自测世界。
+    model_config = model_path.parent / 'parameters.json'
+    runtime_config = output.parent / 'config.json'
+    if update_snapshot:
+        snapshot = json.loads(model_config.read_text())
+        timeout = snapshot.get('simulation', {}).get('imu_wait_timeout_s')
+        if runtime_config.is_file():
+            timeout = json.loads(runtime_config.read_text()).get('imu_wait_timeout_s', timeout)
+        snapshot['simulation'] = {
+            'imu_wait_timeout_s': timeout,
+            'world_name': WORLD,
+            'physics': {child.tag: child.text for child in world.find('physics')},
+            'gravity': world.findtext('gravity'),
+            'spawn_pose': model.findtext('pose'),
+        }
+        snapshot.setdefault('runtime', {})['world_sha256'] = sha256(output)
+        model_config.write_text(json.dumps(snapshot, indent=2, ensure_ascii=False) + '\n')
     # 被测飞机允许不同；风、地形、标志、浏览相机与世界物理配置必须相同。
     environment = copy.deepcopy(world)
     environment.remove(environment.find(f'model[@name="{expected}"]'))
     canonical_environment = ET.canonicalize(
         ET.tostring(environment, encoding='unicode'), strip_text=True)
-    source_paths = [SOURCE, ROOT / 'models/vehicles/rocket_racing_quad/parameters.json',
-                    ROOT / 'models/vehicles/rocket_racing_quad/tools/generate_model.py']
+    rocket = ROOT / 'models/vehicles/rocket_racing_quad'
+    source_paths = [SOURCE, rocket / 'parameters.json', rocket / 'model.sdf', rocket / 'model.config',
+                    rocket / 'tools/prepare_runtime.py', rocket / 'tools/generate_model.py']
+    source_paths += sorted(path for folder in ('meshes', 'px4')
+                           for path in (rocket / folder).rglob('*') if path.is_file())
     scene = Path(__file__).resolve().parent
     source_paths += sorted(path for path in scene.iterdir()
                            if path.is_file() and path.suffix in ('.py', '.sh', '.json'))
@@ -94,7 +114,6 @@ def prepare(output, model_path, variant, *, view='overall', near_clip=.005):
                           for path in source_paths if path.is_file()},
         'generated_sha256': generated,
     }
-    runtime_config = output.parent / 'config.json'
     if runtime_config.is_file():
         manifest['runtime_config_sha256'] = sha256(runtime_config)
     (output.parent / 'asset_manifest.json').write_text(
@@ -109,10 +128,13 @@ def main():
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--view', choices=('overall', 'close'), default='overall')
     parser.add_argument('--near-clip', type=float, default=.005)
+    parser.add_argument('--update-model-snapshot', action='store_true',
+                        help='同步运行副本中的 parameters.json；仅对独立运行资产使用')
     args = parser.parse_args()
     try:
         print(prepare(args.output, args.model, args.variant,
-                      view=args.view, near_clip=args.near_clip))
+                      view=args.view, near_clip=args.near_clip,
+                      update_snapshot=args.update_model_snapshot))
     except (ValueError, OSError, ET.ParseError) as error:
         parser.error(str(error))
 

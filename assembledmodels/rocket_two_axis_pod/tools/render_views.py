@@ -16,7 +16,6 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-from matplotlib.colors import LightSource
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 import numpy as np
 
@@ -164,11 +163,29 @@ def load_pieces(sdf, model_path):
 
 
 def draw(ax, pieces, limits, elev, azim, title, ticks=True):
+    visible, colors = [], []
+    elevation, azimuth = np.deg2rad([elev, azim])
+    toward_camera = np.array([np.cos(elevation)*np.cos(azimuth),
+                              np.cos(elevation)*np.sin(azimuth), np.sin(elevation)])
+    light = np.array([-.3, -.5, 1.])
+    light /= np.linalg.norm(light)
     for vertices, color, _name in pieces:
         if vertices[:, :, 2].max() < limits[2][0]:
             continue
-        ax.add_collection3d(Poly3DCollection(vertices, facecolors=color, linewidths=0, axlim_clip=True, antialiased=False,
-                                            shade=True, lightsource=LightSource(azdeg=300, altdeg=40)))
+        normals = np.cross(vertices[:, 1]-vertices[:, 0], vertices[:, 2]-vertices[:, 0])
+        keep = normals @ toward_camera > 1e-12
+        if not np.any(keep):
+            continue
+        normals = normals[keep]
+        normals /= np.linalg.norm(normals, axis=1)[:, None]
+        visible.append(vertices[keep])
+        face_colors = np.tile(color, (int(keep.sum()), 1))
+        face_colors[:, :3] *= (.80 + .20*np.maximum(0., normals @ light))[:, None]
+        colors.append(face_colors)
+    # 合并后按所有三角面统一排序，避免罩壳与球头分属 collection 时互相穿透显示。
+    ax.add_collection3d(Poly3DCollection(np.concatenate(visible), facecolors=np.concatenate(colors),
+                                        linewidths=0, axlim_clip=True, antialiased=False,
+                                        shade=False))
     ax.set(xlim=limits[0], ylim=limits[1], zlim=limits[2], title=title)
     ax.set_box_aspect([high-low for low, high in limits])
     ax.set_proj_type("ortho")
@@ -189,14 +206,20 @@ def axis_arrow(ax, origin, direction, length, color, label, label_offset=(0, 0, 
 
 
 def head_axes(ax, yaw_deg=0, pitch_deg=0):
-    mount = assembly_generator().dimensions()[1] * 1000
-    yaw = np.deg2rad(yaw_deg)
-    ry = rotation([0, 0, yaw])
-    axis_arrow(ax, [0, 0, mount + 8], [0, 0, 1], 95, "#1e64b4", "yaw / +Z", (-30, 0, 0))
-    center = np.array([0, 0, mount + 8]) + ry @ [15, 0, 48]
-    axis_arrow(ax, center, ry @ [0, -1, 0], 55, "#148050", "pitch / −Y′")
-    direction = ry @ rotation([0, -np.deg2rad(pitch_deg), 0]) @ [0, 0, 1]
-    axis_arrow(ax, center, direction, 48, "#dc7722", "视线", (8, -5, 0))
+    generator = assembly_generator()
+    mount = generator.dimensions()[1] * 1000
+    chain = generator.kinematics.PodKinematics()
+    poses = chain.link_poses(yaw_deg, pitch_deg)
+    for name, color, label, length in (('yaw_joint', '#1e64b4', 'yaw / −X', 60),
+                                       ('pitch_joint', '#148050', 'pitch / −Y′', 55)):
+        joint = chain.joints[name]
+        parent = joint['parent']
+        motion = poses[parent] @ np.linalg.inv(chain.home[parent])
+        pivot = motion @ joint['pivot']
+        center = pivot[:3, 3]*1000 + [0, 0, mount]
+        axis_arrow(ax, center, motion[:3, :3] @ joint['axis'], length, color, label)
+    sensor = chain.camera_pose(yaw_deg, pitch_deg, mount/1000)
+    axis_arrow(ax, sensor[:3, 3]*1000, sensor[:3, 0], 40, '#dc7722', '视线', (8, -5, 0))
     axis_arrow(ax, [0, 0, mount - 6], [1, 0, 0], 62, "#bd3434", "+X")
 
 
@@ -253,7 +276,7 @@ def head_detail(pieces, output_dir):
     draw(ax, pieces, limits, 25, -55, "头部斜视 · 轴向示意")
     head_axes(ax)
     fig.suptitle("顶部替换式安装  |  底环 Ø84 mm  /  机身最大 Ø90 mm  /  吊舱高 91 mm", fontsize=15, y=.96)
-    fig.text(.5, .10, f"yaw：绕机体 +Z；pitch：绕随 yaw 转动的 −Y′；零位镜头朝 +Z，负 pitch 转向 +X\n机尾 Z = {min_z:g} mm；整机最高点 Z = +{max_z:g} mm；所有尺寸单位为 mm", ha="center", fontsize=11)
+    fig.text(.5, .10, f"yaw：绕机体 −X；pitch：绕随 yaw 转动的 −Y′；零位镜头朝 +Z，负 pitch 转向 +X\n机尾 Z = {min_z:g} mm；整机最高点 Z = +{max_z:g} mm；所有尺寸单位为 mm", ha="center", fontsize=11)
     fig.text(.5, .025, "由装配 SDF 实际几何生成的静态评审图（非 Gazebo 截图） · 坐标箭头为评审标注", ha="center", color="#5a6470", fontsize=10)
     fig.subplots_adjust(left=.01, right=.99, top=.90, bottom=.20, wspace=.03)
     save(fig, output_dir / "head_detail.png")
@@ -264,8 +287,8 @@ def pose_comparison(output_dir, model_path):
     mount = generator.dimensions()[1] * 1000
     max_z = generator.source_geometry()['max_z_m'] * 1000
     fig = plt.figure(figsize=(14, 13))
-    for index, (yaw, pitch, note) in enumerate([(0, 0, "朝 +Z"), (0, -90, "朝 +X"),
-                                              (45, -45, "朝 +X/+Y/+Z"), (0, 45, "朝 −X/+Z")], 1):
+    for index, (yaw, pitch, note) in enumerate([(0, 0, "朝 +Z"), (0, -80, "朝 +X 上方 10°"),
+                                              (60, -80, "朝 +X/+Y/+Z"), (0, 30, "朝 −X/+Z")], 1):
         sdf = generator.build_model(yaw_deg=yaw, pitch_deg=pitch)
         pieces = load_pieces(sdf, model_path)
         ax = fig.add_subplot(2, 2, index, projection="3d")
@@ -273,7 +296,7 @@ def pose_comparison(output_dir, model_path):
              f"yaw = {yaw}° / pitch = {pitch}°\n视线{note}", ticks=False)
         head_axes(ax, yaw, pitch)
     fig.suptitle("两轴机械角与视线对比  |  载机固定，吊舱真实几何随关节旋转", fontsize=15, y=.975)
-    fig.text(.5, .06, "yaw 范围 −90°～+90°；pitch 范围 −90°～+45°\npitch = 0° 时视线与 yaw 轴重合，yaw 改变相机滚转而不改变视线方向", ha="center", fontsize=11)
+    fig.text(.5, .06, "yaw 范围 −60°～+60°；pitch 范围 −80°～+30°\n外轴穿过球心；pitch = 0° 时，yaw 使视线在安装 YZ 平面转动", ha="center", fontsize=11)
     fig.text(.5, .025, "由装配生成器实际几何生成的静态评审图（非 Gazebo 截图） · 坐标箭头为评审标注", ha="center", color="#5a6470", fontsize=10)
     fig.subplots_adjust(left=.01, right=.99, top=.89, bottom=.12, wspace=.02, hspace=.18)
     save(fig, output_dir / "mechanical_poses.png")

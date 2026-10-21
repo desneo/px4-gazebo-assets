@@ -2,6 +2,7 @@
 """两轴立装在完整地理背景中的动态靶标跟踪和实体遮挡验收。"""
 import argparse
 from concurrent.futures import ThreadPoolExecutor
+import importlib.util
 import json
 import math
 import os
@@ -18,6 +19,19 @@ WORLD = 'geographic_two_axis_pod'
 INITIAL_POSE = tuple(map(float, target_model().findtext('pose').split()))
 INITIAL = INITIAL_POSE[:3]
 HIDDEN_PANEL = (100., 100., 80.)
+_spec = importlib.util.spec_from_file_location('pod_scene_kinematics',
+    ROOT / 'assembledmodels/rocket_two_axis_pod/tools/pod_kinematics.py')
+_kinematics = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_kinematics)
+POD_KINEMATICS = _kinematics.PodKinematics()
+MOUNT_Z = 50.
+
+
+def initial_angles():
+    result = POD_KINEMATICS.inverse(INITIAL, MOUNT_Z)
+    if not result['reachable'] or result['singular']:
+        raise ValueError('初始靶标不在两轴机械可达域内')
+    return result['yaw'], result['pitch']
 
 
 def set_pose(name, xyz, rpy=(0., 0., 0.)):
@@ -60,9 +74,8 @@ def truth_error_deg(t, odometry):
     bx,by,bw,bh=t['target']['box_px']
     f=960/math.tan(math.pi/6)
     ray=rotation @ np.array([1,-(bx+bw/2-960)/f,-(by+bh/2-540)/f])
-    los=np.array(t['los_mount'])
-    yaw=math.radians(t['joints_deg']['yaw']['pos'])
-    origin=np.array([.015*math.cos(yaw),.015*math.sin(yaw),50.056]) + .026*los
+    origin=POD_KINEMATICS.camera_pose(t['joints_deg']['yaw']['pos'],
+        t['joints_deg']['pitch']['pos'], MOUNT_Z)[:3,3]
     truth=np.array([point['x'],point['y'],point['z']])-origin
     cosine=np.dot(ray,truth)/(np.linalg.norm(ray)*np.linalg.norm(truth))
     return math.degrees(math.acos(float(np.clip(cosine,-1,1))))
@@ -116,8 +129,9 @@ class Session:
             t=json.loads(data);self.record('received',payload=t)
             if t.get('type')!='telemetry':continue
             self.latest=t;samples.append(t)
-            assert t['protocol_version']==5 and t['angle_convention']=='upright_joint','错误的吊舱协议'
-            assert -90.2<=t['joints_deg']['yaw']['pos']<=90.2 and -90.2<=t['joints_deg']['pitch']['pos']<=45.2,'机械限位越界'
+            assert t['protocol_version']==6 and t['angle_convention']=='motion_head_joint','错误的吊舱协议'
+            assert all(POD_KINEMATICS.joints[a+'_joint']['limits'][0]-.2 <= t['joints_deg'][a]['pos']
+                <= POD_KINEMATICS.joints[a+'_joint']['limits'][1]+.2 for a in ('yaw','pitch')),'机械限位越界'
             if predicate and predicate(t):return samples
             if simulation:
                 if sim_start is None:sim_start=t['ts_mono']
@@ -135,10 +149,10 @@ class Session:
             for a in ('yaw','pitch'))
         samples=self.collect(25,zero)
         assert samples and zero(samples[-1]),'两轴回零未到位'
-        pitch=-math.degrees(math.atan2(INITIAL[0]-.015,INITIAL[2]-50.056))
+        yaw,pitch=initial_angles()
         deadline=time.monotonic()+30
         while time.monotonic()<deadline:
-            t=self.latest;j=t['joints_deg'];ep=pitch-j['pitch']['pos'];ey=-j['yaw']['pos']
+            t=self.latest;j=t['joints_deg'];ep=pitch-j['pitch']['pos'];ey=yaw-j['yaw']['pos']
             if abs(ep)<.2 and abs(ey)<.2:
                 self.send('stop');self.collect(.3);self.record('event',event='prepared',pitch_deg=pitch);return
             self.send('manual',yaw=max(-20,min(20,4*ey)),pitch=max(-25,min(25,4*ep)))

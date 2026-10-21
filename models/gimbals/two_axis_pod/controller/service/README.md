@@ -6,7 +6,7 @@
 
 组合模型可用 `--topic-prefix /rocket_two_axis_pod` 对应插件的 command、telemetry、command_result 话题，用 `--image-topic /rocket_two_axis_pod/image` 指定完整图像话题；未指定时保持独立组件默认值。`--world`、`--gimbal-model`、UDP 端口分别配置，RTSP 端口同机共享，内部 RTP 默认自动分配；Gazebo 分区只隔离 Gazebo Transport，不隔离网络端口。
 
-首次有效请求收到 `hello`，`version=5`，`angle_convention=upright_joint`。`manual` 只接受 yaw、pitch 机械角速度，单位 °/s；任何 roll 字段均拒绝。俯仰绕随动 −Y，范围 −90°～+45°，−90° 朝前、0° 朝安装 +Z；模型、插件、网关及客户端须使用同一机械定义。非零人工速度在网关层统一退出 `auto_lock/manual_track`，因此随仓库地面站与第三方 station 行为一致。`reset_axis` 仅接受 yaw 或 pitch。视线奇异点不禁止机械控制；俯仰 0°、镜头朝天时，偏航转动不改变视线。完整会话、重传、回执、命令参数、视频叠加和第三方 station 接入流程见[控制与遥测协议](../../docs/control-protocol.md)。
+首次有效请求收到 `hello`，`version=6`，`angle_convention=motion_head_joint`。`manual` 只接受 yaw、pitch 机械角速度，单位 °/s；任何 roll 字段均拒绝。yaw 为绕安装 −X 的外轴，范围 ±60°；pitch 为绕随动 −Y 的内轴，范围 −80°～+30°。CAD 原始零位沿安装 +Z；yaw=0 时 pitch 负值向安装 +X 前方转动。运动链为 `Rx(-yaw) Ry(-pitch)`；外轴穿过球心，球心不随外轴公转。模型、插件、网关及客户端须使用同一机械定义。非零人工速度在网关层统一退出 `auto_lock/manual_track`，因此随仓库地面站与第三方 station 行为一致。`reset_axis` 仅接受 yaw 或 pitch。当前机械限位内无视线奇异点，零位两轴均能改变视线；即使出现视线退化标志也不禁止机械控制。完整会话、重传、回执、命令参数、视频叠加和第三方 station 接入流程见[控制与遥测协议](../../docs/control-protocol.md)。
 
 每个客户端地址具有独立会话。带 seq 请求按 1024 项窗口去重；同 seq 不同内容拒绝，乱序控制拒绝。可靠命令通过唯一 request_id 关联插件回执和客户端 seq。超时、发布失败与过期会话明确返回失败，不自动再次执行。客户端应持续发送 ping 续期，默认 5 秒过期。数据报上限 8 KiB。
 
@@ -26,7 +26,7 @@
 
 中继使用用户私有的临时目录 `two-axis-rtsp-<UID>/` 保存每端口的 `.sock`、`.lock`、`.log`，本地注册不对网络开放。RTSP 对外监听所配置端口；该端口被其他服务占用时启动失败。正常停止网关立即撤销本路，其他路继续工作；异常退出后 10 秒租约过期清理。所有路退出后中继空闲约 30 秒自动退出，不属于单个网关的进程组。中继重启后存活网关自动尝试重新注册；已有播放器断线时需重新连接。
 
-每路网关的 `hello`、station 遥测和额外 UDP 状态副本包含 `aircraft_id`、`video_rtsp_path`，表示当前网关 ID 与完整视频路径。控制协议版本为 5。地面站核对 `hello.aircraft_id` 与所选 ID，未确认、缺失/非法 ID 或不一致时禁止控制并清除待重传指令；断线后须重新通过 hello 核验。UDP 控制端口、插件话题与图像话题必须分别隔离；飞机 ID 只区分视频路径和上报身份，不自动配置 PX4 SYSID 或 Gazebo 话题。
+每路网关的 `hello`、station 遥测和额外 UDP 状态副本包含 `aircraft_id`、`video_rtsp_path`，表示当前网关 ID 与完整视频路径。控制协议版本为 6。地面站核对 `hello.aircraft_id` 与所选 ID，未确认、缺失/非法 ID 或不一致时禁止控制并清除待重传指令；断线后须重新通过 hello 核验。UDP 控制端口、插件话题与图像话题必须分别隔离；飞机 ID 只区分视频路径和上报身份，不自动配置 PX4 SYSID 或 Gazebo 话题。
 
 以下示例假定仿真已分别提供 `/uav_1`、`/uav_2` 插件话题和对应图像话题：
 
@@ -69,7 +69,7 @@ bash models/gimbals/two_axis_pod/scripts/run_bridge.sh --encoder nvenc \
 
 `--status-ip` 与 `--status-port` 必须同时指定，指定后启用额外上报；`--status-hz` 可单独覆盖配置频率。配置在启动时读取，修改后需重启网关。地理场景启动器会透传这些参数。
 
-每个 UDP 数据报是一条完整的 UTF-8 JSON，沿用原 station 遥测的所有字段：`type:"telemetry"`、`protocol_version:5`、`angle_convention:"upright_joint"`，以及 `attitude_deg`、`joints_deg`、`tracking`、`target`、`limits`、`camera`、`mount`、`frame`、`frame_table`、`video` 等；不增加外层封装，不附带 hello 或指令回执。此网关完整状态输出与地面站“发送艾晟报文”的 8 字段转换输出不同，二者分别配置、独立启停。字段定义见[控制与遥测协议](../../docs/control-protocol.md)。额外 socket 的源端口由系统分配，目标端口是此处配置的接收端口，不能据此将接收端当作 station 控制客户端。
+每个 UDP 数据报是一条完整的 UTF-8 JSON，沿用原 station 遥测的所有字段：`type:"telemetry"`、`protocol_version:6`、`angle_convention:"motion_head_joint"`，以及 `attitude_deg`、`joints_deg`、`tracking`、`target`、`limits`、`camera`、`mount`、`frame`、`frame_table`、`video` 等；不增加外层封装，不附带 hello 或指令回执。此网关完整状态输出与地面站“发送艾晟报文”的九字段转换输出分别配置、独立启停。字段定义见[控制与遥测协议](../../docs/control-protocol.md)。额外 socket 的源端口由系统分配，目标端口是此处配置的接收端口，不能据此将接收端当作 station 控制客户端。
 
 独立发送使用非阻塞 UDP，单包上限 8 KiB。发送错误、非法 JSON 数值或超长报文会丢弃当前包并限频记录日志；后续按配置周期继续尝试，不影响 station，不重传积压报文。UDP 不保证到达或顺序。
 

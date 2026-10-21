@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""由参数生成立装两轴吊舱；坐标 X 朝前、Y 朝左、Z 朝天。"""
+"""从已导入 CAD 网格和质量属性生成两轴组件；安装系 X 前、Y 左、Z 上。"""
 import copy
+import hashlib
 import json
 import math
 from pathlib import Path
@@ -101,189 +102,130 @@ def write_dae(path, vertices, faces, name):
     ET.ElementTree(root).write(path, encoding='utf-8', xml_declaration=True)
 
 
-def ring_mesh(path, z0, z1, outer_radius, inner_radius, segments=96):
-    vertices = []
-    # 每个面使用独立顶点，避免圆柱面与端面共享法向产生放射状阴影。
-    rings = ((z0, outer_radius), (z1, outer_radius),
-             (z0, inner_radius), (z1, inner_radius),
-             (z0, outer_radius), (z0, inner_radius),
-             (z1, outer_radius), (z1, inner_radius))
-    for z, radius in rings:
-        for index in range(segments):
-            angle = 2 * math.pi * index / segments
-            vertices.append((-radius * math.sin(angle), radius * math.cos(angle), z))
-    faces = []
-    for index in range(segments):
-        next_index = (index + 1) % segments
-        outer0, outer1 = index, segments + index
-        outer0n, outer1n = next_index, segments + next_index
-        inner0, inner1 = 2 * segments + index, 3 * segments + index
-        inner0n, inner1n = 2 * segments + next_index, 3 * segments + next_index
-        back_outer, back_inner = 4 * segments + index, 5 * segments + index
-        back_outer_n, back_inner_n = 4 * segments + next_index, 5 * segments + next_index
-        front_outer, front_inner = 6 * segments + index, 7 * segments + index
-        front_outer_n, front_inner_n = 6 * segments + next_index, 7 * segments + next_index
-        faces.extend([
-            (outer0, outer0n, outer1n, outer1),
-            (inner0, inner1, inner1n, inner0n),
-            (back_outer, back_inner, back_inner_n, back_outer_n),
-            (front_outer, front_outer_n, front_inner_n, front_inner),
-        ])
-    write_dae(path, vertices, faces, 'carrier_ring')
+def number(value):
+    return format(float(value), '.12g')
 
 
-def shell_mesh(path, overall_height, segments=64):
-    """图纸轴向竖直放置：底环水平，后部弧形罩壳向上延伸至 91 mm。"""
-    sections = [
-        (.018, .0400, .0060, .0410),
-        (.040, .0400, .0070, .0410),
-        (.060, .0380, .0090, .0390),
-        (.075, .0340, .0100, .0330),
-        (.087, .0270, .0110, .0230),
-        (overall_height, .0180, .0120, .0150),
-    ]
-    vertices = []
-    for z, half_width, bottom, top in sections:
-        center = (bottom + top) / 2
-        half_height = (top - bottom) / 2
-        for index in range(segments):
-            angle = 2 * math.pi * index / segments
-            vertices.append((-(center + half_height * math.sin(angle)),
-                             half_width * math.cos(angle), z))
-    faces = []
-    for section in range(len(sections) - 1):
-        start = section * segments
-        following = (section + 1) * segments
-        for index in range(segments):
-            next_index = (index + 1) % segments
-            faces.append((start + index, start + next_index,
-                          following + next_index, following + index))
-    faces.append(tuple(reversed(range(segments))))
-    last = (len(sections) - 1) * segments
-    faces.append(tuple(last + index for index in range(segments)))
-    write_dae(path, vertices, faces, 'rear_shell')
+def vector(values):
+    return ' '.join(number(v) for v in values)
 
 
-def link(model, name, mass, xyz, inertia):
-    l = elem(model, 'link', name=name)
-    elem(l, 'pose', ' '.join(map(str, (*xyz, 0, 0, 0))))
-    i = elem(l, 'inertial')
-    elem(i, 'mass', mass)
-    tensor = elem(i, 'inertia')
-    for key, value in zip(('ixx', 'iyy', 'izz'), inertia):
-        elem(tensor, key, value)
-    for key in ('ixy', 'ixz', 'iyz'):
-        elem(tensor, key, 0)
-    return l
+def load_geometry():
+    properties = json.loads((ROOT / 'cad/properties.json').read_text())
+    for relative, expected in properties['sha256'].items():
+        if hashlib.sha256((ROOT / relative).read_bytes()).hexdigest() != expected:
+            raise ValueError(f'CAD 与导出资产不一致，请运行 tools/import_cad.py：{relative}')
+    return properties
+
+
+def validate_configuration(c, properties):
+    if c['camera_center_m'] != properties['groups']['camera_link']['origin_m']:
+        raise ValueError('相机球心必须继承 CAD 导出属性')
+    if c['kinematics']['yaw_origin_m'] != properties['groups']['yaw_arm_link']['origin_m']:
+        raise ValueError('外轴轴心必须继承 CAD 导出属性')
+    if c['kinematics']['yaw_axis'] != [-1, 0, 0] or c['kinematics']['pitch_axis'] != [0, -1, 0]:
+        raise ValueError('机械轴必须与 CAD 及专用控制器一致')
+    expected = [0, -math.pi/2, 0]
+    rpy = c['camera']['sensor_rpy_rad']
+    if len(rpy) != 3 or any(not math.isfinite(v) or abs(v-e) > 1e-10 for v, e in zip(rpy, expected)):
+        raise ValueError('相机光学基底必须与 CAD 及专用控制器一致')
+    if c['mass_distribution'] != 'uniform_effective_density_over_cad_solids':
+        raise ValueError('不支持该质量分布方法')
+    if not math.isfinite(c['mass_kg']) or c['mass_kg'] <= 0:
+        raise ValueError('总质量必须为正有限数')
+
+
+def link(model, name, group, mass):
+    node = elem(model, 'link', name=name)
+    elem(node, 'pose', vector([*group['origin_m'], 0, 0, 0]))
+    inertial = elem(node, 'inertial')
+    elem(inertial, 'pose', vector([*group['center_local_m'], 0, 0, 0]))
+    elem(inertial, 'mass', number(mass))
+    tensor = elem(inertial, 'inertia')
+    inertia = group['unit_mass_inertia_m2']
+    for key, i, j in [('ixx', 0, 0), ('iyy', 1, 1), ('izz', 2, 2),
+                      ('ixy', 0, 1), ('ixz', 0, 2), ('iyz', 1, 2)]:
+        elem(tensor, key, number(mass * inertia[i][j]))
+    return node
 
 
 def joint(model, name, parent, child, axis, limits, rate):
-    j = elem(model, 'joint', name=name, type='revolute')
-    elem(j, 'parent', parent)
-    elem(j, 'child', child)
-    a = elem(j, 'axis')
-    elem(a, 'xyz', axis)
-    lim = elem(a, 'limit')
-    elem(lim, 'lower', math.radians(limits[0]))
-    elem(lim, 'upper', math.radians(limits[1]))
-    elem(lim, 'effort', 5)
-    elem(lim, 'velocity', math.radians(rate))
+    node = elem(model, 'joint', name=name, type='revolute')
+    elem(node, 'parent', parent)
+    elem(node, 'child', child)
+    # SDF joint pose 默认相对子 link；两个子 link 的原点均位于相应轴线上。
+    elem(node, 'pose', '0 0 0 0 0 0')
+    a = elem(node, 'axis')
+    elem(a, 'xyz', vector(axis))
+    limit = elem(a, 'limit')
+    elem(limit, 'lower', number(math.radians(limits[0])))
+    elem(limit, 'upper', number(math.radians(limits[1])))
+    elem(limit, 'effort', 5)
+    elem(limit, 'velocity', number(math.radians(rate)))
     elem(elem(a, 'dynamics'), 'damping', .1)
 
 
 def generate():
     c = json.loads((ROOT / 'parameters.json').read_text())
-    mesh_dir = ROOT / 'meshes'
-    outer_radius = c['housing_diameter_m'] / 2
-    flange = c['flange_thickness_m']
-    ring_mesh(mesh_dir / 'carrier_ring.dae', flange, .028, outer_radius - .0005, .030)
-    shell_mesh(mesh_dir / 'rear_shell.dae', c['overall_height_m'])
+    properties = load_geometry()
+    validate_configuration(c, properties)
+    total_mass = c['mass_kg']
     sdf = ET.Element('sdf', version='1.9')
-    m = elem(sdf, 'model', name='two_axis_pod')
-    elem(m, 'self_collide', 'false')
-    mount_mass = .10
-    mount = link(m, 'mount_link', mount_mass, (0, 0, 0), (.00009, .00009, .00009))
-    elem(mount.find('inertial'), 'pose', f'0 0 {flange/2} 0 0 0')
-    part(mount, 'mounting_flange', 'cylinder',
-         {'radius': outer_radius, 'length': flange},
-         f'0 0 {flange/2} 0 0 0')
-    holes = c['mounting_holes']
-    hole_radius = holes['thread_diameter_m'] / 2
-    hole_circle = holes['circle_diameter_m'] / 2
-    for index in range(holes['count']):
-        angle = 2 * math.pi * index / holes['count']
-        x = hole_circle * math.cos(angle)
-        y = hole_circle * math.sin(angle)
-        part(mount, f'm3_hole_{index + 1}', 'cylinder',
-             {'radius': hole_radius, 'length': .0008},
-             f'{x} {y} {flange+.0004} 0 0 0', '.018 .018 .020 1', False)
-    cx, cy, cz = c['camera_center_m']
-    r = c['camera_diameter_m'] / 2
-    side_y = r + .004
-    arm = link(m, 'yaw_arm_link', .04, (0, 0, flange), (.00004, .00005, .00005))
-    elem(arm.find('inertial'), 'pose', f'-.012 0 {cz/2-flange} 0 0 0')
-    mesh_part(arm, 'carrier_ring', 'model://two_axis_pod/meshes/carrier_ring.dae',
-              f'0 0 {-flange} 0 0 0')
-    mesh_part(arm, 'rear_shell', 'model://two_axis_pod/meshes/rear_shell.dae',
-              f'0 0 {-flange} 0 0 0')
-    # 外壳、支架整体随偏航绕底环中心转动，球体在支架内俯仰。
-    part(arm, 'yaw_drive', 'cylinder', {'radius': .012, 'length': .018},
-         '0 0 .009 0 0 0')
-    part(arm, 'rear_support', 'box', {'size': '.010 .018 .030'},
-         f'-.025 0 {.034-flange} 0 0 0')
-    part(arm, 'yoke_crossbar', 'box', {'size': f'.036 {2*side_y} .006'},
-         f'-.003 0 {cz-.018-flange} 0 0 0')
-    for side in (-1, 1):
-        y = side * side_y
-        part(arm, f'yoke_arm_{"left" if side > 0 else "right"}', 'box',
-             {'size': '.008 .006 .024'}, f'{cx} {y} {cz-.008-flange} 0 0 0')
-        part(arm, f'pitch_motor_{"left" if side > 0 else "right"}', 'cylinder',
-             {'radius': .010, 'length': .006}, f'{cx} {y} {cz-flange} {math.pi/2} 0 0')
-    part(arm, 'pitch_axle', 'cylinder', {'radius': .0045, 'length': f'{2*side_y}'},
-         f'{cx} 0 {cz-flange} {math.pi/2} 0 0', collision=False)
-    collision = elem(arm, 'collision', name='rear_shell_collision')
-    elem(collision, 'pose', f'-.028 0 {.049-flange} 0 0 0')
-    geometry(collision, 'box', {'size': '.015 .060 .065'})
-    camera = link(m, 'camera_link', .1, (cx, cy, cz), (2*.1*r*r/5,)*3)
-    part(camera, 'camera_shell', 'sphere', {'radius': r})
-    part(camera, 'lens_bezel', 'cylinder', {'radius': .013, 'length': .005}, f'0 0 {r-.0015} 0 0 0', '.20 .20 .21 1', False)
-    part(camera, 'lens_glass', 'cylinder', {'radius': .0105, 'length': .001}, f'0 0 {r+.0015} 0 0 0', '.12 .22 .30 1', False)
+    model = elem(sdf, 'model', name='two_axis_pod')
+    elem(model, 'self_collide', 'false')
+    links = {}
+    for name, group in properties['groups'].items():
+        mass = total_mass * group['volume_mm3'] / properties['volume_mm3']
+        links[name] = node = link(model, name, group, mass)
+        for part_name in group['parts']:
+            part_data = properties['parts'][part_name]
+            uri = 'model://two_axis_pod/' + part_data['mesh']
+            mesh_part(node, part_name, uri, color=vector(part_data['rgba']))
+            collision = elem(node, 'collision', name=part_name + '_collision')
+            geometry(collision, 'mesh', {'uri': uri})
+    camera = links['camera_link']
     sensor = elem(camera, 'sensor', name='camera', type='camera')
-    elem(sensor, 'pose', f'0 0 {r+.002} {math.pi} {-math.pi/2} 0')
+    elem(sensor, 'pose', vector(c['camera']['sensor_offset_m'] + c['camera']['sensor_rpy_rad']))
     elem(sensor, 'always_on', 'true')
     elem(sensor, 'update_rate', c['camera']['fps'])
     cam = elem(sensor, 'camera')
-    elem(cam, 'horizontal_fov', math.radians(c['camera']['hfov_deg']))
+    elem(cam, 'horizontal_fov', number(math.radians(c['camera']['hfov_deg'])))
     image = elem(cam, 'image')
-    for k in ('width', 'height'):
-        elem(image, k, c['camera'][k])
+    for key in ('width', 'height'):
+        elem(image, key, c['camera'][key])
     elem(image, 'format', 'R8G8B8')
     clip = elem(cam, 'clip')
     elem(clip, 'near', c['camera']['near_m'])
     elem(clip, 'far', c['camera']['far_m'])
-    joint(m, 'yaw_joint', 'mount_link', 'yaw_arm_link', '0 0 1', c['yaw_limits_deg'], c['max_rate_dps'])
-    joint(m, 'pitch_joint', 'yaw_arm_link', 'camera_link', '0 -1 0', c['pitch_limits_deg'], c['max_rate_dps'])
-    plugin = elem(m, 'plugin', filename='gz-two-axis-pod-controller', name='two_axis::GimbalController')
-    settings = dict(yaw_joint='yaw_joint', pitch_joint='pitch_joint', mount_link='mount_link', camera_link='camera_link', camera_sensor='camera', mount_mode='upright', command_topic='/two_axis_pod/command', telemetry_topic='/two_axis_pod/telemetry', command_result_topic='/two_axis_pod/command_result', control_rate=100, telemetry_rate=50, max_rate_dps=c['max_rate_dps'], max_acc_dps2=c['max_acc_dps2'], yaw_min_deg=c['yaw_limits_deg'][0], yaw_max_deg=c['yaw_limits_deg'][1], pitch_min_deg=c['pitch_limits_deg'][0], pitch_max_deg=c['pitch_limits_deg'][1])
-    for k,v in settings.items():
-        elem(plugin, k, v)
+    for axis, parent, child in [('yaw', 'mount_link', 'yaw_arm_link'),
+                                 ('pitch', 'yaw_arm_link', 'camera_link')]:
+        joint(model, axis + '_joint', parent, child, c['kinematics'][axis + '_axis'],
+              c[axis + '_limits_deg'], c['max_rate_dps'])
+    plugin = elem(model, 'plugin', filename='gz-two-axis-pod-controller', name='two_axis::GimbalController')
+    settings = dict(yaw_joint='yaw_joint', pitch_joint='pitch_joint', mount_link='mount_link',
+                    camera_link='camera_link', camera_sensor='camera', mount_mode='upright',
+                    command_topic='/two_axis_pod/command', telemetry_topic='/two_axis_pod/telemetry',
+                    command_result_topic='/two_axis_pod/command_result', control_rate=100,
+                    telemetry_rate=50, max_rate_dps=c['max_rate_dps'], max_acc_dps2=c['max_acc_dps2'],
+                    yaw_min_deg=c['yaw_limits_deg'][0], yaw_max_deg=c['yaw_limits_deg'][1],
+                    pitch_min_deg=c['pitch_limits_deg'][0], pitch_max_deg=c['pitch_limits_deg'][1])
+    for key, value in settings.items():
+        elem(plugin, key, value)
     ET.indent(sdf, space='  ')
     ET.ElementTree(sdf).write(ROOT / 'model.sdf', encoding='utf-8', xml_declaration=True)
     world = ET.parse(ROOT / 'tests/world_base.sdf')
-    fixture_pod = copy.deepcopy(m)
+    fixture_pod = copy.deepcopy(model)
     elem(fixture_pod, 'pose', '0 0 1.5 0 0 0')
     fixed = elem(fixture_pod, 'joint', name='world_mount', type='fixed')
     elem(fixed, 'parent', 'world')
     elem(fixed, 'child', 'mount_link')
     world.getroot().find('world').append(fixture_pod)
     target = world.getroot().find("world/model[@name='tracking_target']/link")
-    # 非对称纹理便于选框和观察画面旋转。
     for row in range(5):
         for col in range(5):
             if (row + col) % 2 == 0:
                 part(target, f'tile_{row}_{col}', 'box', {'size': '.085 .085 .003'},
-                     f'{(row-2)*.105} {(col-2)*.105} -.007 0 0 0',
-                     '.08 .12 .18 1', False)
+                     f'{(row-2)*.105} {(col-2)*.105} -.007 0 0 0', '.08 .12 .18 1', False)
     part(target, 'orientation_mark', 'box', {'size': '.06 .18 .003'},
          '.27 .17 -.008 0 0 0', '.8 .15 .08 1', False)
     ET.indent(world, space='  ')

@@ -6,7 +6,7 @@
 
 - 一个客户端会话由源 IP 和源 UDP 端口共同标识。客户端必须使用同一个已绑定 socket 发送指令并接收 `hello`、遥测和回执；不能每条命令换一个临时源端口。
 - 第一个语法与命令名均有效的数据报登记会话。网关先发送 `hello`，随后处理该数据报；UDP 不保证接收顺序，客户端必须按 `type` 和 `seq` 分流，不能假设 `hello` 一定先于本次命令的响应到达。
-- `hello.version` 必须为 `5`，`hello.angle_convention` 必须为 `upright_joint`，`hello.aircraft_id` 必须与预期载机一致。控制端未完成这三项核验前只应发送 `ping/status/bye`，不得下发运动指令。
+- `hello.version` 必须为 `6`，`hello.angle_convention` 必须为 `motion_head_joint`，`hello.aircraft_id` 必须与预期载机一致。未确认飞机身份时只允许 `ping/status/bye`。身份确认后，停止、双轴零速、关闭视觉和只检测可用；非零手动速度、回零、单轴复位、选框跟踪和自动锁定还须由 hello 与新鲜有效机械角度遥测共同确认版本及角度约定。
 - 已登记客户端默认接收 50 Hz 遥测。任意有效命令均刷新会话；空闲客户端应以不超过 2 秒的周期发送 `ping`。默认连续 5 秒没有有效命令即注销，恢复时必须重新收到并核验 `hello`。
 - UDP 不保证到达、顺序或唯一性。可靠命令在超时后重发时必须逐字义保持同一 JSON 内容和同一 `seq`；收到对应结果后才分配下一项操作。连续手动速度流则为每个采样分配新的递增 `seq`，不重发旧速度。
 - JSON 数值必须有限，布尔值不视为数值。客户端接收缓冲区建议至少 64 KiB，并应忽略未知字段，以便协议向后兼容扩展。
@@ -16,13 +16,15 @@
 
 1. 创建并绑定 UDP socket，保持其源端口不变。
 2. 发送 `status` 或 `ping`，接收并核验 `hello`。
-3. 等待一条新鲜 `telemetry`，再次核验 `protocol_version=5`、`angle_convention=upright_joint` 和 `aircraft_id`。
+3. 等待一条新鲜 `telemetry`，再次核验 `protocol_version=6`、`angle_convention=motion_head_joint` 和 `aircraft_id`。
 4. 使用单调递增 `seq` 下发控制，并按下文的响应类型确认结果。
 5. 空闲时持续 `ping`；退出前发送 `manual(0,0)` 停车，再发送 `bye`。
 
 ## 角度
 
-遥测标识 `protocol_version=5`、`angle_convention=upright_joint`。yaw/pitch 为机械角，单位度；速度为度/秒，加速度为度/秒²。`attitude_deg` 与 `joints_deg` 均为两轴机械诊断对象，不是 PX4 FRD Euler 姿态。立装零位朝天，yaw 绕竖直 +Z，pitch 绕随动水平 −Y；pitch −90° 朝前、+45° 朝后上方。限位为 yaw ±90°、pitch −90°～+45°。俯仰位置、速度、加速度和指令使用同一方向，不能只对显示值或艾晟输出反号。模型插件、网关和控制端必须配套使用协议 5，不能混用其他版本的俯仰定义。
+遥测标识 `protocol_version=6`、`angle_convention=motion_head_joint`。yaw/pitch 为机械角，单位度；速度为度/秒，加速度为度/秒²。`attitude_deg` 与 `joints_deg` 均为两轴机械诊断对象，不是 PX4 FRD Euler 姿态，也不是视线方位角/仰角。底座圆环水平、底座向下时，安装系为 +X 前、+Y 左、+Z 上。yaw 是绕安装 −X 的水平外轴，范围 ±60°；pitch 是绕随动 −Y 的内轴，范围 −80°～+30°。两轴均为 CAD 原始 0° 时光轴沿安装 +Z 朝天；yaw=0 时，pitch 负值向 +X 前方转动，−80° 时光轴高于前方水平面 10°，+30° 时朝后上方。
+
+运动链为 `Rx(-yaw) Ry(-pitch)`，镜头单位方向为 `[-sin(pitch), sin(yaw)cos(pitch), cos(yaw)cos(pitch)]`。外轴穿过球心，球心不随外轴公转。零位图像上方沿安装 −X、图像右方沿安装 −Y；图像正方向不等同于机械关节正方向。位置、速度、加速度和指令使用同一机械方向，不能只对显示值或艾晟输出反号。模型插件、网关和 Linux/Windows 控制端必须配套使用协议 6 与 `motion_head_joint`；旧机械约定不兼容。
 
 不支持 roll，`manual` 中出现 roll 字段（即使为 0）和 `reset_axis` 指定 roll 均拒绝。客户端必须验证协议与角度约定，不能把本组件当作三轴组件发送角速度。
 
@@ -35,7 +37,7 @@
 | `bye` | `seq` | 注销客户端 |
 | `manual` | `yaw`, `pitch` | 两轴机械角速度，缺省轴为 0；非零输入需持续发送，超过 0.5 s 停止；双轴为 0 时立即正常停车 |
 | `stop` | 无 | 立即停止控制并清除跟踪目标 |
-| `reset` | 无 | 两轴回机械 0°、镜头朝天 |
+| `reset` | 无 | 两轴回 CAD 原始机械 0°、镜头朝安装 +Z；底座水平静置时朝天 |
 | `home` | 无 | 与 reset 相同，两轴回机械零位 |
 | `reset_axis` | `axis: yaw/pitch` | 指定轴回 0°，另一轴保持收到指令时的机械位置 |
 | `set_vision_mode` | `mode` | 切换 `off/detect/auto_lock/manual_track` 互斥视觉模式 |
@@ -69,7 +71,7 @@
 典型响应如下；`message` 为空表示没有补充信息，失败时包含可直接显示的中文原因：
 
 ```json
-{"type":"hello","proto":"gimbal-udp","version":5,"angle_convention":"upright_joint","aircraft_id":1,"video_rtsp_path":"/two_axis_pod_1","capabilities":["vision_mode","server_video_overlay","auto_lock","frame_exact_track"]}
+{"type":"hello","proto":"gimbal-udp","version":6,"angle_convention":"motion_head_joint","aircraft_id":1,"video_rtsp_path":"/two_axis_pod_1","capabilities":["vision_mode","server_video_overlay","auto_lock","frame_exact_track"]}
 {"type":"pong","seq":10,"t":123.456}
 {"type":"command_result","cmd":"set_vision_mode","seq":11,"ok":true,"message":""}
 {"type":"command_result","cmd":"track","seq":12,"ok":false,"message":"无效选框或视频"}
@@ -132,17 +134,17 @@ close socket
 
 - `attitude_deg.yaw/pitch`、`joints_deg.yaw/pitch`：各含 `pos`、`vel`、`acc`。
 - `cmd_dps.yaw/pitch`：关节速度指令；`limits.yaw/pitch/saturated`：限位与饱和。
-- `los_mount`：安装系镜头单位方向；`singular`：俯仰接近 0°、视线朝天时偏航视线控制退化，不禁止机械手动或回零。
+- `los_mount`：安装系镜头单位方向；`singular`：光轴接近外轴方向时视线控制退化，不禁止机械手动或回零；当前机械限位内不出现该退化。
 - `camera.quat_body/quat_world`：实际光学系的四元数，顺序 wxyz；`rpy_body_deg/rpy_world_deg` 是光学姿态的诊断表示，与机械角不同。
-- `mount.mode=upright`：立装机械结构。默认 `mount.static=true`；装配插件设置 `mount_dynamic=true` 时为 `false`，每步更新安装系实际世界姿态，TRACK 中以载机角速度前馈抵消载机转动。
+- `mount.mode=upright`：底座向下的立装机械结构，外轴沿安装 −X；此字段不表示竖直偏航轴。默认 `mount.static=true`；装配插件设置 `mount_dynamic=true` 时为 `false`，每步更新安装系实际世界姿态，TRACK 中以载机角速度前馈抵消载机转动。
 - `mount.quat_world`：安装参考系相对世界的四元数，顺序 wxyz；动态模式随载机变化。
-- `tracking.constraint`：`NONE`、`SINGULAR`（偏航视线退化）、`LIMITED`（机械限位）、`RATE_LIMITED`（速度输出饱和）。`tracking.state=TRACK` 表示图像跟踪器仍识别选框，不等于所有轴均可稳定指向；应同时检查中心误差、稳定性和约束。
+- `tracking.constraint`：`NONE`、`SINGULAR`（外轴视线退化）、`LIMITED`（机械限位）、`RATE_LIMITED`（速度输出饱和）。`tracking.state=TRACK` 表示图像跟踪器仍识别选框，不等于所有轴均可稳定指向；应同时检查中心误差、稳定性和约束。
 - `mode`：IDLE/MANUAL/HOME/TRACK；`tracking.state`、`target`、`stability`：跟踪状态、选框和中心误差。
 - `target.miss`：被跟踪目标的二维脱靶量，自动锁定交接后的 CSRT 和手动框选使用相同字段，定义如下。
 - `frame`、`frame_table`、`ts_wall`、`server_uptime`、`video`：供视频、时序和网关状态显示。`hello.video_rtsp_path` 上报完整 RTSP 路径；地面站按配置的前缀和飞机 ID 生成 URL，两端配置必须一致。
 - `vision.mode/state/target_count/locked_track_id/error`：当前互斥模式、检测/搜索/锁定状态、已确认目标数、锁定轨迹号和视觉错误。`inference_ms/input_fps/output_fps` 是模型推理和最新帧处理速率诊断。
 
-俯仰 0° 时偏航轴与视线方向平行，偏航仍可机械转动，球心和画面方向随支架变化，但无法改变镜头朝天方向。视觉伺服以阻尼最小二乘处理该处退化；机械可达范围与两轴结构约束仍然存在。视频断流时停止追踪速度，持续丢失后需重新选框。
+CAD 零位两轴均能改变视线方向。数学上 pitch 接近 ±90° 时光轴与外轴平行，外轴转动只改变画面方向，视觉伺服以阻尼最小二乘处理退化；当前 pitch −80°～+30° 限位不包含该位置。底座水平时，当前可达光轴最低约高于水平面 5°，这与机械 yaw/pitch 的数值范围不同。视频断流时停止追踪速度，持续丢失后需重新选框。
 
 ### 跟踪脱靶量
 
@@ -170,13 +172,13 @@ Gazebo 专用话题为 `/two_axis_pod/command`、`/two_axis_pod/telemetry` 和 `
 
 ## 额外主动状态副本
 
-网关可通过独立 UDP socket 将上述遥测 JSON 额外发送到配置的 IP/端口。默认频率 20 Hz，可配置；station 原有默认 50 Hz 广播与控制会话保持独立。报文仍为 `type:"telemetry"`、协议 v5，沿用原字段，不添加外层封装。接收端无需 ping 或登记，不会收到 hello 或控制回执。
+网关可通过独立 UDP socket 将上述遥测 JSON 额外发送到配置的 IP/端口。默认频率 20 Hz，可配置；station 原有默认 50 Hz 广播与控制会话保持独立。报文仍为 `type:"telemetry"`、协议 v6，沿用原字段，不添加外层封装。接收端无需 ping 或登记，不会收到 hello 或控制回执。
 
 默认不开启，启用、目标地址和发送频率见[网关配置](../controller/service/README.md#额外-udp-json-状态上报)。尚无插件遥测或超过配置时效时暂停额外发送；接收端应按配置频率自行判断连续报文缺失。目标接收端口与 station 控制端口分别配置。
 
 ### 地面站艾晟报文
 
-Linux/Windows 地面站右上角提供独立的 IP、端口输入框和“发送艾晟报文/停止发送”按钮。此功能在地面站本机执行，和网关 `status_udp.json` 的完整主动状态副本相互独立。每份来自已配置网关、已确认飞机身份的协议 5 `telemetry` 转换为一个 UTF-8 JSON 数据报；仅包含下表九个字段，不包含飞机 ID、帧表、时间戳、type 或外层封装。`hello`、`pong`、回执和指令不发送。
+Linux/Windows 地面站右上角提供独立的 IP、端口输入框和“发送艾晟报文/停止发送”按钮。此功能在地面站本机执行，和网关 `status_udp.json` 的完整主动状态副本相互独立。每份来自已配置网关、已确认飞机身份的协议 6 `telemetry` 转换为一个 UTF-8 JSON 数据报；仅包含下表九个字段，不包含飞机 ID、帧表、时间戳、type 或外层封装。`hello`、`pong`、回执和指令不发送。
 
 | 字段 | 类型 | 发送数值与来源 |
 |---|---|---|

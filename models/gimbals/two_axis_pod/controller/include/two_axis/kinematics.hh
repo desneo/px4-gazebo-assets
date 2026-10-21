@@ -4,6 +4,12 @@ namespace two_axis
 {
 using namespace gimbal;
 Mat3 Rotation(double yaw, double pitch);
+// sensor -> camera_link 的固定光学旋转：RPY=(0,-pi/2,0)。
+Mat3 SensorRotation();
+// 图像伺服只支持 CAD 固定光学基底，拒绝不匹配或无效的 SDF 外参。
+bool ValidSensorRotation(const Mat3 &sensor);
+// 机械旋转与传感器局部旋转各应用一次，返回 sensor -> mount。
+Mat3 OpticalRotation(double yaw, double pitch, const Mat3 &sensor);
 Vec3 Los(double yaw, double pitch);
 // 图像右/下方向角误差 -> 机械角速度；单位保持一致。
 std::array<double, 2> ImageRates(double pitch, double right, double down);

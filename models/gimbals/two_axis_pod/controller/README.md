@@ -13,9 +13,11 @@ export GZ_SIM_SYSTEM_PLUGIN_PATH=models/gimbals/two_axis_pod/controller/build/li
 
 ## 机械约定
 
-水平安装面法线为 +Z，+X 为参考前方、+Y 朝左。外轴 `yaw` 绕 +Z 旋转，内轴 `pitch` 绕随动 −Y 旋转，旋转链为 `Rz(yaw) Ry(-pitch)`。两轴零位时镜头朝 +Z 天空，pitch 负值朝前，−90° 朝 +X；pitch +45° 指向后上方。yaw 正值把前向视线从 +X 转向 +Y。
+水平安装面法线为 +Z，+X 为载机参考前方、+Y 朝左。外轴 `yaw` 绕安装 −X 旋转，经过 `(0, 0, 0.056) m`；内轴 `pitch` 绕随动 −Y 旋转，零位轴心为 `(0.015, 0, 0.056) m`。旋转链为 `Rx(-yaw) Ry(-pitch)`，轴名表示机械关节，不表示世界 Euler 偏航和俯仰。两轴零位时光轴朝安装 +Z，pitch 负值朝前，正值朝后。yaw 正值使零位光轴从 +Z 向 +Y 转动。
 
-硬限位 yaw ∈ [−90°, +90°]、pitch ∈ [−90°, +45°]。`mount_mode` 必须为 `upright`。姿态显示、手动输入、回零全部采用机械角约定；home/reset 回到 (0°, 0°)。reset_axis 只复位选定机械轴，另一轴保持执行指令时的采样角度。
+确认的机械范围为 yaw ∈ [−60°, +60°]、pitch ∈ [−80°, +30°]。插件默认范围与组件一致，也可从 SDF 读取有限、包含机械零位的有效区间；物理关节与控制配置必须保持一致。`mount_mode` 必须为 `upright`，表示底座水平向下。姿态显示、手动输入、回零全部采用机械角约定；home/reset 回到 (0°, 0°)。reset_axis 只复位选定机械轴，另一轴保持执行指令时的采样角度。
+
+相机 sensor 相对 `camera_link` 的 RPY 为 `(0, −π/2, 0)`，sensor +X 是视线、+Y 是图像左、+Z 是图像上。零位时图像左为安装 +Y、图像上为安装 −X，因此图像右/下分别为随动 −Y/+X。插件读取实际 sensor 局部旋转，与机械旋转各组合一次，得到相机光学姿态和视线遥测；不能另在 link 或插件中重复应用 CAD 到安装系的转换。图像伺服仅支持该 CAD 固定光学基底；实际旋转矩阵与预期各元素偏差超过 `1e-8` 或存在非有限值时，插件明确报错并禁用。
 
 ## 控制与保护
 
@@ -25,7 +27,7 @@ export GZ_SIM_SYSTEM_PLUGIN_PATH=models/gimbals/two_axis_pod/controller/build/li
 
 `mount_dynamic` 默认为 false，沿用固定安装参考。机载装配设置为 true 时，每步读取 `mount_link` 世界姿态，更新安装四元数和相机世界姿态；TRACK 中把载机角速度对视线的影响投影到实际两轴 Jacobian，加入反向前馈。目标平移和载机平移仍由图像误差闭环修正，不读取目标世界坐标。大于 0.5 rad 的单步姿态跳变不转换为角速度前馈。进入机械限位、输出速度受限或视线退化时明确报告约束，不能将 CSRT 仍识别选框解释为稳定锁定。
 
-`pitch = 0°` 时视线方向与 yaw 轴平行，yaw 不能改变朝天方向；球心随支架移动，画面方向随偏航旋转。此时不具备完整的二维视线方向控制能力。控制器通过阻尼抑制退化附近的 yaw 速度，遥测在 `abs(sin(pitch)) < 0.05` 时报告 `singular: true`。机械手动控制与回零仍有效。
+视线方向为 `(-sin(pitch), sin(yaw)cos(pitch), cos(yaw)cos(pitch))`。图像右/下方向的关节 Jacobian 为 `diag(-cos(pitch), -1)`，yaw 使用阻尼最小二乘逆。两轴零位不退化；当视线平行外轴、`abs(cos(pitch)) < 0.05` 时，yaw 无法独立改变视线方向，遥测报告 `singular: true`。确认的机械范围不包含该退化姿态。机械手动控制与回零仍有效。
 
 ## Gazebo Transport
 
@@ -37,6 +39,6 @@ export GZ_SIM_SYSTEM_PLUGIN_PATH=models/gimbals/two_axis_pod/controller/build/li
 
 命令支持 track（归一化 `box:[x,y,w,h]`）、manual（`yaw/pitch` 机械速度）、stop、home、reset、reset_axis（axis 为 yaw/pitch）、reset_fault、ping。任何 manual 的 roll 字段均拒绝，包括零值。
 
-遥测 `protocol_version:5`、`angle_convention:"upright_joint"`；`attitude_deg`、`joints_deg` 只有 yaw/pitch 的 pos/vel/acc，`cmd_dps` 只有 yaw/pitch。`limits` 包含 yaw/pitch/saturated，`los_mount` 是安装系单位视线，顶层 `singular` 表示视线退化。`camera` 包含相机传感器相对安装系/世界的四元数与欧拉姿态及帧序号，不将机械轴角误称为世界偏航/俯仰。tracking、target、stability、frame 保留配套网关所需信息。模型、插件、网关及地面站须共同使用协议 v5；不混用不同俯仰定义的客户端。网络接口见 [网关说明](service/README.md)。
+遥测 `protocol_version:6`、`angle_convention:"motion_head_joint"`；`attitude_deg`、`joints_deg` 只有 yaw/pitch 的 pos/vel/acc，`cmd_dps` 只有 yaw/pitch。`limits` 包含 yaw/pitch/saturated，`los_mount` 是安装系单位视线，顶层 `singular` 表示视线退化。`camera` 包含相机传感器相对安装系/世界的四元数与欧拉姿态及帧序号，不将机械轴角误称为世界偏航/俯仰。tracking、target、stability、frame 保留配套网关所需信息。模型、插件、网关及地面站须共同使用协议 v6 和同一机械角约定。网络接口见 [网关说明](service/README.md)。
 
 测试覆盖旋转链、有限差分 Jacobian、退化、动态安装角速度估计与独立积分后的世界视线漂移、手动超时、双轴限位、单轴回零、CSRT 跟踪及断帧丢失保护。

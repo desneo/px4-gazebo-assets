@@ -6,7 +6,7 @@ import math
 from pathlib import Path
 import xml.etree.ElementTree as ET
 
-from target_fixture import add_target
+from target_fixture import TARGET_POSITION, TARGET_SIZE, add_target
 
 ROOT = Path(__file__).resolve().parents[2]
 SOURCE = ROOT / 'worlds/geo_32_217857_119_105878/world.sdf'
@@ -101,7 +101,7 @@ def location_marker(x, y):
 
 
 def prepare(output, model_path, altitude=.24, start_x=0., start_y=0.,
-            view='overall', near_clip=.005):
+            view='overall', near_clip=.005, target_position=TARGET_POSITION, target_size=TARGET_SIZE):
     values = (altitude, start_x, start_y, near_clip)
     if not all(math.isfinite(value) for value in values) or near_clip <= 0:
         raise ValueError('位置必须是有限值，近裁剪距离必须大于零')
@@ -124,7 +124,7 @@ def prepare(output, model_path, altitude=.24, start_x=0., start_y=0.,
     set_text(model, 'pose', f'{start_x} {start_y} {altitude} 0 0 0')
     world.append(model)
     world.append(location_marker(start_x, start_y))
-    add_target(world)
+    add_target(world, dict(position=target_position, size=target_size))
     scene = world.find('./gui/plugin[@filename="MinimalScene"]')
     if scene is not None:
         clip = scene.find('camera_clip')
@@ -156,10 +156,13 @@ def main():
     parser.add_argument('--view', choices=('overall', 'close'), default='overall')
     parser.add_argument('--near-clip', type=float, default=.005,
                         help='Gazebo 浏览相机近裁剪距离（m），与吊舱相机独立')
+    parser.add_argument('--target', type=float, nargs=3, default=TARGET_POSITION,
+                        help='空中纹理靶标世界 ENU 中心（m）；调整后跟踪检查也须指定同一 --target')
+    parser.add_argument('--target-size', type=float, default=TARGET_SIZE)
     args = parser.parse_args()
     try:
         print(prepare(args.output, args.model, args.altitude, args.start_x,
-                      args.start_y, args.view, args.near_clip))
+                      args.start_y, args.view, args.near_clip, args.target, args.target_size))
     except (ValueError, OSError, ET.ParseError) as error:
         parser.error(str(error))
 

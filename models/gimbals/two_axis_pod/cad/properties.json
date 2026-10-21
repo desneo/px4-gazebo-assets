@@ -1,0 +1,373 @@
+{
+  "source": "motion_head.step",
+  "units": "m",
+  "cad_to_mount_rotation": [
+    [
+      -1,
+      0,
+      0
+    ],
+    [
+      0,
+      -1,
+      0
+    ],
+    [
+      0,
+      0,
+      1
+    ]
+  ],
+  "tessellation": {
+    "linear_tolerance_mm": 0.035,
+    "angular_tolerance_rad": 0.12
+  },
+  "groups": {
+    "mount_link": {
+      "origin_m": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "parts": [
+        "mount_ring_6xM3",
+        "fixed_cowling",
+        "azimuth_bearing_housing"
+      ],
+      "volume_mm3": 57479.7787995,
+      "center_local_m": [
+        -0.0104455659039,
+        -9.82706027068e-08,
+        0.0352928324467
+      ],
+      "unit_mass_inertia_m2": [
+        [
+          0.00113159650223,
+          -7.53212459712e-10,
+          0.000246203350446
+        ],
+        [
+          -7.53212459712e-10,
+          0.00105839636237,
+          -3.00893267806e-09
+        ],
+        [
+          0.000246203350446,
+          -3.00893267806e-09,
+          0.00104344023271
+        ]
+      ]
+    },
+    "yaw_arm_link": {
+      "origin_m": [
+        0.0,
+        0.0,
+        0.056
+      ],
+      "parts": [
+        "azimuth_yoke",
+        "pitch_pivot_cap_left",
+        "pitch_pivot_cap_right"
+      ],
+      "volume_mm3": 9317.59331096,
+      "center_local_m": [
+        0.0133281794128,
+        -2.85085836433e-11,
+        -3.04291314368e-13
+      ],
+      "unit_mass_inertia_m2": [
+        [
+          0.000501960226657,
+          -8.23342113913e-13,
+          -7.78045125079e-15
+        ],
+        [
+          -8.23342113913e-13,
+          0.000181679136523,
+          1.86764902701e-15
+        ],
+        [
+          -7.78045125079e-15,
+          1.86764902701e-15,
+          0.000540470219532
+        ]
+      ]
+    },
+    "camera_link": {
+      "origin_m": [
+        0.015,
+        0.0,
+        0.056
+      ],
+      "parts": [
+        "pitch_ball_shell",
+        "lens_bezel",
+        "optical_window"
+      ],
+      "volume_mm3": 12367.8991613,
+      "center_local_m": [
+        -4.76098327429e-13,
+        -1.3512427863e-10,
+        2.41283785683e-05
+      ],
+      "unit_mass_inertia_m2": [
+        [
+          0.000324281461818,
+          -8.78332177814e-13,
+          2.16565740113e-13
+        ],
+        [
+          -8.78332177814e-13,
+          0.000370687987123,
+          -2.68077669574e-12
+        ],
+        [
+          2.16565740113e-13,
+          -2.68077669574e-12,
+          0.000324650530134
+        ]
+      ]
+    }
+  },
+  "parts": {
+    "mount_ring_6xM3": {
+      "link": "mount_link",
+      "mesh": "meshes/mount_ring_6xM3.dae",
+      "rgba": [
+        0.4,
+        0.439215686275,
+        0.474509803922,
+        1.0
+      ],
+      "volume_mm3": 8245.47256077,
+      "bounds_mount_m": [
+        [
+          -0.042,
+          -0.042,
+          -1.00000009772e-10
+        ],
+        [
+          0.042,
+          0.042,
+          0.0080000001
+        ]
+      ],
+      "vertices": 4558,
+      "triangles": 4560
+    },
+    "fixed_cowling": {
+      "link": "mount_link",
+      "mesh": "meshes/fixed_cowling.dae",
+      "rgba": [
+        0.513725490196,
+        0.533333333333,
+        0.545098039216,
+        1.0
+      ],
+      "volume_mm3": 46492.2849007,
+      "bounds_mount_m": [
+        [
+          -0.0420000001,
+          -0.0420000001008,
+          0.0079999999
+        ],
+        [
+          0.0420000001017,
+          0.0420000001009,
+          0.091
+        ]
+      ],
+      "vertices": 6197,
+      "triangles": 7028
+    },
+    "azimuth_bearing_housing": {
+      "link": "mount_link",
+      "mesh": "meshes/azimuth_bearing_housing.dae",
+      "rgba": [
+        0.321568627451,
+        0.356862745098,
+        0.388235294118,
+        1.0
+      ],
+      "volume_mm3": 2742.02133796,
+      "bounds_mount_m": [
+        [
+          -0.016,
+          -0.0135,
+          0.0425
+        ],
+        [
+          -0.01075,
+          0.0135,
+          0.0695
+        ]
+      ],
+      "vertices": 844,
+      "triangles": 840
+    },
+    "azimuth_yoke": {
+      "link": "yaw_arm_link",
+      "mesh": "meshes/azimuth_yoke.dae",
+      "rgba": [
+        0.301960784314,
+        0.337254901961,
+        0.372549019608,
+        1.0
+      ],
+      "volume_mm3": 9303.21581218,
+      "bounds_mount_m": [
+        [
+          -0.0160000001,
+          -0.0235,
+          0.0385
+        ],
+        [
+          0.0325,
+          0.0235,
+          0.0735
+        ]
+      ],
+      "vertices": 2136,
+      "triangles": 2096
+    },
+    "pitch_pivot_cap_left": {
+      "link": "yaw_arm_link",
+      "mesh": "meshes/pitch_pivot_cap_left.dae",
+      "rgba": [
+        0.619607843137,
+        0.643137254902,
+        0.666666666667,
+        1.0
+      ],
+      "volume_mm3": 7.18874938958,
+      "bounds_mount_m": [
+        [
+          0.01275,
+          0.0235,
+          0.05375
+        ],
+        [
+          0.01725,
+          0.024,
+          0.05825
+        ]
+      ],
+      "vertices": 844,
+      "triangles": 836
+    },
+    "pitch_pivot_cap_right": {
+      "link": "yaw_arm_link",
+      "mesh": "meshes/pitch_pivot_cap_right.dae",
+      "rgba": [
+        0.619607843137,
+        0.643137254902,
+        0.666666666667,
+        1.0
+      ],
+      "volume_mm3": 7.18874938958,
+      "bounds_mount_m": [
+        [
+          0.01275,
+          -0.024,
+          0.05375
+        ],
+        [
+          0.01725,
+          -0.0235,
+          0.05825
+        ]
+      ],
+      "vertices": 844,
+      "triangles": 836
+    },
+    "pitch_ball_shell": {
+      "link": "camera_link",
+      "mesh": "meshes/pitch_ball_shell.dae",
+      "rgba": [
+        0.219607843137,
+        0.262745098039,
+        0.305882352941,
+        1.0
+      ],
+      "volume_mm3": 11466.0662856,
+      "bounds_mount_m": [
+        [
+          -0.009,
+          -0.019,
+          0.032
+        ],
+        [
+          0.039,
+          0.019,
+          0.077
+        ]
+      ],
+      "vertices": 6696,
+      "triangles": 10250
+    },
+    "lens_bezel": {
+      "link": "camera_link",
+      "mesh": "meshes/lens_bezel.dae",
+      "rgba": [
+        0.133333333333,
+        0.172549019608,
+        0.211764705882,
+        1.0
+      ],
+      "volume_mm3": 699.161445056,
+      "bounds_mount_m": [
+        [
+          0.0035,
+          -0.0115,
+          0.075
+        ],
+        [
+          0.0265,
+          0.0115,
+          0.0796
+        ]
+      ],
+      "vertices": 1266,
+      "triangles": 1260
+    },
+    "optical_window": {
+      "link": "camera_link",
+      "mesh": "meshes/optical_window.dae",
+      "rgba": [
+        0.203921568627,
+        0.380392156863,
+        0.478431372549,
+        1.0
+      ],
+      "volume_mm3": 202.671430578,
+      "bounds_mount_m": [
+        [
+          0.00602,
+          -0.00898,
+          0.078
+        ],
+        [
+          0.02398,
+          0.00898,
+          0.0788
+        ]
+      ],
+      "vertices": 422,
+      "triangles": 416
+    }
+  },
+  "sha256": {
+    "meshes/mount_ring_6xM3.dae": "c19e454611b62eb50eaa624d9351f2214f6101a826657ae28be5fac8bd1ce18a",
+    "meshes/fixed_cowling.dae": "1b118b806a8f27a1a82d7cdfd460876bef0c095e30d92c8352c9721a3a45614e",
+    "meshes/azimuth_bearing_housing.dae": "2952493154a4d2e0ec7e76eab47a147e17eba1126d16161a9e864f5f0f446093",
+    "meshes/azimuth_yoke.dae": "2dcfe51a843439490edda9784c6a6552da1640638a1a72064b8fe5738accf2e3",
+    "meshes/pitch_pivot_cap_left.dae": "664f5d5840ae5722c3ce05648446c74510bf6cd35fffcc1d2ee06caf5c4c1ae1",
+    "meshes/pitch_pivot_cap_right.dae": "03d5f71cf0008229847e2d86a55fc450ce363981f0b74818fa83500e502fa351",
+    "meshes/pitch_ball_shell.dae": "f6639e15a5a6d40f50f7a2724e4abe84bb6bfc43739a5266604a0f81cc76b7de",
+    "meshes/lens_bezel.dae": "f51d33349899bd74e989dc542dc752e7d18a6de96a1dcfce4bf3fdebc5eca5a2",
+    "meshes/optical_window.dae": "6f3bc5f75d4b8a77837882460014b1bb249a7749aaeb49030f43dc779fcada8f",
+    "cad/motion_head.step": "d58dd5aff5154740d314d24aa36bb3deb738a3f31057635ef1b14ee6e425f628",
+    "cad/motion_head.step.json": "13aa52931f2ea8cf5650135e3848d4ad6f15fe6da4dceace2ac5b4fe8d4a29ae"
+  },
+  "volume_mm3": 79165.2712717
+}

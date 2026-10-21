@@ -92,7 +92,7 @@ class ClientTests(unittest.TestCase):
         self.assertTrue(self.client.find_result(cmd="reset_axis", seq=8)["ok"])
 
     def test_vision_mode_is_reliable_and_rejects_unknown_mode(self):
-        self.receive({"type": "hello", "aircraft_id": 1})
+        self.confirm_public_angles()
         seq = self.client.send_reliable("set_vision_mode", mode="auto_lock")
         self.assertGreater(seq, 0)
         self.assertEqual(self.packets[-1], {"cmd": "set_vision_mode", "seq": seq,
@@ -115,8 +115,8 @@ class ClientTests(unittest.TestCase):
         self.assertEqual(self.client.messages, count)
 
     def confirm_public_angles(self):
-        self.receive({"type": "hello", "aircraft_id": 1, "version": 5, "angle_convention": "upright_joint"})
-        self.receive({"type": "telemetry", "protocol_version": 5, "angle_convention": "upright_joint", "attitude_deg": {
+        self.receive({"type": "hello", "aircraft_id": 1, "version": 6, "angle_convention": "motion_head_joint"})
+        self.receive({"type": "telemetry", "protocol_version": 6, "angle_convention": "motion_head_joint", "attitude_deg": {
             axis: {"pos": 0.0, "vel": 0.0, "acc": 0.0} for axis in ("yaw", "pitch")}})
 
     def test_public_control_requires_both_version_and_valid_public_telemetry(self):
@@ -145,21 +145,50 @@ class ClientTests(unittest.TestCase):
         self.client.send_manual(yaw=10.0)
         self.assertEqual(len(self.packets), 2)
 
-    def test_v4_or_missing_telemetry_version_cannot_authorize_new_pitch_direction(self):
+    def test_old_or_missing_telemetry_version_cannot_authorize_motion_head(self):
         self.confirm_public_angles()
-        for version in (4, None, True):
+        for version in (4, 5, None, True):
             self.client.telemetry['protocol_version'] = version
             self.assertFalse(self.client.public_angles_ready)
             self.assertEqual(self.client.send_manual(pitch=-20), -1)
             self.assertEqual(self.client.send_reliable('reset_axis', axis='pitch'), -1)
         self.assertFalse(self.packets)
 
+    def test_old_hello_or_joint_marker_blocks_all_motion_but_allows_stop(self):
+        for version, convention in ((5, "upright_joint"),
+                                    (6, "upright_joint"),
+                                    (5, "motion_head_joint")):
+            self.confirm_public_angles()
+            self.receive({"type": "hello", "aircraft_id": 1,
+                          "version": version, "angle_convention": convention})
+            with self.subTest(version=version, convention=convention):
+                self.assertFalse(self.client.public_angles_ready)
+                for cmd, extra in (("home", {}), ("reset", {}),
+                                   ("reset_axis", {"axis": "yaw"}),
+                                   ("track", {"box": [0, 0, .2, .2]}),
+                                   ("set_vision_mode", {"mode": "auto_lock"})):
+                    self.assertEqual(self.client.send_reliable(cmd, **extra), -1)
+                self.assertEqual(self.client.send_manual(yaw=10), -1)
+                self.assertGreater(self.client.send_reliable("stop"), 0)
+                self.assertGreater(self.client.send_manual(), 0)
+                self.assertGreater(self.client.send_reliable("set_vision_mode", mode="off"), 0)
+        self.assertTrue(all(packet["cmd"] in ("stop", "manual", "set_vision_mode")
+                            for packet in self.packets))
+
+    def test_v6_with_old_telemetry_marker_does_not_enable_motion(self):
+        self.confirm_public_angles()
+        self.client.telemetry["angle_convention"] = "upright_joint"
+        self.assertFalse(self.client.public_angles_ready)
+        self.assertEqual(self.client.send_reliable("home"), -1)
+        self.assertEqual(self.client.send_manual(pitch=-10), -1)
+        self.assertFalse(self.packets)
+
     def test_marker_alone_or_malformed_public_attitude_cannot_enable_control(self):
-        self.receive({"type": "hello", "aircraft_id": 1, "version": 5, "angle_convention": "upright_joint"})
+        self.receive({"type": "hello", "aircraft_id": 1, "version": 6, "angle_convention": "motion_head_joint"})
         for attitude in ({}, {axis: {"pos": 0., "vel": 0., "acc": float("nan")} for axis in ("yaw", "pitch")}):
-            self.receive({"type": "telemetry", "angle_convention": "upright_joint", "attitude_deg": attitude})
+            self.receive({"type": "telemetry", "angle_convention": "motion_head_joint", "attitude_deg": attitude})
             self.assertFalse(self.client.public_angles_ready)
-        self.receive({"type": "telemetry", "angle_convention": "upright_joint"})
+        self.receive({"type": "telemetry", "angle_convention": "motion_head_joint"})
         self.assertFalse(self.client.public_angles_ready)
 
     def test_singular_view_keeps_joint_control_valid(self):
@@ -196,6 +225,13 @@ class ClientTests(unittest.TestCase):
         self.assertEqual(self.client.send_reliable("home"), -1)
         self.receive({"type": "hello", "aircraft_id": 23})
         self.assertTrue(self.client.identity_ready)
+        self.assertEqual(self.client.send_reliable("home"), -1)
+        self.receive({"type": "hello", "aircraft_id": 23, "version": 6,
+                      "angle_convention": "motion_head_joint"})
+        self.receive({"type": "telemetry", "protocol_version": 6,
+                      "angle_convention": "motion_head_joint", "attitude_deg": {
+                          axis: {"pos": 0., "vel": 0., "acc": 0.}
+                          for axis in ("yaw", "pitch")}})
         self.assertGreater(self.client.send_reliable("home"), 0)
         self.assertEqual(self.packets[-1]["cmd"], "home")
 
@@ -220,6 +256,8 @@ class ClientTests(unittest.TestCase):
         self.assertEqual(self.client.send_reliable("home"), -1)
         self.receive({"type": "hello", "aircraft_id": 1})
         self.assertTrue(self.client.identity_ready)
+        self.assertEqual(self.client.send_reliable("home"), -1)
+        self.confirm_public_angles()
         self.assertGreater(self.client.send_reliable("home"), 0)
 
     def test_other_peer_cannot_unlock_identity(self):

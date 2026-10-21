@@ -5,416 +5,240 @@
     <link name="mount_link">
       <pose>0 0 0 0 0 0</pose>
       <inertial>
-        <mass>0.1</mass>
+        <pose>-0.0104455659039 -9.82706027068e-08 0.0352928324467 0 0 0</pose>
+        <mass>0.174257558779</mass>
         <inertia>
-          <ixx>9e-05</ixx>
-          <iyy>9e-05</iyy>
-          <izz>9e-05</izz>
-          <ixy>0</ixy>
-          <ixz>0</ixz>
-          <iyz>0</iyz>
+          <ixx>0.000197189244001</ixx>
+          <iyy>0.000184433566327</iyy>
+          <izz>0.000181827347684</izz>
+          <ixy>-1.31252964471e-10</ixy>
+          <ixz>4.29027948119e-05</ixz>
+          <iyz>-5.24329263009e-10</iyz>
         </inertia>
-        <pose>0 0 0.004 0 0 0</pose>
       </inertial>
-      <visual name="mounting_flange_visual">
-        <pose>0 0 0.004 0 0 0</pose>
+      <visual name="mount_ring_6xM3_visual">
+        <pose>0 0 0 0 0 0</pose>
         <geometry>
-          <cylinder>
-            <radius>0.042</radius>
-            <length>0.008</length>
-          </cylinder>
+          <mesh>
+            <uri>model://two_axis_pod/meshes/mount_ring_6xM3.dae</uri>
+          </mesh>
         </geometry>
         <material>
-          <ambient>.09 .09 .10 1</ambient>
-          <diffuse>.09 .09 .10 1</diffuse>
+          <ambient>0.4 0.439215686275 0.474509803922 1</ambient>
+          <diffuse>0.4 0.439215686275 0.474509803922 1</diffuse>
           <specular>.35 .35 .35 1</specular>
         </material>
       </visual>
-      <collision name="mounting_flange_collision">
-        <pose>0 0 0.004 0 0 0</pose>
+      <collision name="mount_ring_6xM3_collision">
         <geometry>
-          <cylinder>
-            <radius>0.042</radius>
-            <length>0.008</length>
-          </cylinder>
+          <mesh>
+            <uri>model://two_axis_pod/meshes/mount_ring_6xM3.dae</uri>
+          </mesh>
         </geometry>
       </collision>
-      <visual name="m3_hole_1_visual">
-        <pose>0.034 0.0 0.0084 0 0 0</pose>
+      <visual name="fixed_cowling_visual">
+        <pose>0 0 0 0 0 0</pose>
         <geometry>
-          <cylinder>
-            <radius>0.0015</radius>
-            <length>0.0008</length>
-          </cylinder>
+          <mesh>
+            <uri>model://two_axis_pod/meshes/fixed_cowling.dae</uri>
+          </mesh>
         </geometry>
         <material>
-          <ambient>.018 .018 .020 1</ambient>
-          <diffuse>.018 .018 .020 1</diffuse>
+          <ambient>0.513725490196 0.533333333333 0.545098039216 1</ambient>
+          <diffuse>0.513725490196 0.533333333333 0.545098039216 1</diffuse>
           <specular>.35 .35 .35 1</specular>
         </material>
       </visual>
-      <visual name="m3_hole_2_visual">
-        <pose>0.017000000000000005 0.029444863728670913 0.0084 0 0 0</pose>
+      <collision name="fixed_cowling_collision">
         <geometry>
-          <cylinder>
-            <radius>0.0015</radius>
-            <length>0.0008</length>
-          </cylinder>
+          <mesh>
+            <uri>model://two_axis_pod/meshes/fixed_cowling.dae</uri>
+          </mesh>
+        </geometry>
+      </collision>
+      <visual name="azimuth_bearing_housing_visual">
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <mesh>
+            <uri>model://two_axis_pod/meshes/azimuth_bearing_housing.dae</uri>
+          </mesh>
         </geometry>
         <material>
-          <ambient>.018 .018 .020 1</ambient>
-          <diffuse>.018 .018 .020 1</diffuse>
+          <ambient>0.321568627451 0.356862745098 0.388235294118 1</ambient>
+          <diffuse>0.321568627451 0.356862745098 0.388235294118 1</diffuse>
           <specular>.35 .35 .35 1</specular>
         </material>
       </visual>
-      <visual name="m3_hole_3_visual">
-        <pose>-0.016999999999999994 0.029444863728670917 0.0084 0 0 0</pose>
+      <collision name="azimuth_bearing_housing_collision">
         <geometry>
-          <cylinder>
-            <radius>0.0015</radius>
-            <length>0.0008</length>
-          </cylinder>
+          <mesh>
+            <uri>model://two_axis_pod/meshes/azimuth_bearing_housing.dae</uri>
+          </mesh>
         </geometry>
-        <material>
-          <ambient>.018 .018 .020 1</ambient>
-          <diffuse>.018 .018 .020 1</diffuse>
-          <specular>.35 .35 .35 1</specular>
-        </material>
-      </visual>
-      <visual name="m3_hole_4_visual">
-        <pose>-0.034 4.163799117101001e-18 0.0084 0 0 0</pose>
-        <geometry>
-          <cylinder>
-            <radius>0.0015</radius>
-            <length>0.0008</length>
-          </cylinder>
-        </geometry>
-        <material>
-          <ambient>.018 .018 .020 1</ambient>
-          <diffuse>.018 .018 .020 1</diffuse>
-          <specular>.35 .35 .35 1</specular>
-        </material>
-      </visual>
-      <visual name="m3_hole_5_visual">
-        <pose>-0.017000000000000015 -0.029444863728670907 0.0084 0 0 0</pose>
-        <geometry>
-          <cylinder>
-            <radius>0.0015</radius>
-            <length>0.0008</length>
-          </cylinder>
-        </geometry>
-        <material>
-          <ambient>.018 .018 .020 1</ambient>
-          <diffuse>.018 .018 .020 1</diffuse>
-          <specular>.35 .35 .35 1</specular>
-        </material>
-      </visual>
-      <visual name="m3_hole_6_visual">
-        <pose>0.017000000000000005 -0.029444863728670913 0.0084 0 0 0</pose>
-        <geometry>
-          <cylinder>
-            <radius>0.0015</radius>
-            <length>0.0008</length>
-          </cylinder>
-        </geometry>
-        <material>
-          <ambient>.018 .018 .020 1</ambient>
-          <diffuse>.018 .018 .020 1</diffuse>
-          <specular>.35 .35 .35 1</specular>
-        </material>
-      </visual>
+      </collision>
     </link>
     <link name="yaw_arm_link">
-      <pose>0 0 0.008 0 0 0</pose>
+      <pose>0 0 0.056 0 0 0</pose>
       <inertial>
-        <mass>0.04</mass>
+        <pose>0.0133281794128 -2.85085836433e-11 -3.04291314368e-13 0 0 0</pose>
+        <mass>0.0282475176136</mass>
         <inertia>
-          <ixx>4e-05</ixx>
-          <iyy>5e-05</iyy>
-          <izz>5e-05</izz>
-          <ixy>0</ixy>
-          <ixz>0</ixz>
-          <iyz>0</iyz>
+          <ixx>1.41791303438e-05</ixx>
+          <iyy>5.13198460895e-06</iyy>
+          <izz>1.52669420458e-05</izz>
+          <ixy>-2.32573708648e-14</ixy>
+          <ixz>-2.19778433748e-16</ixz>
+          <iyz>5.27564487864e-17</iyz>
         </inertia>
-        <pose>-.012 0 0.02 0 0 0</pose>
       </inertial>
-      <visual name="carrier_ring_visual">
-        <pose>0 0 -0.008 0 0 0</pose>
+      <visual name="azimuth_yoke_visual">
+        <pose>0 0 0 0 0 0</pose>
         <geometry>
           <mesh>
-            <uri>model://two_axis_pod/meshes/carrier_ring.dae</uri>
+            <uri>model://two_axis_pod/meshes/azimuth_yoke.dae</uri>
           </mesh>
         </geometry>
         <material>
-          <ambient>.09 .09 .10 1</ambient>
-          <diffuse>.09 .09 .10 1</diffuse>
+          <ambient>0.301960784314 0.337254901961 0.372549019608 1</ambient>
+          <diffuse>0.301960784314 0.337254901961 0.372549019608 1</diffuse>
           <specular>.35 .35 .35 1</specular>
         </material>
       </visual>
-      <visual name="rear_shell_visual">
-        <pose>0 0 -0.008 0 0 0</pose>
+      <collision name="azimuth_yoke_collision">
         <geometry>
           <mesh>
-            <uri>model://two_axis_pod/meshes/rear_shell.dae</uri>
+            <uri>model://two_axis_pod/meshes/azimuth_yoke.dae</uri>
+          </mesh>
+        </geometry>
+      </collision>
+      <visual name="pitch_pivot_cap_left_visual">
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <mesh>
+            <uri>model://two_axis_pod/meshes/pitch_pivot_cap_left.dae</uri>
           </mesh>
         </geometry>
         <material>
-          <ambient>.09 .09 .10 1</ambient>
-          <diffuse>.09 .09 .10 1</diffuse>
+          <ambient>0.619607843137 0.643137254902 0.666666666667 1</ambient>
+          <diffuse>0.619607843137 0.643137254902 0.666666666667 1</diffuse>
           <specular>.35 .35 .35 1</specular>
         </material>
       </visual>
-      <visual name="yaw_drive_visual">
-        <pose>0 0 .009 0 0 0</pose>
+      <collision name="pitch_pivot_cap_left_collision">
         <geometry>
-          <cylinder>
-            <radius>0.012</radius>
-            <length>0.018</length>
-          </cylinder>
-        </geometry>
-        <material>
-          <ambient>.09 .09 .10 1</ambient>
-          <diffuse>.09 .09 .10 1</diffuse>
-          <specular>.35 .35 .35 1</specular>
-        </material>
-      </visual>
-      <collision name="yaw_drive_collision">
-        <pose>0 0 .009 0 0 0</pose>
-        <geometry>
-          <cylinder>
-            <radius>0.012</radius>
-            <length>0.018</length>
-          </cylinder>
+          <mesh>
+            <uri>model://two_axis_pod/meshes/pitch_pivot_cap_left.dae</uri>
+          </mesh>
         </geometry>
       </collision>
-      <visual name="rear_support_visual">
-        <pose>-.025 0 0.026000000000000002 0 0 0</pose>
+      <visual name="pitch_pivot_cap_right_visual">
+        <pose>0 0 0 0 0 0</pose>
         <geometry>
-          <box>
-            <size>.010 .018 .030</size>
-          </box>
+          <mesh>
+            <uri>model://two_axis_pod/meshes/pitch_pivot_cap_right.dae</uri>
+          </mesh>
         </geometry>
         <material>
-          <ambient>.09 .09 .10 1</ambient>
-          <diffuse>.09 .09 .10 1</diffuse>
+          <ambient>0.619607843137 0.643137254902 0.666666666667 1</ambient>
+          <diffuse>0.619607843137 0.643137254902 0.666666666667 1</diffuse>
           <specular>.35 .35 .35 1</specular>
         </material>
       </visual>
-      <collision name="rear_support_collision">
-        <pose>-.025 0 0.026000000000000002 0 0 0</pose>
+      <collision name="pitch_pivot_cap_right_collision">
         <geometry>
-          <box>
-            <size>.010 .018 .030</size>
-          </box>
-        </geometry>
-      </collision>
-      <visual name="yoke_crossbar_visual">
-        <pose>-.003 0 0.030000000000000006 0 0 0</pose>
-        <geometry>
-          <box>
-            <size>.036 0.056 .006</size>
-          </box>
-        </geometry>
-        <material>
-          <ambient>.09 .09 .10 1</ambient>
-          <diffuse>.09 .09 .10 1</diffuse>
-          <specular>.35 .35 .35 1</specular>
-        </material>
-      </visual>
-      <collision name="yoke_crossbar_collision">
-        <pose>-.003 0 0.030000000000000006 0 0 0</pose>
-        <geometry>
-          <box>
-            <size>.036 0.056 .006</size>
-          </box>
-        </geometry>
-      </collision>
-      <visual name="yoke_arm_right_visual">
-        <pose>0.015 -0.028 0.04 0 0 0</pose>
-        <geometry>
-          <box>
-            <size>.008 .006 .024</size>
-          </box>
-        </geometry>
-        <material>
-          <ambient>.09 .09 .10 1</ambient>
-          <diffuse>.09 .09 .10 1</diffuse>
-          <specular>.35 .35 .35 1</specular>
-        </material>
-      </visual>
-      <collision name="yoke_arm_right_collision">
-        <pose>0.015 -0.028 0.04 0 0 0</pose>
-        <geometry>
-          <box>
-            <size>.008 .006 .024</size>
-          </box>
-        </geometry>
-      </collision>
-      <visual name="pitch_motor_right_visual">
-        <pose>0.015 -0.028 0.048 1.5707963267948966 0 0</pose>
-        <geometry>
-          <cylinder>
-            <radius>0.01</radius>
-            <length>0.006</length>
-          </cylinder>
-        </geometry>
-        <material>
-          <ambient>.09 .09 .10 1</ambient>
-          <diffuse>.09 .09 .10 1</diffuse>
-          <specular>.35 .35 .35 1</specular>
-        </material>
-      </visual>
-      <collision name="pitch_motor_right_collision">
-        <pose>0.015 -0.028 0.048 1.5707963267948966 0 0</pose>
-        <geometry>
-          <cylinder>
-            <radius>0.01</radius>
-            <length>0.006</length>
-          </cylinder>
-        </geometry>
-      </collision>
-      <visual name="yoke_arm_left_visual">
-        <pose>0.015 0.028 0.04 0 0 0</pose>
-        <geometry>
-          <box>
-            <size>.008 .006 .024</size>
-          </box>
-        </geometry>
-        <material>
-          <ambient>.09 .09 .10 1</ambient>
-          <diffuse>.09 .09 .10 1</diffuse>
-          <specular>.35 .35 .35 1</specular>
-        </material>
-      </visual>
-      <collision name="yoke_arm_left_collision">
-        <pose>0.015 0.028 0.04 0 0 0</pose>
-        <geometry>
-          <box>
-            <size>.008 .006 .024</size>
-          </box>
-        </geometry>
-      </collision>
-      <visual name="pitch_motor_left_visual">
-        <pose>0.015 0.028 0.048 1.5707963267948966 0 0</pose>
-        <geometry>
-          <cylinder>
-            <radius>0.01</radius>
-            <length>0.006</length>
-          </cylinder>
-        </geometry>
-        <material>
-          <ambient>.09 .09 .10 1</ambient>
-          <diffuse>.09 .09 .10 1</diffuse>
-          <specular>.35 .35 .35 1</specular>
-        </material>
-      </visual>
-      <collision name="pitch_motor_left_collision">
-        <pose>0.015 0.028 0.048 1.5707963267948966 0 0</pose>
-        <geometry>
-          <cylinder>
-            <radius>0.01</radius>
-            <length>0.006</length>
-          </cylinder>
-        </geometry>
-      </collision>
-      <visual name="pitch_axle_visual">
-        <pose>0.015 0 0.048 1.5707963267948966 0 0</pose>
-        <geometry>
-          <cylinder>
-            <radius>0.0045</radius>
-            <length>0.056</length>
-          </cylinder>
-        </geometry>
-        <material>
-          <ambient>.09 .09 .10 1</ambient>
-          <diffuse>.09 .09 .10 1</diffuse>
-          <specular>.35 .35 .35 1</specular>
-        </material>
-      </visual>
-      <collision name="rear_shell_collision">
-        <pose>-.028 0 0.041 0 0 0</pose>
-        <geometry>
-          <box>
-            <size>.015 .060 .065</size>
-          </box>
+          <mesh>
+            <uri>model://two_axis_pod/meshes/pitch_pivot_cap_right.dae</uri>
+          </mesh>
         </geometry>
       </collision>
     </link>
     <link name="camera_link">
       <pose>0.015 0 0.056 0 0 0</pose>
       <inertial>
-        <mass>0.1</mass>
+        <pose>-4.76098327429e-13 -1.3512427863e-10 2.41283785683e-05 0 0 0</pose>
+        <mass>0.0374949236077</mass>
         <inertia>
-          <ixx>2.3040000000000003e-05</ixx>
-          <iyy>2.3040000000000003e-05</iyy>
-          <izz>2.3040000000000003e-05</izz>
-          <ixy>0</ixy>
-          <ixz>0</ixz>
-          <iyz>0</iyz>
+          <ixx>1.21589086382e-05</ixx>
+          <iyy>1.38989177595e-05</iyy>
+          <izz>1.21727468266e-05</izz>
+          <ixy>-3.29329979093e-14</ixy>
+          <ixz>8.12011588157e-15</ixz>
+          <iyz>-1.00515517416e-13</iyz>
         </inertia>
       </inertial>
-      <visual name="camera_shell_visual">
+      <visual name="pitch_ball_shell_visual">
         <pose>0 0 0 0 0 0</pose>
         <geometry>
-          <sphere>
-            <radius>0.024</radius>
-          </sphere>
+          <mesh>
+            <uri>model://two_axis_pod/meshes/pitch_ball_shell.dae</uri>
+          </mesh>
         </geometry>
         <material>
-          <ambient>.09 .09 .10 1</ambient>
-          <diffuse>.09 .09 .10 1</diffuse>
+          <ambient>0.219607843137 0.262745098039 0.305882352941 1</ambient>
+          <diffuse>0.219607843137 0.262745098039 0.305882352941 1</diffuse>
           <specular>.35 .35 .35 1</specular>
         </material>
       </visual>
-      <collision name="camera_shell_collision">
-        <pose>0 0 0 0 0 0</pose>
+      <collision name="pitch_ball_shell_collision">
         <geometry>
-          <sphere>
-            <radius>0.024</radius>
-          </sphere>
+          <mesh>
+            <uri>model://two_axis_pod/meshes/pitch_ball_shell.dae</uri>
+          </mesh>
         </geometry>
       </collision>
       <visual name="lens_bezel_visual">
-        <pose>0 0 0.0225 0 0 0</pose>
+        <pose>0 0 0 0 0 0</pose>
         <geometry>
-          <cylinder>
-            <radius>0.013</radius>
-            <length>0.005</length>
-          </cylinder>
+          <mesh>
+            <uri>model://two_axis_pod/meshes/lens_bezel.dae</uri>
+          </mesh>
         </geometry>
         <material>
-          <ambient>.20 .20 .21 1</ambient>
-          <diffuse>.20 .20 .21 1</diffuse>
+          <ambient>0.133333333333 0.172549019608 0.211764705882 1</ambient>
+          <diffuse>0.133333333333 0.172549019608 0.211764705882 1</diffuse>
           <specular>.35 .35 .35 1</specular>
         </material>
       </visual>
-      <visual name="lens_glass_visual">
-        <pose>0 0 0.025500000000000002 0 0 0</pose>
+      <collision name="lens_bezel_collision">
         <geometry>
-          <cylinder>
-            <radius>0.0105</radius>
-            <length>0.001</length>
-          </cylinder>
+          <mesh>
+            <uri>model://two_axis_pod/meshes/lens_bezel.dae</uri>
+          </mesh>
+        </geometry>
+      </collision>
+      <visual name="optical_window_visual">
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <mesh>
+            <uri>model://two_axis_pod/meshes/optical_window.dae</uri>
+          </mesh>
         </geometry>
         <material>
-          <ambient>.12 .22 .30 1</ambient>
-          <diffuse>.12 .22 .30 1</diffuse>
+          <ambient>0.203921568627 0.380392156863 0.478431372549 1</ambient>
+          <diffuse>0.203921568627 0.380392156863 0.478431372549 1</diffuse>
           <specular>.35 .35 .35 1</specular>
         </material>
       </visual>
+      <collision name="optical_window_collision">
+        <geometry>
+          <mesh>
+            <uri>model://two_axis_pod/meshes/optical_window.dae</uri>
+          </mesh>
+        </geometry>
+      </collision>
       <sensor name="camera" type="camera">
-        <pose>0 0 0.026000000000000002 3.141592653589793 -1.5707963267948966 0</pose>
+        <pose>0 0 0.0237 0 -1.57079632679 0</pose>
         <always_on>true</always_on>
         <update_rate>30</update_rate>
         <camera>
-          <horizontal_fov>1.0471975511965976</horizontal_fov>
+          <horizontal_fov>1.0471975512</horizontal_fov>
           <image>
             <width>1920</width>
             <height>1080</height>
             <format>R8G8B8</format>
           </image>
           <clip>
-            <near>0.05</near>
+            <near>0.005</near>
             <far>30000</far>
           </clip>
         </camera>
@@ -423,13 +247,14 @@
     <joint name="yaw_joint" type="revolute">
       <parent>mount_link</parent>
       <child>yaw_arm_link</child>
+      <pose>0 0 0 0 0 0</pose>
       <axis>
-        <xyz>0 0 1</xyz>
+        <xyz>-1 0 0</xyz>
         <limit>
-          <lower>-1.5707963267948966</lower>
-          <upper>1.5707963267948966</upper>
+          <lower>-1.0471975512</lower>
+          <upper>1.0471975512</upper>
           <effort>5</effort>
-          <velocity>1.7453292519943295</velocity>
+          <velocity>1.74532925199</velocity>
         </limit>
         <dynamics>
           <damping>0.1</damping>
@@ -439,13 +264,14 @@
     <joint name="pitch_joint" type="revolute">
       <parent>yaw_arm_link</parent>
       <child>camera_link</child>
+      <pose>0 0 0 0 0 0</pose>
       <axis>
         <xyz>0 -1 0</xyz>
         <limit>
-          <lower>-1.5707963267948966</lower>
-          <upper>0.7853981633974483</upper>
+          <lower>-1.3962634016</lower>
+          <upper>0.523598775598</upper>
           <effort>5</effort>
-          <velocity>1.7453292519943295</velocity>
+          <velocity>1.74532925199</velocity>
         </limit>
         <dynamics>
           <damping>0.1</damping>
@@ -466,10 +292,10 @@
       <telemetry_rate>50</telemetry_rate>
       <max_rate_dps>100</max_rate_dps>
       <max_acc_dps2>160</max_acc_dps2>
-      <yaw_min_deg>-90</yaw_min_deg>
-      <yaw_max_deg>90</yaw_max_deg>
-      <pitch_min_deg>-90</pitch_min_deg>
-      <pitch_max_deg>45</pitch_max_deg>
+      <yaw_min_deg>-60</yaw_min_deg>
+      <yaw_max_deg>60</yaw_max_deg>
+      <pitch_min_deg>-80</pitch_min_deg>
+      <pitch_max_deg>30</pitch_max_deg>
     </plugin>
   </model>
 </sdf>

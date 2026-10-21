@@ -18,6 +18,9 @@ REPO = ROOT.parents[1]
 ROCKET = REPO / 'models/vehicles/rocket_racing_quad'
 POD = REPO / 'models/gimbals/two_axis_pod'
 NAME = 'rocket_two_axis_pod'
+_kinematics_spec = importlib.util.spec_from_file_location('rocket_pod_kinematics', ROOT / 'tools/pod_kinematics.py')
+kinematics = importlib.util.module_from_spec(_kinematics_spec)
+_kinematics_spec.loader.exec_module(kinematics)
 
 
 def node(parent, tag, value=None, **attrs):
@@ -190,21 +193,13 @@ def build_model(yaw_deg=0.0, pitch_deg=0.0):
     link = node(model, 'link', name='appearance_link')
     mount = np.eye(4)
     mount[2, 3] = mount_z
-    yaw = transform(f'0 0 0 0 0 {math.radians(yaw_deg)}')
-    pitch = transform(f'0 0 0 0 {-math.radians(pitch_deg)} 0')
-    camera_center = np.eye(4)
-    camera_center[:3, 3] = pod['camera_center_m']
+    pod_poses = kinematics.PodKinematics(POD / 'model.sdf').link_poses(yaw_deg, pitch_deg)
     for source_dir, prefix in ((ROCKET, 'rocket'), (POD, 'pod')):
         source = ET.parse(source_dir / 'model.sdf').getroot().find('model')
         for source_link in source.findall('link'):
             link_tf = transform(source_link.findtext('pose'))
             if prefix == 'pod':
-                if source_link.get('name') == 'yaw_arm_link':
-                    link_tf = mount @ yaw @ link_tf
-                elif source_link.get('name') == 'camera_link':
-                    link_tf = mount @ yaw @ camera_center @ pitch
-                else:
-                    link_tf = mount @ link_tf
+                link_tf = mount @ pod_poses[source_link.get('name')]
             for source_visual in source_link.findall('visual'):
                 visual = copy.deepcopy(source_visual)
                 visual.set('name', f'{prefix}_{source_link.get("name")}_{visual.get("name")}')

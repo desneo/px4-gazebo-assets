@@ -5,7 +5,7 @@ import math
 import xml.etree.ElementTree as ET
 
 TARGET_NAME = 'AERIAL_TRACKING_TARGET'
-TARGET_POSITION = (200., 150., 150.)
+TARGET_POSITION = (200., 150., 280.)
 TARGET_SIZE = 8.
 
 

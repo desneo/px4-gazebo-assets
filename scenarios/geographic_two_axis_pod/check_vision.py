@@ -76,7 +76,7 @@ def main():
     try:
         client.send('ping')
         hello = client.wait(lambda m: m.get('type') == 'hello', 5)
-        assert hello.get('version') == 5 and hello.get('angle_convention') == 'upright_joint', '两轴网关必须使用协议 5'
+        assert hello.get('version') == 6 and hello.get('angle_convention') == 'motion_head_joint', '两轴网关必须使用协议 6'
         capabilities = set(hello.get('capabilities') or [])
         required = {'vision_mode', 'server_video_overlay', 'auto_lock',
                     'frame_exact_track'}
@@ -97,7 +97,7 @@ def main():
             >= float((m.get('vision') or {}).get('input_fps', 0)) * .8,
             8)
         vision = detected['vision']
-        assert detected.get('protocol_version') == 5, '两轴插件必须使用协议 5'
+        assert detected.get('protocol_version') == 6, '两轴插件必须使用协议 6'
         assert not vision.get('error'), vision
         input_fps = float(vision.get('input_fps', 0))
         output_fps = float(vision.get('output_fps', 0))

@@ -27,9 +27,9 @@ TargetMiss MeasureTargetMiss(double cx, double cy, int width, int height);
 struct ControlConfig
 {
   double max_rate_dps{100}, max_acc_dps2{160}, kp{4};
-  double yaw_min_deg{-90}, yaw_max_deg{90}, pitch_min_deg{-90}, pitch_max_deg{45};
+  double yaw_min_deg{-60}, yaw_max_deg{60}, pitch_min_deg{-80}, pitch_max_deg{30};
   double manual_timeout_s{.5}, frame_stop_timeout_s{.5}, occlusion_timeout_s{2.5};
-  Mat3 mount_world_rotation, sensor_rotation{CamSensorRot()};
+  Mat3 mount_world_rotation, sensor_rotation{SensorRotation()};
   Vec3 mount_angular_velocity;
 };
 class GimbalControl

@@ -92,17 +92,20 @@ class AppearanceTests(unittest.TestCase):
         self.assertEqual(appearance.configuration()[0]['view']['mouse_sensitivity'], .1)
 
     def test_actual_camera_visual_rotation(self):
-        for yaw, pitch in ((0, 0), (0, -90), (45, -45), (0, 45), (-90, -90), (90, -90)):
+        source = ET.parse(appearance.POD / 'model.sdf').find("model/link[@name='camera_link']/visual")
+        name = source.get('name')
+        source_rotation = appearance.transform(source.findtext('pose'))[:3, :3]
+        for yaw, pitch in ((0, 0), (0, -80), (45, -45), (0, 30), (-60, -80), (60, -80)):
             with self.subTest(yaw=yaw, pitch=pitch):
                 model = appearance.build_model(yaw, pitch)
-                camera = model.find("model/link/visual[@name='pod_camera_link_camera_shell_visual']")
-                actual = appearance.transform(camera.findtext('pose'))[:3, :3] @ np.array([0., 0., 1.])
+                camera = model.find(f"model/link/visual[@name='pod_camera_link_{name}']")
+                actual = appearance.transform(camera.findtext('pose'))[:3, :3] @ source_rotation.T @ np.array([0., 0., 1.])
                 y, p = math.radians(yaw), math.radians(pitch)
-                np.testing.assert_allclose(actual, (-math.cos(y)*math.sin(p),
-                    -math.sin(y)*math.sin(p), math.cos(p)), atol=1e-10)
+                np.testing.assert_allclose(actual, (-math.sin(p),
+                    math.sin(y)*math.cos(p), math.cos(y)*math.cos(p)), atol=1e-10)
 
     def test_pitch_limits_and_zero_determinism(self):
-        for pitch in (-90.01, 45.01, float('inf'), float('nan')):
+        for pitch in (-80.01, 30.01, float('inf'), float('nan')):
             with self.subTest(pitch=pitch), self.assertRaises(ValueError):
                 appearance.build_model(pitch_deg=pitch)
         expected = ET.parse(appearance.ROOT / 'model.sdf')
@@ -110,6 +113,32 @@ class AppearanceTests(unittest.TestCase):
             return (element.tag, tuple(sorted(element.attrib.items())), (element.text or '').strip(),
                     tuple(canonical(child) for child in element))
         self.assertEqual(canonical(appearance.build_model()), canonical(expected.getroot()))
+
+    def test_outer_axis_uses_sdf_pivot_and_keeps_camera_center_fixed(self):
+        chain = appearance.kinematics.PodKinematics()
+        center = np.array([.015, 0., .056])
+        for yaw in (-60., 0., 60.):
+            for pitch in (-80., 0., 30.):
+                poses = chain.link_poses(yaw, pitch)
+                np.testing.assert_allclose(poses['camera_link'][:3, 3], center, atol=1e-12)
+                np.testing.assert_allclose(poses['mount_link'], np.eye(4), atol=1e-12)
+                y, p = map(math.radians, (yaw, pitch))
+                expected = np.array([-math.sin(p), math.sin(y)*math.cos(p), math.cos(y)*math.cos(p)])
+                sensor = chain.camera_pose(yaw, pitch)
+                np.testing.assert_allclose(sensor[:3, 0], expected, atol=1e-10)
+                np.testing.assert_allclose(sensor[:3, 3], center + .0237*expected, atol=1e-12)
+
+    def test_joint_pose_is_read_in_child_frame(self):
+        source = ET.parse(appearance.POD / 'model.sdf')
+        joint = source.find("model/joint[@name='yaw_joint']")
+        # 枢轴沿 Z 平移一米后，外轴转60°应绕新枢轴改变球心，而非套用固定Rx。
+        joint.find('pose').text = '0 0 1 0 0 0'
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'model.sdf'
+            source.write(path)
+            chain = appearance.kinematics.PodKinematics(path)
+            actual = chain.link_poses(60., 0.)['camera_link'][:3, 3]
+        np.testing.assert_allclose(actual, [.015, -math.sqrt(3)/2, .556], atol=1e-12)
 
     def test_regeneration_matches_checked_assets(self):
         with tempfile.TemporaryDirectory(prefix='rocket-pod-appearance-check-') as temporary:

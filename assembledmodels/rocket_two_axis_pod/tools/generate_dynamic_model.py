@@ -123,7 +123,8 @@ def build_model(config):
 
 
 def source_fingerprints():
-    files = [ROOT / 'parameters.json', ROOT / 'tools/generate_model.py', Path(__file__),
+    files = [ROOT / 'parameters.json', ROOT / 'tools/generate_model.py',
+             ROOT / 'tools/pod_kinematics.py', Path(__file__),
              ROOT / 'tests/run_flight_check.sh',
              ROCKET / 'parameters.json', ROCKET / 'tools/prepare_runtime.py',
              ROCKET / 'tools/generate_meshes.py', ROCKET / 'tests/flight_check.py',

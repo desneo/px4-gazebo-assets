@@ -19,8 +19,8 @@ class TargetInitializationTest(unittest.TestCase):
         session=check.Session.__new__(check.Session)
         zero=dict(mode='IDLE',joints_deg={a:dict(pos=0.,vel=0.) for a in ('yaw','pitch')})
         session.collect=Mock(return_value=[zero])
-        session.latest=dict(joints_deg=dict(yaw=dict(pos=0.),pitch=dict(pos=-math.degrees(
-            math.atan2(check.INITIAL[0]-.015,check.INITIAL[2]-50.056)))))
+        yaw,pitch=check.initial_angles()
+        session.latest=dict(joints_deg=dict(yaw=dict(pos=yaw),pitch=dict(pos=pitch)))
         session.drive=Mock();session.send=Mock();session.record=Mock()
         with patch.object(check,'set_pose') as set_pose:
             session.prepare()

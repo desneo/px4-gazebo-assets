@@ -172,8 +172,8 @@ class DynamicNativeTests(unittest.TestCase):
         output = self.work / 'output'
         manifest = dynamic.generate(output)
         model = ET.parse(output / 'model.sdf').getroot().find('model')
-        for name, axis, limits in (('yaw_joint', '0 0 1', (-90., 90.)),
-                                   ('pitch_joint', '0 -1 0', (-90., 45.))):
+        for name, axis, limits in (('yaw_joint', '-1 0 0', (-60., 60.)),
+                                   ('pitch_joint', '0 -1 0', (-80., 30.))):
             joint = model.find(f"joint[@name='{name}']")
             self.assertEqual(canonical(joint), canonical(self.pod_model.find(f"joint[@name='{name}']")))
             self.assertEqual(joint.findtext('axis/xyz'), axis)

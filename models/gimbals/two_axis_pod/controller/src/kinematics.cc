@@ -5,22 +5,41 @@ namespace two_axis
 {
 Mat3 Rotation(double y, double p)
 {
-  return MatMul(Rz(y), Ry(-p));
+  return MatMul(Rx(-y), Ry(-p));
+}
+Mat3 SensorRotation()
+{
+  // sensor +X 为视线 +Z，+Y 为图像左 +Y，+Z 为图像上 -X。
+  return Ry(-M_PI / 2);
+}
+bool ValidSensorRotation(const Mat3 &sensor)
+{
+  const auto expected = SensorRotation();
+  for (int row = 0; row < 3; ++row)
+    for (int column = 0; column < 3; ++column)
+      if (!std::isfinite(sensor.m[row][column]) ||
+          std::abs(sensor.m[row][column] - expected.m[row][column]) > 1e-8)
+        return false;
+  return true;
+}
+Mat3 OpticalRotation(double y, double p, const Mat3 &sensor)
+{
+  return MatMul(Rotation(y, p), sensor);
 }
 Vec3 Los(double y, double p)
 {
-  return MatVec(Rotation(y, p), {0, 0, 1});
+  return MatVec(OpticalRotation(y, p, SensorRotation()), {1, 0, 0});
 }
 bool Singular(double p)
 {
-  return std::abs(std::sin(p)) < 0.05;
+  return std::abs(std::cos(p)) < 0.05;
 }
 std::array<double, 2> ImageRates(double p, double right, double down)
 {
-  // 俯仰正轴为随动 -Y；图像右(+Y)、下(-X)：J=diag(-sin(p),+1)。
-  // 阻尼最小二乘避免朝天时 yaw 失去视线控制能力后速度发散。
-  const double s = -std::sin(p), damping = 0.05;
-  return {s*right / (s * s + damping * damping), down};
+  // 外轴 -X、内轴随动 -Y；图像右(-Y)、下(+X)：J=diag(-cos(p),-1)。
+  // 视线接近外轴时以阻尼最小二乘抑制 yaw 速度发散。
+  const double s = -std::cos(p), damping = 0.05;
+  return {s*right / (s * s + damping * damping), -down};
 }
 Vec3 MountAngularVelocity(const Mat3 &previous, const Mat3 &current, double dt)
 {
@@ -43,9 +62,9 @@ std::array<double, 2> StabilizationRates(double yaw, double pitch, const Vec3 &o
   const Vec3 desired{omega.z * los.y - omega.y * los.z,
                      omega.x * los.z - omega.z * los.x,
                      omega.y * los.x - omega.x * los.y};
-  const auto rotation = Rotation(yaw, pitch);
-  const auto right = MatVec(rotation, {0, 1, 0});
-  const auto down = MatVec(rotation, {-1, 0, 0});
+  const auto optical = OpticalRotation(yaw, pitch, SensorRotation());
+  const auto right = MatVec(optical, {0, -1, 0});
+  const auto down = MatVec(optical, {0, 0, -1});
   const auto dot = [](const Vec3 &a, const Vec3 &b) { return a.x*b.x + a.y*b.y + a.z*b.z; };
   const double degrees = 180 / M_PI;
   return ImageRates(pitch, dot(desired, right) * degrees, dot(desired, down) * degrees);

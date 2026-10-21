@@ -406,10 +406,10 @@ class UdpClient(threading.Thread):
             hello = self.hello or {}
             tele = self.telemetry or {}
             fresh = time.monotonic() - getattr(self, "last_telemetry_mono", 0.0) <= self.client_timeout
-            return bool(self.identity_ready and fresh and type(hello.get("version")) is int and hello.get("version") == 5
-                        and type(tele.get("protocol_version")) is int and tele.get("protocol_version") == 5
-                        and hello.get("angle_convention") == "upright_joint"
-                        and tele.get("angle_convention") == "upright_joint"
+            return bool(self.identity_ready and fresh and type(hello.get("version")) is int and hello.get("version") == 6
+                        and type(tele.get("protocol_version")) is int and tele.get("protocol_version") == 6
+                        and hello.get("angle_convention") == "motion_head_joint"
+                        and tele.get("angle_convention") == "motion_head_joint"
                         and self._valid_attitude(tele.get("attitude_deg")))
 
     @staticmethod
@@ -457,7 +457,9 @@ class UdpClient(threading.Thread):
             return False
         if "roll" in payload or (cmd == "reset_axis" and payload.get("axis") not in ("yaw", "pitch")):
             return False
-        sensitive = cmd == "reset_axis" or (cmd == "manual" and any(payload.get(axis, 0) != 0 for axis in ("yaw", "pitch")))
+        sensitive = (cmd in ("home", "reset", "reset_axis", "track")
+                     or (cmd == "set_vision_mode" and payload.get("mode") == "auto_lock")
+                     or (cmd == "manual" and any(payload.get(axis, 0) != 0 for axis in ("yaw", "pitch"))))
         if not sensitive:
             return True
         if not self.public_angles_ready:
@@ -643,7 +645,7 @@ class UdpClient(threading.Thread):
             self.on_log(f"[udp] 收到 hello: telemetry_hz={msg.get('telemetry_hz')} "
                         f"video_rtsp_path={msg.get('video_rtsp_path')} "
                         f"aircraft_id={msg.get('aircraft_id')} -> "
-                        f"{self.identity_error or '身份已确认，可控制'}")
+                        f"{self.identity_error or '身份已确认'}")
         elif mtype == "command_result":
             seq = msg.get("seq")
             with self.lock:
@@ -1284,7 +1286,7 @@ class GroundStation:
             return
         try:
             if not self.tele.public_angles_ready:
-                raise ValueError("请等待两轴协议 5 的有效姿态")
+                raise ValueError("请等待两轴协议 6 的有效姿态")
             ip, port = endpoint(self.forward_inputs.values["ip"], self.forward_inputs.values["port"])
             if (ip, port) == self.tele.target:
                 raise ValueError("接收端不能是吊舱网关控制端口")
@@ -1414,7 +1416,7 @@ class GroundStation:
         if tele:
             t = tele.get("tracking") or {}
             s = tele.get("stability") or {}
-            ready = (self.tele.public_angles_ready and tele.get("angle_convention") == "upright_joint"
+            ready = (self.tele.public_angles_ready and tele.get("angle_convention") == "motion_head_joint"
                      and UdpClient._valid_attitude(tele.get("attitude_deg")))
             j = tele.get("attitude_deg") or {}
             def angle_line(axis):
@@ -1451,13 +1453,13 @@ class GroundStation:
                 lines.append(f"视觉错误: {vision['error']}")
                 colors.append((0, 0, 255))
             mode = (tele.get("mount") or {}).get("mode")
-            mounting = {"upright": "立装（竖直偏航）"}.get(mode, "未知")
+            mounting = {"upright": "底座向下立装（外轴沿安装 −X）"}.get(mode, "未知")
             if dynamic_mount and mode == "upright":
-                mounting = "机载立装（偏航绕机体 +Z）"
-            lines.append(f"安装: {mounting}   机械角度: {'立装机械角度' if ready else '未确认，角度控制禁用'}")
+                mounting = "机载立装（外轴沿安装 −X）"
+            lines.append(f"安装: {mounting}   机械角度: {'CAD 关节角' if ready else '未确认，角度控制禁用'}")
             colors.append((0, 255, 255))
             if ready and tele.get("singular", False):
-                lines.append("视线退化：镜头沿安装 +Z 时偏航不改变方向，机械控制仍可用")
+                lines.append("视线退化：光轴平行外轴时外轴不改变方向，机械控制仍可用")
                 colors.append((0, 165, 255))
             if limits.get("saturated") or any(limits.get(k) for k in ("yaw", "pitch")):
                 lines.append(f"限位/饱和: {limits}")
@@ -1847,6 +1849,9 @@ def run_selftest(cfg: dict, args) -> int:
     if not st["identity_ready"]:
         print(f"[selftest] 失败：{st['identity_error']}")
         rc = 8
+    elif not client.public_angles_ready:
+        print("[selftest] 失败：hello 与新鲜机械姿态必须同时符合协议 6 / motion_head_joint")
+        rc = 9
     if last is None or n_tel == 0:
         print("[selftest] 失败：未收到任何遥测")
         rc = 1

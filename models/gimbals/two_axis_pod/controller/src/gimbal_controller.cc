@@ -209,19 +209,27 @@ void GimbalController::Configure(
   const auto optical = (gz::sim::worldPose(cameraLinkEntity, _ecm).Rot().Inverse() *
                         gz::sim::worldPose(sensorEntity, _ecm).Rot());
   cfg_.sensor_rotation = MatMul(Rz(optical.Yaw()), MatMul(Ry(optical.Pitch()), Rx(optical.Roll())));
+  if (!ValidSensorRotation(cfg_.sensor_rotation))
+  {
+    gzerr << "[two_axis] camera sensor 光学旋转必须为 RPY=(0,-pi/2,0)，插件禁用\n";
+    return;
+  }
 
   cfg_.max_rate_dps = getDouble("max_rate_dps", cfg_.max_rate_dps);
   cfg_.max_acc_dps2 = getDouble("max_acc_dps2", cfg_.max_acc_dps2);
   cfg_.kp = getDouble("servo_kp", cfg_.kp);
-  cfg_.yaw_min_deg = std::max(-90.0, getDouble("yaw_min_deg", cfg_.yaw_min_deg));
-  cfg_.yaw_max_deg = std::min(90.0, getDouble("yaw_max_deg", cfg_.yaw_max_deg));
-  cfg_.pitch_min_deg = std::max(-90.0, getDouble("pitch_min_deg", cfg_.pitch_min_deg));
-  cfg_.pitch_max_deg = std::min(45.0, getDouble("pitch_max_deg", cfg_.pitch_max_deg));
+  cfg_.yaw_min_deg = getDouble("yaw_min_deg", cfg_.yaw_min_deg);
+  cfg_.yaw_max_deg = getDouble("yaw_max_deg", cfg_.yaw_max_deg);
+  cfg_.pitch_min_deg = getDouble("pitch_min_deg", cfg_.pitch_min_deg);
+  cfg_.pitch_max_deg = getDouble("pitch_max_deg", cfg_.pitch_max_deg);
   cfg_.occlusion_timeout_s =
     getDouble("occlusion_timeout_s", cfg_.occlusion_timeout_s);
   if (!std::isfinite(cfg_.max_rate_dps) || !std::isfinite(cfg_.max_acc_dps2) ||
       !std::isfinite(cfg_.kp) || cfg_.max_rate_dps <= 0 || cfg_.max_acc_dps2 <= 0 ||
-      cfg_.kp <= 0 || cfg_.yaw_min_deg > 0 || cfg_.yaw_max_deg < 0 ||
+      cfg_.kp <= 0 || !std::isfinite(cfg_.yaw_min_deg) || !std::isfinite(cfg_.yaw_max_deg) ||
+      !std::isfinite(cfg_.pitch_min_deg) || !std::isfinite(cfg_.pitch_max_deg) ||
+      cfg_.yaw_min_deg >= cfg_.yaw_max_deg || cfg_.pitch_min_deg >= cfg_.pitch_max_deg ||
+      cfg_.yaw_min_deg > 0 || cfg_.yaw_max_deg < 0 ||
       cfg_.pitch_min_deg > 0 || cfg_.pitch_max_deg < 0)
   {
     gzerr << "[two_axis] 无效控制参数或限位不包含机械零位，插件禁用\n";
@@ -701,10 +709,10 @@ void GimbalController::PublishTelemetry(double _now, const JointSample &_js,
   std::lock_guard<std::mutex> lock(this->ctrlMutex_);
   GimbalControl &c = this->control_;
 
-  const Mat3 rCam = MatMul(Rotation(_js.yaw, _js.pitch), cfg_.sensor_rotation);
+  const Mat3 rCam = OpticalRotation(_js.yaw, _js.pitch, cfg_.sensor_rotation);
   const auto qBody = QuatFromR(rCam), qWorld = QuatFromR(MatMul(mountWorldRotation_, rCam)), qMount = QuatFromR(mountWorldRotation_);
   const auto rpyBody = RToRpyDeg(rCam), rpyWorld = RToRpyDeg(MatMul(mountWorldRotation_, rCam));
-  const auto los = Los(_js.yaw, _js.pitch);
+  const auto los = MatVec(rCam, {1, 0, 0});
   const bool singular = Singular(_js.pitch);
   const auto &lf = c.limit_flags();
   const auto &cmd = c.cmd();
@@ -776,7 +784,7 @@ void GimbalController::PublishTelemetry(double _now, const JointSample &_js,
     os << ",\"center_px\":null,\"offset_px\":null,\"offset_deg\":null,\"frame_seq\":null";
   os << "}}";
 
-  os << ",\"protocol_version\":5,\"angle_convention\":\"upright_joint\",\"singular\":" << (singular ? "true" : "false")
+  os << ",\"protocol_version\":6,\"angle_convention\":\"motion_head_joint\",\"singular\":" << (singular ? "true" : "false")
      << ",\"los_mount\":[" << Num(los.x, 6) << "," << Num(los.y, 6) << "," << Num(los.z, 6) << "]";
   const double positions[2] = {_js.yaw, _js.pitch}, velocities[2] = {_js.yaw_vel, _js.pitch_vel};
   const char *names[2] = {"yaw", "pitch"};

@@ -578,8 +578,8 @@ class GimbalBridge:
             hello = {
                 "type": "hello",
                 "proto": "gimbal-udp",
-                "version": 5,
-                "angle_convention": "upright_joint",
+                "version": 6,
+                "angle_convention": "motion_head_joint",
                 "clock_domain": self.clock_domain,
                 "telemetry_hz": self.args.telemetry_hz,
                 "video_rtsp_path": self.args.mount,

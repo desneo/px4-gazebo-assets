@@ -9,6 +9,7 @@ CYCLES=0
 SHOW_GUI=false
 VIEW=overall
 AIRCRAFT_ID=1
+TARGET_ARGS=()
 require_value() {
   [[ $# -ge 2 && -n "$2" && "$2" != --* ]] || { echo "参数 $1 缺少值" >&2; exit 2; }
 }
@@ -20,8 +21,12 @@ while (($#)); do
     --cycles) require_value "$@"; CYCLES="$2"; shift 2 ;;
     --run-dir) require_value "$@"; RUN_DIR="$2"; shift 2 ;;
     --config) require_value "$@"; CONFIG="$2"; shift 2 ;;
+    --target)
+      [[ $# -ge 4 ]] || { echo '--target 需要 ENU 三个坐标' >&2; exit 2; }
+      TARGET_ARGS+=(--target "$2" "$3" "$4"); shift 4 ;;
+    --target-size) require_value "$@"; TARGET_ARGS+=(--target-size "$2"); shift 2 ;;
     --help|-h)
-      echo '用法：bash run.sh [--gui|--close] [--cycles N] [--aircraft-id ID] [--run-dir PATH] [--config PATH]'
+      echo '用法：bash run.sh [--gui|--close] [--cycles N] [--aircraft-id ID] [--run-dir PATH] [--config PATH] [--target X Y Z] [--target-size M]'
       echo '默认持续往返；--cycles 2 完成两次往返、降落并停止。'
       exit 0 ;;
     *) echo "未知参数：$1" >&2; exit 2 ;;
@@ -134,7 +139,28 @@ start_service() {
 }
 GENERATED="$RUN_DIR/models/rocket_two_axis_pod"
 python3 "$PROJ/assembledmodels/rocket_two_axis_pod/tools/generate_dynamic_model.py" --output-dir "$GENERATED"
-python3 "$HERE/prepare_world.py" --model "$GENERATED/model.sdf" --output "$RUN_DIR/world.sdf" --view "$VIEW" --near-clip "$NEAR_CLIP"
+python3 "$HERE/prepare_world.py" --model "$GENERATED/model.sdf" --output "$RUN_DIR/world.sdf" --view "$VIEW" --near-clip "$NEAR_CLIP" "${TARGET_ARGS[@]}"
+python3 - "$PROJ" "$RUN_DIR" <<'PY_FINGERPRINTS'
+import hashlib,json,sys,time
+from pathlib import Path
+root,run=map(Path,sys.argv[1:])
+manifest=json.loads((run/'models/rocket_two_axis_pod/manifest.json').read_text())
+sources=dict(manifest['source_sha256'])
+controller=root/'models/gimbals/two_axis_pod/controller'
+library=controller/'build/lib/libgz-two-axis-pod-controller.so'
+paths=[library,*controller.glob('src/*.cc'),*controller.glob('include/two_axis/*.hh')]
+scene=root/'scenarios/geographic_rocket_two_axis_pod'
+paths.extend(scene/name for name in ('run.sh','flight_patrol.py','patrol_math.py',
+    'prepare_world.py','target_fixture.py','process_state.py','status_udp.json'))
+for path in paths:
+    sources[str(path.relative_to(root))]=hashlib.sha256(path.read_bytes()).hexdigest()
+for name,expected in sources.items():
+    if hashlib.sha256((root/name).read_bytes()).hexdigest()!=expected:
+        raise SystemExit(f'启动前源资产已变化：{name}')
+snapshot=dict(captured_at_unix_s=time.time(),source_sha256=sources,
+    controller_library_sha256=sources[str(library.relative_to(root))])
+(run/'execution_fingerprints.json').write_text(json.dumps(snapshot,ensure_ascii=False,indent=2)+'\n')
+PY_FINGERPRINTS
 ROOTFS="$RUN_DIR/rootfs-$(date +%Y%m%dT%H%M%S)-$$"
 mkdir -p "$ROOTFS"
 printf '%s\n' "$ROOTFS" > "$RUN_DIR/rootfs_path.txt"

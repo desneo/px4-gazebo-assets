@@ -49,7 +49,7 @@ bash models/gimbals/two_axis_pod/scripts/stop_bridge.sh
 bash models/gimbals/two_axis_pod/scripts/stop_plugin_sim.sh
 ```
 
-`check_sim.py` 依赖 gz Python 绑定与 Pillow，会运动两轴到四个限位、从限位回零、验证朝天退化处机械偏航、单轴复位、无续发超时停车、拒绝滚转、CSRT 跟踪与两路渲染。完成后两轴回零并停止。结果保存到 `runs/two_axis_pod/validation.json`，零位帧为 `camera_zero.png` 与 `overview_zero.png`。测试使用独立分区，不要同时用地面站或其他客户端下发控制命令。
+`check_sim.py` 依赖 gz Python 绑定与 Pillow，会运动两轴到四个限位、从限位回零、验证零位非奇异、外轴改变视线与实际活动link光学姿态、单轴复位、无续发超时停车、拒绝滚转、CSRT 跟踪与两路渲染。完成后两轴回零并停止。结果保存到 `runs/two_axis_pod/validation.json`，零位帧为 `camera_zero.png` 与 `overview_zero.png`。测试使用独立分区，不要同时用地面站或其他客户端下发控制命令。
 
 RTSP 解码和地面站自检需具备 OpenCV Python 等依赖；`run_bridge.sh` 和地面站 `run.sh` 会自动配置共用的 `.venv-linux`，也可用 `GIMBAL_PYTHON` 指定已配置的独立环境。`--selftest` 会实际运动模型；应在关节在线检查完成后执行。测试目录中的离线网络/UI测试不启动图形窗口。
 

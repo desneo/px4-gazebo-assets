@@ -15,7 +15,7 @@ from telemetry_forward import ForwardInputs, TelemetryForwarder, aisheng_message
 
 
 def telemetry():
-    return {"type": "telemetry", "protocol_version": 5, "angle_convention": "upright_joint",
+    return {"type": "telemetry", "protocol_version": 6, "angle_convention": "motion_head_joint",
             "aircraft_id": 1, "mode": "TRACK", "tracking": {"state": "TRACK"},
             "vision": {"mode": "manual_track", "state": "MANUAL_READY"},
             "attitude_deg": {"pitch": {"pos": -56.37, "vel": -1.23, "acc": 0},
@@ -162,7 +162,8 @@ class ForwardTests(unittest.TestCase):
                     self.assertEqual(packet['target_confidence'], 80.0)
 
     def test_rejects_old_protocol_missing_and_nonfinite_measurements(self):
-        for path, value in ((('protocol_version',), 4), (('protocol_version',), True),
+        for path, value in ((('protocol_version',), 4), (('protocol_version',), 5),
+                            (('protocol_version',), True), (('angle_convention',), 'upright_joint'),
                             (('attitude_deg', 'pitch', 'pos'), None),
                             (('attitude_deg', 'pitch', 'vel'), float('nan')),
                             (('attitude_deg', 'yaw', 'pos'), float('inf')),

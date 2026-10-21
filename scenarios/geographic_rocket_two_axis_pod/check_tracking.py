@@ -8,6 +8,8 @@
 import argparse
 from collections import Counter, deque
 import itertools
+import importlib.util
+import hashlib
 import json
 import math
 import os
@@ -21,6 +23,26 @@ from target_fixture import TARGET_POSITION, TARGET_SIZE
 ROOT = Path(__file__).resolve().parents[2]
 WORLD = 'geographic_rocket_two_axis_pod'
 ENTITY = 'rocket_two_axis_pod'
+_spec = importlib.util.spec_from_file_location('rocket_scene_appearance',
+    ROOT / 'assembledmodels/rocket_two_axis_pod/tools/generate_model.py')
+_appearance = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_appearance)
+POD_KINEMATICS = _appearance.kinematics.PodKinematics()
+MOUNT_Z = _appearance.dimensions()[1]
+ACCEPTANCE_KEYS = ('max_truth_error', 'max_center_error', 'min_track_ratio', 'min_north_span',
+                   'min_direction_distance', 'min_attitude_excursion', 'min_sim_duration',
+                   'timebase', 'duration')
+
+
+def execution_metadata(args):
+    """在检查开始时冻结实际验收设置与已加载运动学来源的指纹。"""
+    sources = (Path(__file__).resolve(), Path(__file__).with_name('target_fixture.py').resolve(),
+               ROOT/'assembledmodels/rocket_two_axis_pod/tools/pod_kinematics.py',
+               ROOT/'assembledmodels/rocket_two_axis_pod/tools/generate_model.py',
+               ROOT/'models/gimbals/two_axis_pod/model.sdf')
+    return dict(acceptance_settings={key: getattr(args, key) for key in ACCEPTANCE_KEYS},
+                source_sha256={str(path.relative_to(ROOT)): hashlib.sha256(path.read_bytes()).hexdigest()
+                               for path in sources})
 
 
 def dot(a, b):
@@ -63,10 +85,10 @@ def mm(a, b):
 
 
 def joints_rotation(yaw, pitch):
-    """机械关节链 Rz(yaw) Ry(-pitch)，负俯仰朝安装 +X。"""
-    y, p = math.radians(yaw), -math.radians(pitch)
+    """机械关节链 Rx(-yaw) Ry(-pitch)，零位光轴为安装 +Z。"""
+    y, p = -math.radians(yaw), -math.radians(pitch)
     cy, sy, cp, sp = math.cos(y), math.sin(y), math.cos(p), math.sin(p)
-    return ((cy*cp, -sy, cy*sp), (sy*cp, cy, sy*sp), (-sp, 0., cp))
+    return ((cp, 0., sp), (sy*sp, cy, -sy*cp), (-cy*sp, sy, cy*cp))
 
 
 def angle_deg(a, b):
@@ -132,26 +154,16 @@ def camera_pose(pose, telemetry):
     body = rotation(pose['quaternion'])
     yaw = telemetry['joints_deg']['yaw']['pos']
     pitch = telemetry['joints_deg']['pitch']['pos']
-    joint = joints_rotation(yaw, pitch)
-    # sensor RPY=(pi,-pi/2,0)：+X视线、+Y图像左、+Z图像上。
-    sensor = ((0., 0., 1.), (0., -1., 0.), (1., 0., 0.))
-    optical = mm(mm(body, joint), sensor)
-    cy, sy = math.cos(math.radians(yaw)), math.sin(math.radians(yaw))
-    center = add((0., 0., .134), (.015*cy, .015*sy, .056))
-    origin = add(pose['position'], mv(body, add(center, mv(joint, (0., 0., .026)))))
+    sensor = POD_KINEMATICS.camera_pose(yaw, pitch, MOUNT_Z)
+    optical = mm(body, sensor[:3, :3])
+    origin = add(pose['position'], mv(body, sensor[:3, 3]))
     return origin, optical
 
 
 def reachable_angles(pose, target):
     body = rotation(pose['quaternion'])
     vector = mv(transpose(body), sub(target, pose['position']))
-    pitch = -math.degrees(math.atan2(math.hypot(vector[0], vector[1]), vector[2]))
-    yaw = math.degrees(math.atan2(vector[1], vector[0]))
-    candidates = [(yaw, pitch), (wrap_deg(yaw + 180), -pitch)]
-    for y, p in candidates:
-        if -90 <= y <= 90 and -90 <= p <= 45:
-            return dict(reachable=True, yaw=y, pitch=p, singular=abs(p) < 3)
-    return dict(reachable=False, yaw=yaw, pitch=pitch, singular=False)
+    return POD_KINEMATICS.inverse(vector, MOUNT_Z)
 
 
 def stable_cruise(poses, altitude, cruise_speed):
@@ -214,6 +226,7 @@ class Session:
         from gz.msgs10.pose_v_pb2 import Pose_V
         from gz.msgs10.stringmsg_pb2 import StringMsg
         self.args = args
+        self.execution_metadata = execution_metadata(args)
         self.node = Node()
         self.lock = threading.RLock()
         self.telemetry = deque(maxlen=6000)
@@ -236,6 +249,8 @@ class Session:
         self.socket.setblocking(False)
         self.address = (socket.gethostbyname(args.host), args.udp_port)
         args.output.mkdir(parents=True, exist_ok=True)
+        (args.output/'execution_metadata.json').write_text(
+            json.dumps(self.execution_metadata, ensure_ascii=False, indent=2)+'\n')
         self.log = (args.output / 'tracking.jsonl').open('w')
         self.topics = [args.prefix+'/telemetry', args.prefix+'/image',
                        f'/world/{args.world}/dynamic_pose/info']
@@ -346,8 +361,8 @@ class Session:
                 poses = list(self.poses)
             if t is None or not poses or self.matched(t) is None:
                 continue
-            if t.get('protocol_version') != 5 or t.get('angle_convention') != 'upright_joint':
-                raise AssertionError('需要两轴 v5 upright_joint 遥测')
+            if t.get('protocol_version') != 6 or t.get('angle_convention') != 'motion_head_joint':
+                raise AssertionError('需要两轴 v6 motion_head_joint 遥测')
             if t.get('mount', {}).get('static') is not False:
                 raise AssertionError('动态载机姿态补偿未开启')
             if not stable_cruise(poses, self.args.altitude, self.args.cruise_speed):
@@ -362,6 +377,7 @@ class Session:
         """明确启用后仅一次对准和框选；return 后没有机械/目标指令。"""
         self.send('stop')
         deadline = time.monotonic()+45
+        unreachable = None
         while time.monotonic() < deadline:
             self.poll(.08)
             with self.lock:
@@ -372,6 +388,12 @@ class Session:
                 continue
             desired = reachable_angles(pose, self.args.target)
             if not desired['reachable'] or desired['singular']:
+                if unreachable is None:
+                    self.record('event', event='target_outside_mechanical_range', target=self.args.target,
+                                required_yaw_deg=desired['yaw'], required_pitch_deg=desired['pitch'],
+                                yaw_limits_deg=POD_KINEMATICS.joints['yaw_joint']['limits'],
+                                pitch_limits_deg=POD_KINEMATICS.joints['pitch_joint']['limits'])
+                unreachable = desired
                 continue
             joints = t['joints_deg']
             ey, ep = desired['yaw']-joints['yaw']['pos'], desired['pitch']-joints['pitch']['pos']
@@ -382,7 +404,11 @@ class Session:
             self.send('manual', yaw=max(-45., min(45., ey*4)), pitch=max(-45., min(45., ep*4)))
         else:
             self.send('stop')
-            raise AssertionError('一次初始化未能对准可达靶标')
+            detail = (f"；所需机械角 yaw={unreachable['yaw']:.2f}°、pitch={unreachable['pitch']:.2f}°，"
+                      '超出机械限位或接近视线退化方向' if unreachable else '')
+            raise AssertionError('一次初始化未能对准可达靶标' + detail)
+        # 人工角速度会将视觉模式切回 off；完成对准后再启用框选并确认网关回执。
+        self.enter_manual_tracking()
         # 停止机械对准后等待下一组严格同步的数据，避免异步回调的瞬时帧号差
         # 被误判为初始化失败；匹配标准与后续跟踪评分保持一致。
         deadline = time.monotonic()+2
@@ -402,12 +428,15 @@ class Session:
                         image['width'], image['height'], self.args.hfov)
         if box is None or min(box[2:]) < 12:
             raise AssertionError('初始化靶标未完整出现在画面中或小于12px')
-        self.save_snapshot('initial_selection.png', image, t, pose, frame_joints, box)
         norm = [box[0]/image['width'], box[1]/image['height'],
                 box[2]/image['width'], box[3]/image['height']]
         requested_at = t['ts_mono']
-        request_seq = self.send('track', box=norm)
-        self.record('event', event='single_initial_selection', box_norm=norm,
+        frame_seq = t['frame']['seq']
+        # 先将选框绑定到插件缓存中的原图；PNG 编码不能推迟运动画面的初始化。
+        request_seq = self.send('track', box=norm, frame_seq=frame_seq)
+        self.save_snapshot('initial_selection.png', image, t, pose, frame_joints, box)
+        self.record('event', event='single_initial_selection', box_norm=norm, frame_seq=frame_seq,
+                    image_sim_stamp=image['stamp'],
                     note='初始化结束；后续目标真值仅用于评分，控制仅由 CSRT 和载机姿态补偿处理')
         deadline = time.monotonic()+12
         while time.monotonic() < deadline:
@@ -419,6 +448,19 @@ class Session:
                 if receipt is not None and receipt.get('ok') and self.latest['ts_mono'] > requested_at and tracked(self.latest):
                     return
         raise AssertionError('UDP 框选缺少对应成功回执或未进入新的真实 CSRT TRACK')
+
+    def enter_manual_tracking(self):
+        request_seq = self.send('set_vision_mode', mode='manual_track')
+        deadline = time.monotonic()+5
+        while time.monotonic() < deadline:
+            self.poll()
+            receipt = self.command_results.get(request_seq)
+            if receipt is None:
+                continue
+            if not receipt.get('ok'):
+                raise AssertionError(f'UDP 手动框选模式启用失败：{receipt}')
+            return
+        raise AssertionError('UDP 手动框选模式缺少对应成功回执')
 
     def sample(self, t):
         matched = self.matched(t)
@@ -535,7 +577,8 @@ class Session:
                     self.save_snapshot(f'frame_{len(samples):06d}.png', image, t, pose, frame_joints)
                     last_snapshot = row['stamp']
                     seen_states.add(state)
-                if not -90.25 <= t['joints_deg']['yaw']['pos'] <= 90.25 or not -90.25 <= t['joints_deg']['pitch']['pos'] <= 45.25:
+                if not all(POD_KINEMATICS.joints[a+'_joint']['limits'][0]-.25 <= t['joints_deg'][a]['pos']
+                           <= POD_KINEMATICS.joints[a+'_joint']['limits'][1]+.25 for a in ('yaw', 'pitch')):
                     raise AssertionError('实际关节角超出机械限位')
             sim_elapsed = latest['frame']['sim_stamp']-start_sim
             wall_elapsed = time.monotonic()-start_wall
@@ -562,6 +605,7 @@ class Session:
                       target_enu=list(self.args.target), target_size_m=self.args.target_size,
                       initializer='one_initial_truth_projection' if self.args.initialize else 'manual_ground_station',
                       note='真值只用于一次可选初始化和独立验收；初始化后未发布任何控制指令')
+        report.update(self.execution_metadata)
         (self.args.output/'summary.json').write_text(json.dumps(report, ensure_ascii=False, indent=2)+'\n')
         self.record('event', event='result', **report)
         return report
@@ -713,7 +757,7 @@ def main():
     except Exception as error:
         if args.initialize:
             session.send('stop')
-        report = dict(result='failed', error=str(error))
+        report = dict(result='failed', error=str(error), **session.execution_metadata)
         (args.output/'summary.json').write_text(json.dumps(report, ensure_ascii=False, indent=2)+'\n')
         session.record('event', event='failure', **report)
         return 1

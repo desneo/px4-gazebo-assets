@@ -151,9 +151,57 @@ class Patrol(FlightCheck):
                         metrics['cruise_samples_within_tolerance'] += 1
         return fresh
 
+    def initialize_ground_reference(self):
+        """气压/GNSS 初始化稳定后，仍在地面且未解锁时捕获飞行参考点。"""
+        started = self.sim_time
+        history = deque()
+        summary = self.report['ground_reference'] = {
+            'passed': False, 'started_sim_time_s': started,
+            'minimum_wait_sim_s': 10., 'stability_window_sim_s': 5.,
+            'z_range_limit_m': .25, 'vertical_speed_limit_m_s': .15,
+        }
+
+        def ready():
+            if self.armed():
+                raise RuntimeError('地面参考初始化期间飞控已解锁，拒绝继续')
+            on_ground = (self.landed == mavutil.mavlink.MAV_LANDED_STATE_ON_GROUND
+                         and time.monotonic()-self.last_landed_wall <= self.cfg['telemetry_timeout_s'])
+            if not on_ground:
+                history.clear()
+                return False
+            # 逐条处理本次接收的PX4位置样本，不能让批量接收隐藏高度重置或运动。
+            for stamp, position, velocity in self.latest_samples:
+                if history and stamp <= history[-1][0]:
+                    continue
+                history.append((stamp, position[2], abs(velocity[2])))
+                cutoff = stamp-summary['stability_window_sim_s']
+                while len(history) > 1 and history[1][0] <= cutoff:
+                    history.popleft()
+            if not history or self.sim_time-started < summary['minimum_wait_sim_s']:
+                return False
+            if history[-1][0]-history[0][0] < summary['stability_window_sim_s']:
+                return False
+            z_range = max(row[1] for row in history)-min(row[1] for row in history)
+            max_vz = max(row[2] for row in history)
+            summary.update(z_range_m=z_range, max_abs_vertical_speed_m_s=max_vz)
+            return z_range <= summary['z_range_limit_m'] and max_vz <= summary['vertical_speed_limit_m_s']
+
+        if self.armed():
+            raise RuntimeError('飞控已解锁，拒绝初始化地面参考')
+        self.phase_loop('ground_reference', ready)
+        if not self.truth.calibrate():
+            raise RuntimeError('地面参考初始化缺少 Gazebo 真值')
+        self.home_z = self.z_command = self.position[2]
+        self.home_north = self.position[0]
+        summary.update(passed=True, finished_sim_time_s=self.sim_time,
+                       waited_sim_s=self.sim_time-started, home_z_m=self.home_z,
+                       home_north_m=self.home_north,
+                       gazebo_origin_enu_m=list(self.truth.origin))
+        print('地面参考：'+json.dumps(summary, ensure_ascii=False), flush=True)
+
     def run(self):
         self.connect()
-        self.home_north = self.position[0]
+        self.initialize_ground_reference()
         self.hold('offboard_preload', 2)
         self.set_mode('OFFBOARD')
         self.armed_by_script = True

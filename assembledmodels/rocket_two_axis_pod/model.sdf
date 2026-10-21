@@ -171,276 +171,120 @@
         </material>
         <pose>-0.2086 -0.2086 -0.065 0 -0 0</pose>
       </visual>
-      <visual name="pod_mount_link_mounting_flange_visual">
-        <pose>0 0 0.293 0 -0 0</pose>
-        <geometry>
-          <cylinder>
-            <radius>0.042</radius>
-            <length>0.008</length>
-          </cylinder>
-        </geometry>
-        <material>
-          <ambient>.09 .09 .10 1</ambient>
-          <diffuse>.09 .09 .10 1</diffuse>
-          <specular>.35 .35 .35 1</specular>
-        </material>
-      </visual>
-      <visual name="pod_mount_link_m3_hole_1_visual">
-        <pose>0.034 0 0.2974 0 -0 0</pose>
-        <geometry>
-          <cylinder>
-            <radius>0.0015</radius>
-            <length>0.0008</length>
-          </cylinder>
-        </geometry>
-        <material>
-          <ambient>.018 .018 .020 1</ambient>
-          <diffuse>.018 .018 .020 1</diffuse>
-          <specular>.35 .35 .35 1</specular>
-        </material>
-      </visual>
-      <visual name="pod_mount_link_m3_hole_2_visual">
-        <pose>0.017 0.0294448637287 0.2974 0 -0 0</pose>
-        <geometry>
-          <cylinder>
-            <radius>0.0015</radius>
-            <length>0.0008</length>
-          </cylinder>
-        </geometry>
-        <material>
-          <ambient>.018 .018 .020 1</ambient>
-          <diffuse>.018 .018 .020 1</diffuse>
-          <specular>.35 .35 .35 1</specular>
-        </material>
-      </visual>
-      <visual name="pod_mount_link_m3_hole_3_visual">
-        <pose>-0.017 0.0294448637287 0.2974 0 -0 0</pose>
-        <geometry>
-          <cylinder>
-            <radius>0.0015</radius>
-            <length>0.0008</length>
-          </cylinder>
-        </geometry>
-        <material>
-          <ambient>.018 .018 .020 1</ambient>
-          <diffuse>.018 .018 .020 1</diffuse>
-          <specular>.35 .35 .35 1</specular>
-        </material>
-      </visual>
-      <visual name="pod_mount_link_m3_hole_4_visual">
-        <pose>-0.034 4.1637991171e-18 0.2974 0 -0 0</pose>
-        <geometry>
-          <cylinder>
-            <radius>0.0015</radius>
-            <length>0.0008</length>
-          </cylinder>
-        </geometry>
-        <material>
-          <ambient>.018 .018 .020 1</ambient>
-          <diffuse>.018 .018 .020 1</diffuse>
-          <specular>.35 .35 .35 1</specular>
-        </material>
-      </visual>
-      <visual name="pod_mount_link_m3_hole_5_visual">
-        <pose>-0.017 -0.0294448637287 0.2974 0 -0 0</pose>
-        <geometry>
-          <cylinder>
-            <radius>0.0015</radius>
-            <length>0.0008</length>
-          </cylinder>
-        </geometry>
-        <material>
-          <ambient>.018 .018 .020 1</ambient>
-          <diffuse>.018 .018 .020 1</diffuse>
-          <specular>.35 .35 .35 1</specular>
-        </material>
-      </visual>
-      <visual name="pod_mount_link_m3_hole_6_visual">
-        <pose>0.017 -0.0294448637287 0.2974 0 -0 0</pose>
-        <geometry>
-          <cylinder>
-            <radius>0.0015</radius>
-            <length>0.0008</length>
-          </cylinder>
-        </geometry>
-        <material>
-          <ambient>.018 .018 .020 1</ambient>
-          <diffuse>.018 .018 .020 1</diffuse>
-          <specular>.35 .35 .35 1</specular>
-        </material>
-      </visual>
-      <visual name="pod_yaw_arm_link_carrier_ring_visual">
+      <visual name="pod_mount_link_mount_ring_6xM3_visual">
         <pose>0 0 0.289 0 -0 0</pose>
         <geometry>
           <mesh>
-            <uri>model://two_axis_pod/meshes/carrier_ring.dae</uri>
+            <uri>model://two_axis_pod/meshes/mount_ring_6xM3.dae</uri>
           </mesh>
         </geometry>
         <material>
-          <ambient>.09 .09 .10 1</ambient>
-          <diffuse>.09 .09 .10 1</diffuse>
+          <ambient>0.4 0.439215686275 0.474509803922 1</ambient>
+          <diffuse>0.4 0.439215686275 0.474509803922 1</diffuse>
           <specular>.35 .35 .35 1</specular>
         </material>
       </visual>
-      <visual name="pod_yaw_arm_link_rear_shell_visual">
+      <visual name="pod_mount_link_fixed_cowling_visual">
         <pose>0 0 0.289 0 -0 0</pose>
         <geometry>
           <mesh>
-            <uri>model://two_axis_pod/meshes/rear_shell.dae</uri>
+            <uri>model://two_axis_pod/meshes/fixed_cowling.dae</uri>
           </mesh>
         </geometry>
         <material>
-          <ambient>.09 .09 .10 1</ambient>
-          <diffuse>.09 .09 .10 1</diffuse>
+          <ambient>0.513725490196 0.533333333333 0.545098039216 1</ambient>
+          <diffuse>0.513725490196 0.533333333333 0.545098039216 1</diffuse>
           <specular>.35 .35 .35 1</specular>
         </material>
       </visual>
-      <visual name="pod_yaw_arm_link_yaw_drive_visual">
-        <pose>0 0 0.306 0 -0 0</pose>
+      <visual name="pod_mount_link_azimuth_bearing_housing_visual">
+        <pose>0 0 0.289 0 -0 0</pose>
         <geometry>
-          <cylinder>
-            <radius>0.012</radius>
-            <length>0.018</length>
-          </cylinder>
+          <mesh>
+            <uri>model://two_axis_pod/meshes/azimuth_bearing_housing.dae</uri>
+          </mesh>
         </geometry>
         <material>
-          <ambient>.09 .09 .10 1</ambient>
-          <diffuse>.09 .09 .10 1</diffuse>
+          <ambient>0.321568627451 0.356862745098 0.388235294118 1</ambient>
+          <diffuse>0.321568627451 0.356862745098 0.388235294118 1</diffuse>
           <specular>.35 .35 .35 1</specular>
         </material>
       </visual>
-      <visual name="pod_yaw_arm_link_rear_support_visual">
-        <pose>-0.025 0 0.323 0 -0 0</pose>
+      <visual name="pod_yaw_arm_link_azimuth_yoke_visual">
+        <pose>0 0 0.345 0 -0 0</pose>
         <geometry>
-          <box>
-            <size>.010 .018 .030</size>
-          </box>
+          <mesh>
+            <uri>model://two_axis_pod/meshes/azimuth_yoke.dae</uri>
+          </mesh>
         </geometry>
         <material>
-          <ambient>.09 .09 .10 1</ambient>
-          <diffuse>.09 .09 .10 1</diffuse>
+          <ambient>0.301960784314 0.337254901961 0.372549019608 1</ambient>
+          <diffuse>0.301960784314 0.337254901961 0.372549019608 1</diffuse>
           <specular>.35 .35 .35 1</specular>
         </material>
       </visual>
-      <visual name="pod_yaw_arm_link_yoke_crossbar_visual">
-        <pose>-0.003 0 0.327 0 -0 0</pose>
+      <visual name="pod_yaw_arm_link_pitch_pivot_cap_left_visual">
+        <pose>0 0 0.345 0 -0 0</pose>
         <geometry>
-          <box>
-            <size>.036 0.056 .006</size>
-          </box>
+          <mesh>
+            <uri>model://two_axis_pod/meshes/pitch_pivot_cap_left.dae</uri>
+          </mesh>
         </geometry>
         <material>
-          <ambient>.09 .09 .10 1</ambient>
-          <diffuse>.09 .09 .10 1</diffuse>
+          <ambient>0.619607843137 0.643137254902 0.666666666667 1</ambient>
+          <diffuse>0.619607843137 0.643137254902 0.666666666667 1</diffuse>
           <specular>.35 .35 .35 1</specular>
         </material>
       </visual>
-      <visual name="pod_yaw_arm_link_yoke_arm_right_visual">
-        <pose>0.015 -0.028 0.337 0 -0 0</pose>
+      <visual name="pod_yaw_arm_link_pitch_pivot_cap_right_visual">
+        <pose>0 0 0.345 0 -0 0</pose>
         <geometry>
-          <box>
-            <size>.008 .006 .024</size>
-          </box>
+          <mesh>
+            <uri>model://two_axis_pod/meshes/pitch_pivot_cap_right.dae</uri>
+          </mesh>
         </geometry>
         <material>
-          <ambient>.09 .09 .10 1</ambient>
-          <diffuse>.09 .09 .10 1</diffuse>
+          <ambient>0.619607843137 0.643137254902 0.666666666667 1</ambient>
+          <diffuse>0.619607843137 0.643137254902 0.666666666667 1</diffuse>
           <specular>.35 .35 .35 1</specular>
         </material>
       </visual>
-      <visual name="pod_yaw_arm_link_pitch_motor_right_visual">
-        <pose>0.015 -0.028 0.345 1.57079632679 -0 0</pose>
-        <geometry>
-          <cylinder>
-            <radius>0.01</radius>
-            <length>0.006</length>
-          </cylinder>
-        </geometry>
-        <material>
-          <ambient>.09 .09 .10 1</ambient>
-          <diffuse>.09 .09 .10 1</diffuse>
-          <specular>.35 .35 .35 1</specular>
-        </material>
-      </visual>
-      <visual name="pod_yaw_arm_link_yoke_arm_left_visual">
-        <pose>0.015 0.028 0.337 0 -0 0</pose>
-        <geometry>
-          <box>
-            <size>.008 .006 .024</size>
-          </box>
-        </geometry>
-        <material>
-          <ambient>.09 .09 .10 1</ambient>
-          <diffuse>.09 .09 .10 1</diffuse>
-          <specular>.35 .35 .35 1</specular>
-        </material>
-      </visual>
-      <visual name="pod_yaw_arm_link_pitch_motor_left_visual">
-        <pose>0.015 0.028 0.345 1.57079632679 -0 0</pose>
-        <geometry>
-          <cylinder>
-            <radius>0.01</radius>
-            <length>0.006</length>
-          </cylinder>
-        </geometry>
-        <material>
-          <ambient>.09 .09 .10 1</ambient>
-          <diffuse>.09 .09 .10 1</diffuse>
-          <specular>.35 .35 .35 1</specular>
-        </material>
-      </visual>
-      <visual name="pod_yaw_arm_link_pitch_axle_visual">
-        <pose>0.015 0 0.345 1.57079632679 -0 0</pose>
-        <geometry>
-          <cylinder>
-            <radius>0.0045</radius>
-            <length>0.056</length>
-          </cylinder>
-        </geometry>
-        <material>
-          <ambient>.09 .09 .10 1</ambient>
-          <diffuse>.09 .09 .10 1</diffuse>
-          <specular>.35 .35 .35 1</specular>
-        </material>
-      </visual>
-      <visual name="pod_camera_link_camera_shell_visual">
+      <visual name="pod_camera_link_pitch_ball_shell_visual">
         <pose>0.015 0 0.345 0 -0 0</pose>
         <geometry>
-          <sphere>
-            <radius>0.024</radius>
-          </sphere>
+          <mesh>
+            <uri>model://two_axis_pod/meshes/pitch_ball_shell.dae</uri>
+          </mesh>
         </geometry>
         <material>
-          <ambient>.09 .09 .10 1</ambient>
-          <diffuse>.09 .09 .10 1</diffuse>
+          <ambient>0.219607843137 0.262745098039 0.305882352941 1</ambient>
+          <diffuse>0.219607843137 0.262745098039 0.305882352941 1</diffuse>
           <specular>.35 .35 .35 1</specular>
         </material>
       </visual>
       <visual name="pod_camera_link_lens_bezel_visual">
-        <pose>0.015 0 0.3675 0 -0 0</pose>
+        <pose>0.015 0 0.345 0 -0 0</pose>
         <geometry>
-          <cylinder>
-            <radius>0.013</radius>
-            <length>0.005</length>
-          </cylinder>
+          <mesh>
+            <uri>model://two_axis_pod/meshes/lens_bezel.dae</uri>
+          </mesh>
         </geometry>
         <material>
-          <ambient>.20 .20 .21 1</ambient>
-          <diffuse>.20 .20 .21 1</diffuse>
+          <ambient>0.133333333333 0.172549019608 0.211764705882 1</ambient>
+          <diffuse>0.133333333333 0.172549019608 0.211764705882 1</diffuse>
           <specular>.35 .35 .35 1</specular>
         </material>
       </visual>
-      <visual name="pod_camera_link_lens_glass_visual">
-        <pose>0.015 0 0.3705 0 -0 0</pose>
+      <visual name="pod_camera_link_optical_window_visual">
+        <pose>0.015 0 0.345 0 -0 0</pose>
         <geometry>
-          <cylinder>
-            <radius>0.0105</radius>
-            <length>0.001</length>
-          </cylinder>
+          <mesh>
+            <uri>model://two_axis_pod/meshes/optical_window.dae</uri>
+          </mesh>
         </geometry>
         <material>
-          <ambient>.12 .22 .30 1</ambient>
-          <diffuse>.12 .22 .30 1</diffuse>
+          <ambient>0.203921568627 0.380392156863 0.478431372549 1</ambient>
+          <diffuse>0.203921568627 0.380392156863 0.478431372549 1</diffuse>
           <specular>.35 .35 .35 1</specular>
         </material>
       </visual>

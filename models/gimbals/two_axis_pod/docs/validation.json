@@ -1,0 +1,121 @@
+{
+  "protocol_version": 6,
+  "angle_convention": "motion_head_joint",
+  "source_sha256": {
+    "models/gimbals/two_axis_pod/model.sdf": "73df2cf3aa27cce239b522cd3c42c2aece5e7f1309c765abea67485a8bc6dba7",
+    "models/gimbals/two_axis_pod/model.config": "5ae8973dddd9e75b2a6f1cc3cd2efe0f95885b1466254f87c732a2ac9287e6f9",
+    "models/gimbals/two_axis_pod/parameters.json": "bcc13ff476287fdfa3d3e6cac226b9160fa42f3fcff25de9a5eefdf57ea69061",
+    "models/gimbals/two_axis_pod/tools/generate_model.py": "a4a052c909cb6f739e9e116cc99dde3526013a40dd7842380524721771f7872b",
+    "models/gimbals/two_axis_pod/tools/import_cad.py": "2978a7e5cddb17738e30863016d5855db4a81d58e9243df15d25e60f27723ee3",
+    "models/gimbals/two_axis_pod/meshes/azimuth_bearing_housing.dae": "2952493154a4d2e0ec7e76eab47a147e17eba1126d16161a9e864f5f0f446093",
+    "models/gimbals/two_axis_pod/meshes/azimuth_yoke.dae": "2dcfe51a843439490edda9784c6a6552da1640638a1a72064b8fe5738accf2e3",
+    "models/gimbals/two_axis_pod/meshes/fixed_cowling.dae": "1b118b806a8f27a1a82d7cdfd460876bef0c095e30d92c8352c9721a3a45614e",
+    "models/gimbals/two_axis_pod/meshes/lens_bezel.dae": "f51d33349899bd74e989dc542dc752e7d18a6de96a1dcfce4bf3fdebc5eca5a2",
+    "models/gimbals/two_axis_pod/meshes/mount_ring_6xM3.dae": "c19e454611b62eb50eaa624d9351f2214f6101a826657ae28be5fac8bd1ce18a",
+    "models/gimbals/two_axis_pod/meshes/optical_window.dae": "6f3bc5f75d4b8a77837882460014b1bb249a7749aaeb49030f43dc779fcada8f",
+    "models/gimbals/two_axis_pod/meshes/pitch_ball_shell.dae": "f6639e15a5a6d40f50f7a2724e4abe84bb6bfc43739a5266604a0f81cc76b7de",
+    "models/gimbals/two_axis_pod/meshes/pitch_pivot_cap_left.dae": "664f5d5840ae5722c3ce05648446c74510bf6cd35fffcc1d2ee06caf5c4c1ae1",
+    "models/gimbals/two_axis_pod/meshes/pitch_pivot_cap_right.dae": "03d5f71cf0008229847e2d86a55fc450ce363981f0b74818fa83500e502fa351",
+    "models/gimbals/two_axis_pod/controller/src/control.cc": "faa23249e5f823441feefedd93ca4ffde4f1f9d1a5f5426143a5e20ec7efbd4b",
+    "models/gimbals/two_axis_pod/controller/src/gimbal_controller.cc": "399f2826a820ac25e9deffc00d481ee3b7e992c596b0c0fd45fe6e26ec7bc977",
+    "models/gimbals/two_axis_pod/controller/src/kinematics.cc": "7192e832ef25bc39cfea78a2b08515b697e002937bb424f90a5687e90c7c66f4",
+    "models/gimbals/two_axis_pod/controller/include/two_axis/control.hh": "10594a7b4ae88e5bd9a77c8e6116fce8ca9357dedd64273c21a46b9e39d347dd",
+    "models/gimbals/two_axis_pod/controller/include/two_axis/kinematics.hh": "62ae6a35319fb7616369bc90c5fec0ec11236db96b6c662dfd096fd1e0e01f20"
+  },
+  "offline": {
+    "model_tests": 8,
+    "controller_ctest": 1,
+    "station_gateway_tests": 117,
+    "vision_tests": 14,
+    "onnx_environment_tests": 2,
+    "downstream_tests": 110
+  },
+  "component": {
+    "result": "passed",
+    "actual_limits_deg": {
+      "yaw_60": 59.799,
+      "yaw_-60": -59.798,
+      "pitch_-80": -79.789,
+      "pitch_30": 29.79
+    },
+    "tracking": "CSRT TRACK valid with target miss",
+    "watchdog": "passed",
+    "single_axis_reset": "passed",
+    "zero_nonsingular_yaw_los_motion": "passed"
+  },
+  "optical_pose_checks": 7,
+  "geographic_target": {
+    "moving": {
+      "track_ratio": 1.0,
+      "p95_center_error_deg": 0.163,
+      "p95_truth_error_deg": 0.3717362286900458,
+      "actual_distance_m": 19.951995998084953,
+      "height_range_m": 0.0,
+      "telemetry_samples": 3032,
+      "sim_seconds": 40.0
+    },
+    "occlusion": [
+      {
+        "cycle": 1,
+        "states": [
+          "TEMP_LOST",
+          "TRACK"
+        ]
+      },
+      {
+        "cycle": 2,
+        "states": [
+          "TEMP_LOST",
+          "TRACK"
+        ]
+      }
+    ],
+    "result": "passed"
+  },
+  "geographic_vision": {
+    "detect": {
+      "target_count": 3,
+      "inference_ms": 20.362,
+      "input_fps": 28.32,
+      "output_fps": 23.54
+    },
+    "auto_lock": {
+      "track_id": 3,
+      "target_count": 1,
+      "tracking_state": "TRACK"
+    },
+    "result": "passed"
+  },
+  "acceptance_context": {
+    "partition": "two_axis_motion_head_geo",
+    "udp_port": 19766,
+    "rtsp_port": 19555,
+    "encoder": "NVENC",
+    "decoder": "NVDEC",
+    "target_source_pose": "30 0 70 0 0 3.14159265359",
+    "source_sha256": {
+      "runs/two_axis_motion_head_geo/world.sdf": "c748ee5612f47e5eafd24bc3789298207f1df735c5f7175917f18e9026e886f4",
+      "models/gimbals/two_axis_pod/model.sdf": "73df2cf3aa27cce239b522cd3c42c2aece5e7f1309c765abea67485a8bc6dba7",
+      "models/gimbals/two_axis_pod/parameters.json": "bcc13ff476287fdfa3d3e6cac226b9160fa42f3fcff25de9a5eefdf57ea69061",
+      "models/gimbals/two_axis_pod/controller/build/lib/libgz-two-axis-pod-controller.so": "8c817e0cdf119b98e36df8590200d85b99385cd2b066899fe73b0fa78c48a332",
+      "scenarios/geographic_two_axis_pod/check_target.py": "b833f6c2b944971ecc376dce1ba7474f3275996055e778442901e2541fa8cb9b",
+      "scenarios/geographic_two_axis_pod/check_vision.py": "36bd3c351eae21faa6d0e272875619003c89ab969c820dba8e6b0d512838901d",
+      "models/gimbals/two_axis_pod/meshes/azimuth_bearing_housing.dae": "2952493154a4d2e0ec7e76eab47a147e17eba1126d16161a9e864f5f0f446093",
+      "models/gimbals/two_axis_pod/meshes/azimuth_yoke.dae": "2dcfe51a843439490edda9784c6a6552da1640638a1a72064b8fe5738accf2e3",
+      "models/gimbals/two_axis_pod/meshes/fixed_cowling.dae": "1b118b806a8f27a1a82d7cdfd460876bef0c095e30d92c8352c9721a3a45614e",
+      "models/gimbals/two_axis_pod/meshes/lens_bezel.dae": "f51d33349899bd74e989dc542dc752e7d18a6de96a1dcfce4bf3fdebc5eca5a2",
+      "models/gimbals/two_axis_pod/meshes/mount_ring_6xM3.dae": "c19e454611b62eb50eaa624d9351f2214f6101a826657ae28be5fac8bd1ce18a",
+      "models/gimbals/two_axis_pod/meshes/optical_window.dae": "6f3bc5f75d4b8a77837882460014b1bb249a7749aaeb49030f43dc779fcada8f",
+      "models/gimbals/two_axis_pod/meshes/pitch_ball_shell.dae": "f6639e15a5a6d40f50f7a2724e4abe84bb6bfc43739a5266604a0f81cc76b7de",
+      "models/gimbals/two_axis_pod/meshes/pitch_pivot_cap_left.dae": "664f5d5840ae5722c3ce05648446c74510bf6cd35fffcc1d2ee06caf5c4c1ae1",
+      "models/gimbals/two_axis_pod/meshes/pitch_pivot_cap_right.dae": "03d5f71cf0008229847e2d86a55fc450ce363981f0b74818fa83500e502fa351"
+    }
+  },
+  "evidence": {
+    "component": "../tests/results/component_validation.json.gz",
+    "geographic_target": "../tests/results/geographic_target.jsonl.gz",
+    "zero": "preview.png",
+    "forward": "forward.png",
+    "rtsp_nvdec": "geographic-ground-station.png"
+  }
+}

@@ -74,10 +74,10 @@ class PublisherTests(unittest.TestCase):
         self.publisher = Publisher(Config(enabled=True, ip="127.0.0.1",
                                          port=self.receiver.getsockname()[1]), log=self.log)
         self.addCleanup(self.publisher.close)
-        self.snapshot = {"type": "telemetry", "protocol_version": 5,
-                         "angle_convention": "upright_joint", "mode": "IDLE",
+        self.snapshot = {"type": "telemetry", "protocol_version": 6,
+                         "angle_convention": "motion_head_joint", "mode": "IDLE",
                          "attitude_deg": {"yaw": {"pos": 12.3, "vel": 0, "acc": 0},
-                                          "pitch": {"pos": 45, "vel": 0, "acc": 0}},
+                                          "pitch": {"pos": 30, "vel": 0, "acc": 0}},
                          "tracking": {"state": "IDLE", "message": "测试状态"}}
 
     def receive(self):

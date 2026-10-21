@@ -9,9 +9,11 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import xml.etree.ElementTree as ET
 
 from flight_patrol import PatrolTruth, SampleSink, load_config
 from process_state import process_info, read_live
+from prepare_world import prepare
 
 HERE = Path(__file__).resolve().parent
 
@@ -32,6 +34,21 @@ class SceneSupportTest(unittest.TestCase):
         truth = PatrolTruth.__new__(PatrolTruth)
         truth.origin = (10, 20, 30)
         self.assertEqual(truth.to_ned((1, 15, 25, 110), 7), [5, 5, -73])
+
+    def test_configurable_target_is_saved_with_marker_and_close_camera(self):
+        with tempfile.TemporaryDirectory() as directory:
+            directory = Path(directory)
+            model = directory / 'model.sdf'
+            model.write_text('<sdf version="1.9"><model name="rocket_two_axis_pod">'
+                             '<static>false</static><link name="base_link"/></model></sdf>')
+            output = prepare(directory / 'world.sdf', model, view='close',
+                             target_position=(200., 150., 150.), target_size=6.)
+            world = ET.parse(output).find('world')
+            target = world.find("model[@name='AERIAL_TRACKING_TARGET']")
+            self.assertEqual(target.findtext('pose'), '200.0 150.0 150.0 0 0 0')
+            self.assertFalse(target.findall('.//collision'))
+            self.assertFalse(world.find("model[@name='ROCKET_TAKEOFF_LOCATION_MARKER']").findall('.//collision'))
+            self.assertEqual(world.findtext("gui/plugin[@filename='MinimalScene']/camera_clip/near"), '0.005')
 
     def test_continuous_sink_does_not_retain_samples(self):
         stream = io.StringIO()

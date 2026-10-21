@@ -19,17 +19,17 @@ class TrackingMathTest(unittest.TestCase):
         for a, b in zip(actual, expected):
             self.assertAlmostEqual(a, b, places=7)
 
-    def test_negative_pitch_uses_opposite_azimuth(self):
+    def test_positive_pitch_uses_opposite_azimuth(self):
         for target in ((-10., 4., 20.), (-10., -4., 20.)):
             solution = check.reachable_angles(pose(), target)
             self.assertTrue(solution['reachable'])
-            self.assertLess(solution['pitch'], 0)
+            self.assertGreater(solution['pitch'], 0)
             ray = check.mv(check.joints_rotation(solution['yaw'], solution['pitch']), (0., 0., 1.))
             self.assertVectorClose(ray, tuple(v/check.length(target) for v in target))
 
     def test_reachable_grid_and_limits(self):
         for yaw in (-90., -43., 0., 35., 90.):
-            for pitch in (-45., -20., 0., 30., 90.):
+            for pitch in (-90., -30., 0., 20., 45.):
                 ray = check.mv(check.joints_rotation(yaw, pitch), (0., 0., 1.))
                 solution = check.reachable_angles(pose(), ray)
                 self.assertTrue(solution['reachable'], (yaw, pitch, solution))
@@ -55,7 +55,7 @@ class TrackingMathTest(unittest.TestCase):
         self.assertVectorClose(check.mv(optical, (1., 0., 0.)), (0., 0., 1.))
         point = check.add(origin, (0., 0., 100.))
         self.assertVectorClose(check.project(point, origin, optical, 1920, 1080, 60), (960., 540.))
-        telemetry['joints_deg']['pitch']['pos'] = 90.
+        telemetry['joints_deg']['pitch']['pos'] = -90.
         _, optical = check.camera_pose(pose(), telemetry)
         self.assertVectorClose(check.mv(optical, (1., 0., 0.)), (1., 0., 0.))
 

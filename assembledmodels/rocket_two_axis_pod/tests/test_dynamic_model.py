@@ -168,6 +168,20 @@ class DynamicNativeTests(unittest.TestCase):
         self.assert_reference_inheritance(output, manifest)
         self.assertEqual(before, self.fingerprints())
 
+    def test_two_axis_pitch_direction_and_limits_are_inherited(self):
+        output = self.work / 'output'
+        manifest = dynamic.generate(output)
+        model = ET.parse(output / 'model.sdf').getroot().find('model')
+        for name, axis, limits in (('yaw_joint', '0 0 1', (-90., 90.)),
+                                   ('pitch_joint', '0 -1 0', (-90., 45.))):
+            joint = model.find(f"joint[@name='{name}']")
+            self.assertEqual(canonical(joint), canonical(self.pod_model.find(f"joint[@name='{name}']")))
+            self.assertEqual(joint.findtext('axis/xyz'), axis)
+            for key, degrees in zip(('lower', 'upper'), limits):
+                self.assertAlmostEqual(float(joint.findtext('axis/limit/' + key)), math.radians(degrees))
+        # 关节零位重心仍由原生惯性派生，轴正向变化不得改变 PX4 参考规则。
+        self.assert_reference_inheritance(output, manifest)
+
     def test_rotated_native_link_and_custom_inertial_pose_use_full_transform(self):
         path = self.source / 'model.sdf'
         document = ET.parse(path)

@@ -191,7 +191,7 @@ def build_model(yaw_deg=0.0, pitch_deg=0.0):
     mount = np.eye(4)
     mount[2, 3] = mount_z
     yaw = transform(f'0 0 0 0 0 {math.radians(yaw_deg)}')
-    pitch = transform(f'0 0 0 0 {math.radians(pitch_deg)} 0')
+    pitch = transform(f'0 0 0 0 {-math.radians(pitch_deg)} 0')
     camera_center = np.eye(4)
     camera_center[:3, 3] = pod['camera_center_m']
     for source_dir, prefix in ((ROCKET, 'rocket'), (POD, 'pod')):

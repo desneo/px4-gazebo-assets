@@ -4,6 +4,18 @@
 namespace two_axis
 {
 constexpr double D = 180 / M_PI;
+TargetMiss MeasureTargetMiss(double cx, double cy, int width, int height)
+{
+  TargetMiss miss;
+  if (width <= 0 || height <= 0 || !std::isfinite(cx) || !std::isfinite(cy))
+    return miss;
+  const auto ray = PixelToSensorRay(cx, cy, width, height);
+  miss.valid = true;
+  miss.center_px = {cx, cy};
+  miss.offset_px = {cx - width / 2., cy - height / 2.};
+  miss.offset_deg = {std::atan2(-ray.y, ray.x)*D, std::atan2(-ray.z, ray.x)*D};
+  return miss;
+}
 const char *ToString(Mode s)
 {
   switch (s)
@@ -57,6 +69,7 @@ void GimbalControl::Stop()
   cmd_ = {};
   manual_ = {};
   valid_ = false;
+  miss_ = {};
   has_box_ = false;
   message_.clear();
   stability_ = Stability::UNDETERMINED;
@@ -92,6 +105,7 @@ void GimbalControl::Manual(double y, double p, double now)
   mode_ = Mode::MANUAL;
   state_ = TrackState::IDLE;
   valid_ = false;
+  miss_ = {};
   has_box_ = false;
   manual_ = {y, p};
   manual_time_ = now;
@@ -130,7 +144,7 @@ std::pair<bool, std::string> GimbalControl::StartTracking(const cv::Mat &im, con
   message_.clear();
   return r;
 }
-std::array<double, 2> GimbalControl::Step(double now, bool fresh, const cv::Mat &im, int w, int h, const JointSample &j, double watch)
+std::array<double, 2> GimbalControl::Step(double now, bool fresh, const cv::Mat &im, int w, int h, const JointSample &j, double watch, std::int64_t frame_seq)
 {
   if (!std::isfinite(j.yaw) || !std::isfinite(j.pitch) || !std::isfinite(j.yaw_vel) || !std::isfinite(j.pitch_vel))
   {
@@ -187,6 +201,8 @@ std::array<double, 2> GimbalControl::Step(double now, bool fresh, const cv::Mat 
         box_ = r.second;
         valid_ = true;
         has_box_ = true;
+        miss_ = MeasureTargetMiss(box_.Cx(), box_.Cy(), w, h);
+        miss_.frame_seq = frame_seq;
         ++valid_frames_;
         state_ = TrackState::TRACK;
         lost_time_ = -1;
@@ -197,6 +213,7 @@ std::array<double, 2> GimbalControl::Step(double now, bool fresh, const cv::Mat 
       else
       {
         valid_ = false;
+        miss_ = {};
         ++invalid_frames_;
         if (lost_time_ < 0)
           lost_time_ = watch;
@@ -209,6 +226,7 @@ std::array<double, 2> GimbalControl::Step(double now, bool fresh, const cv::Mat 
     {
       cmd_ = {};
       valid_ = false;
+      miss_ = {};
       state_ = TrackState::TEMP_LOST;
       if (lost_time_ < 0)
         lost_time_ = watch;

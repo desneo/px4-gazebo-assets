@@ -115,8 +115,8 @@ class ClientTests(unittest.TestCase):
         self.assertEqual(self.client.messages, count)
 
     def confirm_public_angles(self):
-        self.receive({"type": "hello", "aircraft_id": 1, "version": 4, "angle_convention": "upright_joint"})
-        self.receive({"type": "telemetry", "angle_convention": "upright_joint", "attitude_deg": {
+        self.receive({"type": "hello", "aircraft_id": 1, "version": 5, "angle_convention": "upright_joint"})
+        self.receive({"type": "telemetry", "protocol_version": 5, "angle_convention": "upright_joint", "attitude_deg": {
             axis: {"pos": 0.0, "vel": 0.0, "acc": 0.0} for axis in ("yaw", "pitch")}})
 
     def test_public_control_requires_both_version_and_valid_public_telemetry(self):
@@ -145,8 +145,17 @@ class ClientTests(unittest.TestCase):
         self.client.send_manual(yaw=10.0)
         self.assertEqual(len(self.packets), 2)
 
+    def test_v4_or_missing_telemetry_version_cannot_authorize_new_pitch_direction(self):
+        self.confirm_public_angles()
+        for version in (4, None, True):
+            self.client.telemetry['protocol_version'] = version
+            self.assertFalse(self.client.public_angles_ready)
+            self.assertEqual(self.client.send_manual(pitch=-20), -1)
+            self.assertEqual(self.client.send_reliable('reset_axis', axis='pitch'), -1)
+        self.assertFalse(self.packets)
+
     def test_marker_alone_or_malformed_public_attitude_cannot_enable_control(self):
-        self.receive({"type": "hello", "aircraft_id": 1, "version": 4, "angle_convention": "upright_joint"})
+        self.receive({"type": "hello", "aircraft_id": 1, "version": 5, "angle_convention": "upright_joint"})
         for attitude in ({}, {axis: {"pos": 0., "vel": 0., "acc": float("nan")} for axis in ("yaw", "pitch")}):
             self.receive({"type": "telemetry", "angle_convention": "upright_joint", "attitude_deg": attitude})
             self.assertFalse(self.client.public_angles_ready)

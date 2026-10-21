@@ -1,5 +1,6 @@
 #pragma once
 #include <array>
+#include <cstdint>
 #include <string>
 #include "gimbal_controller/tracker.hh"
 #include "two_axis/kinematics.hh"
@@ -15,10 +16,18 @@ struct JointSample
 {
   double yaw{}, pitch{}, yaw_vel{}, pitch_vel{};
 };
+struct TargetMiss
+{
+  bool valid{false};
+  std::array<double, 2> center_px{}, offset_px{}, offset_deg{};
+  std::int64_t frame_seq{-1};
+};
+// 画面左上角为原点，右/下为正；脱靶量相对画面中心。
+TargetMiss MeasureTargetMiss(double cx, double cy, int width, int height);
 struct ControlConfig
 {
   double max_rate_dps{100}, max_acc_dps2{160}, kp{4};
-  double yaw_min_deg{-90}, yaw_max_deg{90}, pitch_min_deg{-45}, pitch_max_deg{90};
+  double yaw_min_deg{-90}, yaw_max_deg{90}, pitch_min_deg{-90}, pitch_max_deg{45};
   double manual_timeout_s{.5}, frame_stop_timeout_s{.5}, occlusion_timeout_s{2.5};
   Mat3 mount_world_rotation, sensor_rotation{CamSensorRot()};
   Vec3 mount_angular_velocity;
@@ -37,7 +46,11 @@ public:
   void ResetFault();
   void Manual(double yaw, double pitch, double now);
   bool ResetAxis(const std::string &, const JointSample &);
-  std::array<double, 2> Step(double, bool, const cv::Mat &, int, int, const JointSample &, double = -1);
+  std::array<double, 2> Step(double, bool, const cv::Mat &, int, int, const JointSample &, double = -1, std::int64_t = -1);
+  const TargetMiss &target_miss()const
+  {
+    return miss_;
+  }
   Mode mode()const
   {
     return mode_;
@@ -95,6 +108,7 @@ private:
   Stability stability_{Stability::UNDETERMINED};
   Tracker tracker_;
   Box box_;
+  TargetMiss miss_;
   bool has_box_{false}, valid_{false}, saturated_{false};
   std::string fault_, message_;
   std::array<double, 2> cmd_{}, manual_{}, target_{}, image_error_{};

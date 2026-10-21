@@ -5,7 +5,7 @@ namespace two_axis
 {
 Mat3 Rotation(double y, double p)
 {
-  return MatMul(Rz(y), Ry(p));
+  return MatMul(Rz(y), Ry(-p));
 }
 Vec3 Los(double y, double p)
 {
@@ -17,10 +17,10 @@ bool Singular(double p)
 }
 std::array<double, 2> ImageRates(double p, double right, double down)
 {
-  // 对视线导数投影到相机图像右(+Y)、下(-X)：J=diag(sin(p),-1)。
+  // 俯仰正轴为随动 -Y；图像右(+Y)、下(-X)：J=diag(-sin(p),+1)。
   // 阻尼最小二乘避免朝天时 yaw 失去视线控制能力后速度发散。
-  const double s = std::sin(p), damping = 0.05;
-  return {s*right / (s * s + damping * damping), -down};
+  const double s = -std::sin(p), damping = 0.05;
+  return {s*right / (s * s + damping * damping), down};
 }
 Vec3 MountAngularVelocity(const Mat3 &previous, const Mat3 &current, double dt)
 {

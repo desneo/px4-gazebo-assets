@@ -2,9 +2,9 @@
 
 本场景使用 `worlds/geo_32_217857_119_105878/world.sdf` 的完整运行副本，保留全部 400 块地形和影像。`prepare_world.py` 将环境资产路径解析为绝对路径，再内联 `models/gimbals/two_axis_pod/model.sdf`。原环境和组件源模型均不由本场景改写。
 
-吊舱底部圆环在 `(0, 0, 50)` 固定于世界，Ø84 mm 圆环与地面平行，导引头整体向上高 91 mm。圆环下方的蓝色水平台面 `pod_mount_fixture` 是独立观察夹具，顶面高度 50 m，不属于吊舱外形和尺寸。安装姿态为单位旋转，使用已确认的立装运动链 `Rz(yaw) Ry(pitch)`。俯仰零位朝天，正值朝前，限位 −45°～+90°；偏航绕竖直 +Z，限位 ±90°。该安装与限位下镜头无法指向安装水平以下，因此测试对象为空中夹具，不使用地面小车，也不通过转动安装方向改变可视范围。
+吊舱底部圆环在 `(0, 0, 50)` 固定于世界，Ø84 mm 圆环与地面平行，导引头整体向上高 91 mm。圆环下方的蓝色水平台面 `pod_mount_fixture` 是独立观察夹具，顶面高度 50 m，不属于吊舱外形和尺寸。安装姿态为单位旋转，使用立装运动链 `Rz(yaw) Ry(-pitch)`。俯仰零位朝天，负值朝前，朝前为 −90°，限位 −90°～+45°；偏航绕竖直 +Z，限位 ±90°。场景检查要求两轴协议 v5。该安装与限位下镜头无法指向安装水平以下，因此测试对象为空中夹具，不使用地面小车，也不通过转动安装方向改变可视范围。
 
-动态飞机靶标 `tracking_target` 的初始中心为 `(30, 0, 70)`，使用仓库内小蝙蝠固定翼外形放大到约 5 m 翼展，关闭重力。它由 Gazebo VelocityControl 驱动，只作为视觉测试夹具，不代表飞行动力学。速度话题为 `/model/tracking_target/cmd_vel`，里程计话题为 `/model/tracking_target/odometry`。`detection_aircraft_left` 与 `detection_aircraft_right` 是无碰撞静态飞机夹具，和动态目标共同验证多目标稳定编号及中心最近自动锁定。
+动态飞机靶标 `tracking_target` 的初始中心为 `(30, 0, 70)`，初始 yaw 为 π，使用仓库内小蝙蝠固定翼外形放大到约 5 m 翼展，关闭重力。`check_target.py --prepare-only` 从场景源模型读取完整初始位姿，位置和朝向一并复位。它由 Gazebo VelocityControl 驱动，只作为视觉测试夹具，不代表飞行动力学。速度话题为 `/model/tracking_target/cmd_vel`，里程计话题为 `/model/tracking_target/odometry`。`detection_aircraft_left` 与 `detection_aircraft_right` 是无碰撞静态飞机夹具，和动态目标共同验证多目标稳定编号及中心最近自动锁定。
 
 实体遮挡板名为 `occlusion_panel`，尺寸 `0.2 × 20 × 20 m`；隐藏位置为 `(100, 100, 80)`，遮挡位置为 `(15, 0, 60)`，横跨初始吊舱与靶标视线。
 

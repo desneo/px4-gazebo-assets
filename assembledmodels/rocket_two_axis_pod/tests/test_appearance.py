@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""验证原生几何继承、顶部替换接口、封闭网格与入库静态资产一致性。"""
+"""验证原生几何继承、顶部替换接口、网格、静态资产与两轴机械角。"""
 from collections import Counter
 import importlib.util
+import math
 from pathlib import Path
 import subprocess
 import sys
@@ -89,6 +90,26 @@ class AppearanceTests(unittest.TestCase):
             self.assertAlmostEqual(model_z + geometry['max_z_m'], geometry['length_m'] + .015)
             self.assertAlmostEqual(marker_z, model_z + appearance.dimensions()[1] + .036)
         self.assertEqual(appearance.configuration()[0]['view']['mouse_sensitivity'], .1)
+
+    def test_actual_camera_visual_rotation(self):
+        for yaw, pitch in ((0, 0), (0, -90), (45, -45), (0, 45), (-90, -90), (90, -90)):
+            with self.subTest(yaw=yaw, pitch=pitch):
+                model = appearance.build_model(yaw, pitch)
+                camera = model.find("model/link/visual[@name='pod_camera_link_camera_shell_visual']")
+                actual = appearance.transform(camera.findtext('pose'))[:3, :3] @ np.array([0., 0., 1.])
+                y, p = math.radians(yaw), math.radians(pitch)
+                np.testing.assert_allclose(actual, (-math.cos(y)*math.sin(p),
+                    -math.sin(y)*math.sin(p), math.cos(p)), atol=1e-10)
+
+    def test_pitch_limits_and_zero_determinism(self):
+        for pitch in (-90.01, 45.01, float('inf'), float('nan')):
+            with self.subTest(pitch=pitch), self.assertRaises(ValueError):
+                appearance.build_model(pitch_deg=pitch)
+        expected = ET.parse(appearance.ROOT / 'model.sdf')
+        def canonical(element):
+            return (element.tag, tuple(sorted(element.attrib.items())), (element.text or '').strip(),
+                    tuple(canonical(child) for child in element))
+        self.assertEqual(canonical(appearance.build_model()), canonical(expected.getroot()))
 
     def test_regeneration_matches_checked_assets(self):
         with tempfile.TemporaryDirectory(prefix='rocket-pod-appearance-check-') as temporary:

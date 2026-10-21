@@ -215,8 +215,8 @@ void GimbalController::Configure(
   cfg_.kp = getDouble("servo_kp", cfg_.kp);
   cfg_.yaw_min_deg = std::max(-90.0, getDouble("yaw_min_deg", cfg_.yaw_min_deg));
   cfg_.yaw_max_deg = std::min(90.0, getDouble("yaw_max_deg", cfg_.yaw_max_deg));
-  cfg_.pitch_min_deg = std::max(-45.0, getDouble("pitch_min_deg", cfg_.pitch_min_deg));
-  cfg_.pitch_max_deg = std::min(90.0, getDouble("pitch_max_deg", cfg_.pitch_max_deg));
+  cfg_.pitch_min_deg = std::max(-90.0, getDouble("pitch_min_deg", cfg_.pitch_min_deg));
+  cfg_.pitch_max_deg = std::min(45.0, getDouble("pitch_max_deg", cfg_.pitch_max_deg));
   cfg_.occlusion_timeout_s =
     getDouble("occlusion_timeout_s", cfg_.occlusion_timeout_s);
   if (!std::isfinite(cfg_.max_rate_dps) || !std::isfinite(cfg_.max_acc_dps2) ||
@@ -649,7 +649,7 @@ void GimbalController::PreUpdate(const gz::sim::UpdateInfo &_info,
         >= 0.5)
       this->control_.WatchdogStop();
     cmd = this->control_.Step(now, newFrame && !useImg.empty(), useImg, useW,
-                              useH, js, watchdogNow);
+                              useH, js, watchdogNow, processedSeq);
   }
 
   // ---- 写入关节速度指令（每步写入，物理系统在 Update 中应用后清零）----
@@ -756,9 +756,27 @@ void GimbalController::PublishTelemetry(double _now, const JointSample &_js,
   {
     os << ",\"box_px\":null,\"box_norm\":null";
   }
-  os << "}";
+  const auto &miss = c.target_miss();
+  os << ",\"miss\":{\"valid\":" << (miss.valid ? "true" : "false");
+  if (miss.valid)
+  {
+    os << ",\"center_px\":[" << Num(miss.center_px[0], 2) << ","
+       << Num(miss.center_px[1], 2) << "]"
+       << ",\"offset_px\":[" << Num(miss.offset_px[0], 2) << ","
+       << Num(miss.offset_px[1], 2) << "]"
+       << ",\"offset_deg\":[" << Num(miss.offset_deg[0], 4) << ","
+       << Num(miss.offset_deg[1], 4) << "]"
+       << ",\"frame_seq\":";
+    if (miss.frame_seq >= 0)
+      os << miss.frame_seq;
+    else
+      os << "null";
+  }
+  else
+    os << ",\"center_px\":null,\"offset_px\":null,\"offset_deg\":null,\"frame_seq\":null";
+  os << "}}";
 
-  os << ",\"protocol_version\":4,\"angle_convention\":\"upright_joint\",\"singular\":" << (singular ? "true" : "false")
+  os << ",\"protocol_version\":5,\"angle_convention\":\"upright_joint\",\"singular\":" << (singular ? "true" : "false")
      << ",\"los_mount\":[" << Num(los.x, 6) << "," << Num(los.y, 6) << "," << Num(los.z, 6) << "]";
   const double positions[2] = {_js.yaw, _js.pitch}, velocities[2] = {_js.yaw_vel, _js.pitch_vel};
   const char *names[2] = {"yaw", "pitch"};

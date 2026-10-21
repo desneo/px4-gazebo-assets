@@ -194,8 +194,8 @@ def head_axes(ax, yaw_deg=0, pitch_deg=0):
     ry = rotation([0, 0, yaw])
     axis_arrow(ax, [0, 0, mount + 8], [0, 0, 1], 95, "#1e64b4", "yaw / +Z", (-30, 0, 0))
     center = np.array([0, 0, mount + 8]) + ry @ [15, 0, 48]
-    axis_arrow(ax, center, ry @ [0, 1, 0], 55, "#148050", "pitch / +Y′")
-    direction = ry @ rotation([0, np.deg2rad(pitch_deg), 0]) @ [0, 0, 1]
+    axis_arrow(ax, center, ry @ [0, -1, 0], 55, "#148050", "pitch / −Y′")
+    direction = ry @ rotation([0, -np.deg2rad(pitch_deg), 0]) @ [0, 0, 1]
     axis_arrow(ax, center, direction, 48, "#dc7722", "视线", (8, -5, 0))
     axis_arrow(ax, [0, 0, mount - 6], [1, 0, 0], 62, "#bd3434", "+X")
 
@@ -253,7 +253,7 @@ def head_detail(pieces, output_dir):
     draw(ax, pieces, limits, 25, -55, "头部斜视 · 轴向示意")
     head_axes(ax)
     fig.suptitle("顶部替换式安装  |  底环 Ø84 mm  /  机身最大 Ø90 mm  /  吊舱高 91 mm", fontsize=15, y=.96)
-    fig.text(.5, .10, f"yaw：绕机体 +Z；pitch：绕随 yaw 转动的 +Y′；零位镜头朝 +Z，正 pitch 转向 +X\n机尾 Z = {min_z:g} mm；整机最高点 Z = +{max_z:g} mm；所有尺寸单位为 mm", ha="center", fontsize=11)
+    fig.text(.5, .10, f"yaw：绕机体 +Z；pitch：绕随 yaw 转动的 −Y′；零位镜头朝 +Z，负 pitch 转向 +X\n机尾 Z = {min_z:g} mm；整机最高点 Z = +{max_z:g} mm；所有尺寸单位为 mm", ha="center", fontsize=11)
     fig.text(.5, .025, "由装配 SDF 实际几何生成的静态评审图（非 Gazebo 截图） · 坐标箭头为评审标注", ha="center", color="#5a6470", fontsize=10)
     fig.subplots_adjust(left=.01, right=.99, top=.90, bottom=.20, wspace=.03)
     save(fig, output_dir / "head_detail.png")
@@ -264,8 +264,8 @@ def pose_comparison(output_dir, model_path):
     mount = generator.dimensions()[1] * 1000
     max_z = generator.source_geometry()['max_z_m'] * 1000
     fig = plt.figure(figsize=(14, 13))
-    for index, (yaw, pitch, note) in enumerate([(0, 0, "朝 +Z"), (0, 90, "朝 +X"),
-                                              (45, 45, "朝 +X/+Y/+Z"), (0, -45, "朝 −X/+Z")], 1):
+    for index, (yaw, pitch, note) in enumerate([(0, 0, "朝 +Z"), (0, -90, "朝 +X"),
+                                              (45, -45, "朝 +X/+Y/+Z"), (0, 45, "朝 −X/+Z")], 1):
         sdf = generator.build_model(yaw_deg=yaw, pitch_deg=pitch)
         pieces = load_pieces(sdf, model_path)
         ax = fig.add_subplot(2, 2, index, projection="3d")
@@ -273,7 +273,7 @@ def pose_comparison(output_dir, model_path):
              f"yaw = {yaw}° / pitch = {pitch}°\n视线{note}", ticks=False)
         head_axes(ax, yaw, pitch)
     fig.suptitle("两轴机械角与视线对比  |  载机固定，吊舱真实几何随关节旋转", fontsize=15, y=.975)
-    fig.text(.5, .06, "yaw 范围 −90°～+90°；pitch 范围 −45°～+90°\npitch = 0° 时视线与 yaw 轴重合，yaw 改变相机滚转而不改变视线方向", ha="center", fontsize=11)
+    fig.text(.5, .06, "yaw 范围 −90°～+90°；pitch 范围 −90°～+45°\npitch = 0° 时视线与 yaw 轴重合，yaw 改变相机滚转而不改变视线方向", ha="center", fontsize=11)
     fig.text(.5, .025, "由装配生成器实际几何生成的静态评审图（非 Gazebo 截图） · 坐标箭头为评审标注", ha="center", color="#5a6470", fontsize=10)
     fig.subplots_adjust(left=.01, right=.99, top=.89, bottom=.12, wspace=.02, hspace=.18)
     save(fig, output_dir / "mechanical_poses.png")

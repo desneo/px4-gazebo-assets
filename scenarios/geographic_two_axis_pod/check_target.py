@@ -11,15 +11,25 @@ import subprocess
 import threading
 import time
 
+from prepare_world import target_model
+
 ROOT = Path(__file__).resolve().parents[2]
 WORLD = 'geographic_two_axis_pod'
-INITIAL = (30., 0., 70.)
+INITIAL_POSE = tuple(map(float, target_model().findtext('pose').split()))
+INITIAL = INITIAL_POSE[:3]
 HIDDEN_PANEL = (100., 100., 80.)
 
 
-def set_pose(name, xyz):
+def set_pose(name, xyz, rpy=(0., 0., 0.)):
     x,y,z=xyz
-    request=f'name: "{name}", position: {{x: {x}, y: {y}, z: {z}}}, orientation: {{w: 1}}'
+    roll,pitch,yaw=rpy
+    cr,sr=math.cos(roll/2),math.sin(roll/2)
+    cp,sp=math.cos(pitch/2),math.sin(pitch/2)
+    cy,sy=math.cos(yaw/2),math.sin(yaw/2)
+    qw,qx,qy,qz=(cr*cp*cy+sr*sp*sy,sr*cp*cy-cr*sp*sy,
+                 cr*sp*cy+sr*cp*sy,cr*cp*sy-sr*sp*cy)
+    request=(f'name: "{name}", position: {{x: {x}, y: {y}, z: {z}}}, '
+             f'orientation: {{w: {qw}, x: {qx}, y: {qy}, z: {qz}}}')
     result=subprocess.run(['gz','service','-s',f'/world/{WORLD}/set_pose',
         '--reqtype','gz.msgs.Pose','--reptype','gz.msgs.Boolean',
         '--timeout','5000','--req',request],capture_output=True,text=True,timeout=7,check=True)
@@ -106,8 +116,8 @@ class Session:
             t=json.loads(data);self.record('received',payload=t)
             if t.get('type')!='telemetry':continue
             self.latest=t;samples.append(t)
-            assert t['protocol_version']==4 and t['angle_convention']=='upright_joint','错误的吊舱协议'
-            assert -90.2<=t['joints_deg']['yaw']['pos']<=90.2 and -45.2<=t['joints_deg']['pitch']['pos']<=90.2,'机械限位越界'
+            assert t['protocol_version']==5 and t['angle_convention']=='upright_joint','错误的吊舱协议'
+            assert -90.2<=t['joints_deg']['yaw']['pos']<=90.2 and -90.2<=t['joints_deg']['pitch']['pos']<=45.2,'机械限位越界'
             if predicate and predicate(t):return samples
             if simulation:
                 if sim_start is None:sim_start=t['ts_mono']
@@ -118,14 +128,14 @@ class Session:
     def prepare(self):
         assert self.collect(40,lambda t:True),'没有收到遥测'
         self.drive();self.send('stop');set_pose('occlusion_panel',HIDDEN_PANEL)
-        set_pose('tracking_target',INITIAL)
+        set_pose('tracking_target',INITIAL,INITIAL_POSE[3:])
         self.send('reset')
         zero=lambda t:t['mode']=='IDLE' and all(
             abs(t['joints_deg'][a]['pos'])<.3 and abs(t['joints_deg'][a]['vel'])<.2
             for a in ('yaw','pitch'))
         samples=self.collect(25,zero)
         assert samples and zero(samples[-1]),'两轴回零未到位'
-        pitch=math.degrees(math.atan2(INITIAL[0]-.015,INITIAL[2]-50.056))
+        pitch=-math.degrees(math.atan2(INITIAL[0]-.015,INITIAL[2]-50.056))
         deadline=time.monotonic()+30
         while time.monotonic()<deadline:
             t=self.latest;j=t['joints_deg'];ep=pitch-j['pitch']['pos'];ey=-j['yaw']['pos']

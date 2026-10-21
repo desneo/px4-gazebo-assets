@@ -15,6 +15,7 @@ import threading
 import time
 import types
 import unittest
+from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[5]
@@ -109,6 +110,39 @@ class BridgeProtocolTests(unittest.TestCase):
         self.assertEqual(self.bridge._vision_mode, "off")
         self.assertEqual(self.published, [])
 
+    def test_explicit_off_stops_plugin_even_when_gateway_already_off(self):
+        self.assertEqual(self.bridge._vision_mode, 'off')
+        self.command(cmd='set_vision_mode', seq=1, mode='off')
+        self.assertEqual(self.published[-1]['cmd'], 'stop')
+        self.command(cmd='set_vision_mode', seq=2, mode='off')
+        self.assertEqual([item['cmd'] for item in self.published], ['stop', 'stop'])
+
+    def test_off_or_detect_reconciles_residual_track_with_rate_limited_retry(self):
+        message = types.SimpleNamespace(data=json.dumps({'mode': 'TRACK', 'tracking': {'state': 'TRACK'}}))
+        for mode in ('off', 'detect'):
+            self.bridge._vision_mode = mode
+            self.bridge._last_tracking_stop_at = -math.inf
+            self.published.clear()
+            for now, expected in ((10., 1), (10.1, 1), (10.3, 2)):
+                with mock.patch.object(time, 'monotonic', return_value=now):
+                    self.bridge._on_telemetry(message)
+                self.assertEqual(len(self.published), expected)
+            self.assertTrue(all(item['cmd'] == 'stop' for item in self.published))
+            self.assertEqual(self.bridge._latest_tel['mode'], 'TRACK')  # 不伪造插件已停车。
+            message_idle = types.SimpleNamespace(data=json.dumps({'mode': 'IDLE'}))
+            with mock.patch.object(time, 'monotonic', return_value=11.):
+                self.bridge._on_telemetry(message_idle)
+            self.assertEqual(len(self.published), 2)
+
+    def test_reconciliation_preserves_intended_tracking_manual_and_home(self):
+        for vision, mode in (('manual_track', 'TRACK'), ('auto_lock', 'TRACK'),
+                             ('off', 'MANUAL'), ('off', 'HOME'),
+                             ('detect', 'MANUAL'), ('detect', 'HOME')):
+            self.bridge._vision_mode = vision
+            message = types.SimpleNamespace(data=json.dumps({'mode': mode}))
+            self.bridge._on_telemetry(message)
+        self.assertEqual(self.published, [])
+
     def test_auto_lock_hands_selected_target_to_csrt_without_redetection(self):
         self.bridge._vision_mode = "auto_lock"
         self.bridge._locked_track_id = 7
@@ -174,7 +208,7 @@ class BridgeProtocolTests(unittest.TestCase):
         self.bridge._on_datagram(b'{"cmd":"ping","seq":1}', ("127.0.0.1", 12000))
         hello = self.sent[-2][1]
         self.assertEqual(hello["type"], "hello")
-        self.assertEqual(hello["version"], 4)
+        self.assertEqual(hello["version"], 5)
         self.assertEqual(hello["angle_convention"], "upright_joint")
 
     def test_duplicate_replays_result_without_second_execution(self):

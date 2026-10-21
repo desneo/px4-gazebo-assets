@@ -440,10 +440,10 @@
       <parent>yaw_arm_link</parent>
       <child>camera_link</child>
       <axis>
-        <xyz>0 1 0</xyz>
+        <xyz>0 -1 0</xyz>
         <limit>
-          <lower>-0.7853981633974483</lower>
-          <upper>1.5707963267948966</upper>
+          <lower>-1.5707963267948966</lower>
+          <upper>0.7853981633974483</upper>
           <effort>5</effort>
           <velocity>1.7453292519943295</velocity>
         </limit>
@@ -468,8 +468,8 @@
       <max_acc_dps2>160</max_acc_dps2>
       <yaw_min_deg>-90</yaw_min_deg>
       <yaw_max_deg>90</yaw_max_deg>
-      <pitch_min_deg>-45</pitch_min_deg>
-      <pitch_max_deg>90</pitch_max_deg>
+      <pitch_min_deg>-90</pitch_min_deg>
+      <pitch_max_deg>45</pitch_max_deg>
     </plugin>
   </model>
 </sdf>

@@ -15,6 +15,7 @@ class Client:
         self.sock.settimeout(.1)
         self.seq = 0
         self.telemetry = None
+        self.next_ping = 0.0
 
     def send(self, cmd, **extra):
         self.seq += 1
@@ -26,6 +27,10 @@ class Client:
         deadline = time.monotonic() + timeout
         next_retry = 0.0
         while time.monotonic() < deadline:
+            now = time.monotonic()
+            if now >= self.next_ping:
+                self.send('ping')
+                self.next_ping = now + 1.0
             if retry and time.monotonic() >= next_retry:
                 self.sock.sendto(json.dumps(retry).encode(), self.server)
                 next_retry = time.monotonic() + .2
@@ -71,6 +76,7 @@ def main():
     try:
         client.send('ping')
         hello = client.wait(lambda m: m.get('type') == 'hello', 5)
+        assert hello.get('version') == 5 and hello.get('angle_convention') == 'upright_joint', '两轴网关必须使用协议 5'
         capabilities = set(hello.get('capabilities') or [])
         required = {'vision_mode', 'server_video_overlay', 'auto_lock',
                     'frame_exact_track'}
@@ -91,6 +97,7 @@ def main():
             >= float((m.get('vision') or {}).get('input_fps', 0)) * .8,
             8)
         vision = detected['vision']
+        assert detected.get('protocol_version') == 5, '两轴插件必须使用协议 5'
         assert not vision.get('error'), vision
         input_fps = float(vision.get('input_fps', 0))
         output_fps = float(vision.get('output_fps', 0))

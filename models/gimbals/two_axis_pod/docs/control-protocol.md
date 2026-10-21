@@ -6,7 +6,7 @@
 
 - 一个客户端会话由源 IP 和源 UDP 端口共同标识。客户端必须使用同一个已绑定 socket 发送指令并接收 `hello`、遥测和回执；不能每条命令换一个临时源端口。
 - 第一个语法与命令名均有效的数据报登记会话。网关先发送 `hello`，随后处理该数据报；UDP 不保证接收顺序，客户端必须按 `type` 和 `seq` 分流，不能假设 `hello` 一定先于本次命令的响应到达。
-- `hello.version` 必须为 `4`，`hello.angle_convention` 必须为 `upright_joint`，`hello.aircraft_id` 必须与预期载机一致。控制端未完成这三项核验前只应发送 `ping/status/bye`，不得下发运动指令。
+- `hello.version` 必须为 `5`，`hello.angle_convention` 必须为 `upright_joint`，`hello.aircraft_id` 必须与预期载机一致。控制端未完成这三项核验前只应发送 `ping/status/bye`，不得下发运动指令。
 - 已登记客户端默认接收 50 Hz 遥测。任意有效命令均刷新会话；空闲客户端应以不超过 2 秒的周期发送 `ping`。默认连续 5 秒没有有效命令即注销，恢复时必须重新收到并核验 `hello`。
 - UDP 不保证到达、顺序或唯一性。可靠命令在超时后重发时必须逐字义保持同一 JSON 内容和同一 `seq`；收到对应结果后才分配下一项操作。连续手动速度流则为每个采样分配新的递增 `seq`，不重发旧速度。
 - JSON 数值必须有限，布尔值不视为数值。客户端接收缓冲区建议至少 64 KiB，并应忽略未知字段，以便协议向后兼容扩展。
@@ -16,13 +16,13 @@
 
 1. 创建并绑定 UDP socket，保持其源端口不变。
 2. 发送 `status` 或 `ping`，接收并核验 `hello`。
-3. 等待一条新鲜 `telemetry`，再次核验 `protocol_version=4`、`angle_convention=upright_joint` 和 `aircraft_id`。
+3. 等待一条新鲜 `telemetry`，再次核验 `protocol_version=5`、`angle_convention=upright_joint` 和 `aircraft_id`。
 4. 使用单调递增 `seq` 下发控制，并按下文的响应类型确认结果。
 5. 空闲时持续 `ping`；退出前发送 `manual(0,0)` 停车，再发送 `bye`。
 
 ## 角度
 
-遥测标识 `protocol_version=4`、`angle_convention=upright_joint`。yaw/pitch 为机械角，单位度；速度为度/秒，加速度为度/秒²。`attitude_deg` 与 `joints_deg` 均为两轴机械诊断对象，不是 PX4 FRD Euler 姿态。立装零位朝天，yaw 绕竖直 +Z，pitch 绕随动水平 +Y 且正值朝前。限位为 yaw ±90°、pitch −45°～+90°。
+遥测标识 `protocol_version=5`、`angle_convention=upright_joint`。yaw/pitch 为机械角，单位度；速度为度/秒，加速度为度/秒²。`attitude_deg` 与 `joints_deg` 均为两轴机械诊断对象，不是 PX4 FRD Euler 姿态。立装零位朝天，yaw 绕竖直 +Z，pitch 绕随动水平 −Y；pitch −90° 朝前、+45° 朝后上方。限位为 yaw ±90°、pitch −90°～+45°。俯仰位置、速度、加速度和指令使用同一方向，不能只对显示值或艾晟输出反号。模型插件、网关和控制端必须配套使用协议 5，不能混用其他版本的俯仰定义。
 
 不支持 roll，`manual` 中出现 roll 字段（即使为 0）和 `reset_axis` 指定 roll 均拒绝。客户端必须验证协议与角度约定，不能把本组件当作三轴组件发送角速度。
 
@@ -69,7 +69,7 @@
 典型响应如下；`message` 为空表示没有补充信息，失败时包含可直接显示的中文原因：
 
 ```json
-{"type":"hello","proto":"gimbal-udp","version":4,"angle_convention":"upright_joint","aircraft_id":1,"video_rtsp_path":"/two_axis_pod_1","capabilities":["vision_mode","server_video_overlay","auto_lock","frame_exact_track"]}
+{"type":"hello","proto":"gimbal-udp","version":5,"angle_convention":"upright_joint","aircraft_id":1,"video_rtsp_path":"/two_axis_pod_1","capabilities":["vision_mode","server_video_overlay","auto_lock","frame_exact_track"]}
 {"type":"pong","seq":10,"t":123.456}
 {"type":"command_result","cmd":"set_vision_mode","seq":11,"ok":true,"message":""}
 {"type":"command_result","cmd":"track","seq":12,"ok":false,"message":"无效选框或视频"}
@@ -138,10 +138,31 @@ close socket
 - `mount.quat_world`：安装参考系相对世界的四元数，顺序 wxyz；动态模式随载机变化。
 - `tracking.constraint`：`NONE`、`SINGULAR`（偏航视线退化）、`LIMITED`（机械限位）、`RATE_LIMITED`（速度输出饱和）。`tracking.state=TRACK` 表示图像跟踪器仍识别选框，不等于所有轴均可稳定指向；应同时检查中心误差、稳定性和约束。
 - `mode`：IDLE/MANUAL/HOME/TRACK；`tracking.state`、`target`、`stability`：跟踪状态、选框和中心误差。
+- `target.miss`：被跟踪目标的二维脱靶量，自动锁定交接后的 CSRT 和手动框选使用相同字段，定义如下。
 - `frame`、`frame_table`、`ts_wall`、`server_uptime`、`video`：供视频、时序和网关状态显示。`hello.video_rtsp_path` 上报完整 RTSP 路径；地面站按配置的前缀和飞机 ID 生成 URL，两端配置必须一致。
 - `vision.mode/state/target_count/locked_track_id/error`：当前互斥模式、检测/搜索/锁定状态、已确认目标数、锁定轨迹号和视觉错误。`inference_ms/input_fps/output_fps` 是模型推理和最新帧处理速率诊断。
 
 俯仰 0° 时偏航轴与视线方向平行，偏航仍可机械转动，球心和画面方向随支架变化，但无法改变镜头朝天方向。视觉伺服以阻尼最小二乘处理该处退化；机械可达范围与两轴结构约束仍然存在。视频断流时停止追踪速度，持续丢失后需重新选框。
+
+### 跟踪脱靶量
+
+像素坐标采用原始相机图像：左上角为原点，X 向右为正，Y 向下为正。`center_px=[cx,cy]` 为跟踪框中心的绝对像素坐标；`offset_px=[cx-W/2,cy-H/2]` 为相对画面中心的有符号脱靶量。界面缩放不改变这些数值。
+
+`offset_deg=[horizontal,vertical]` 是相对相机光轴的两分量角偏差，单位度，同样右、下为正；它不是机械 yaw/pitch 角度，也不是地理坐标偏差。当前相机为 60° 水平视场、方形像素，焦距 `f=W/(2*tan(60°/2))`；两分量为 `atan2(offset_px[i],f)*180/pi`，与控制器使用同一相机射线定义。`stability.center_err_deg` 保持原有无符号合成角误差定义。
+
+有效样例（1920×1080 图像）：
+
+```json
+{
+  "valid": true,
+  "center_px": [980, 550],
+  "offset_px": [20, 10],
+  "offset_deg": [0.6891, 0.3446],
+  "frame_seq": 1234
+}
+```
+
+上述对象位于 `target.miss`。`frame_seq` 标识产生该测量的图像帧；没有新图像且未到断帧超时时保留原测量和帧号。跟踪初始化、失败、TEMP_LOST、LOST、停止或断帧超时后，`valid=false`，`center_px`、`offset_px`、`offset_deg`、`frame_seq` 均为 `null`，不把最后一次误差标记为当前测量。只有目标检测而未交接单目标跟踪时没有有效脱靶量。插件 Gazebo 遥测、网关 station 遥测和额外状态副本均包含该字段。
 
 Gazebo 专用话题为 `/two_axis_pod/command`、`/two_axis_pod/telemetry` 和 `/two_axis_pod/command_result`，消息均为 `gz.msgs.StringMsg` 中的 JSON。插件执行结果携带 `cmd`、`ok`、`message` 与网关生成的 `request_id`。
 
@@ -149,9 +170,37 @@ Gazebo 专用话题为 `/two_axis_pod/command`、`/two_axis_pod/telemetry` 和 `
 
 ## 额外主动状态副本
 
-网关可通过独立 UDP socket 将上述遥测 JSON 额外发送到配置的 IP/端口。默认频率 20 Hz，可配置；station 原有默认 50 Hz 广播与控制会话保持独立。报文仍为 `type:"telemetry"`、协议 v4，沿用原字段，不添加外层封装。接收端无需 ping 或登记，不会收到 hello 或控制回执。
+网关可通过独立 UDP socket 将上述遥测 JSON 额外发送到配置的 IP/端口。默认频率 20 Hz，可配置；station 原有默认 50 Hz 广播与控制会话保持独立。报文仍为 `type:"telemetry"`、协议 v5，沿用原字段，不添加外层封装。接收端无需 ping 或登记，不会收到 hello 或控制回执。
 
 默认不开启，启用、目标地址和发送频率见[网关配置](../controller/service/README.md#额外-udp-json-状态上报)。尚无插件遥测或超过配置时效时暂停额外发送；接收端应按配置频率自行判断连续报文缺失。目标接收端口与 station 控制端口分别配置。
+
+### 地面站艾晟报文
+
+Linux/Windows 地面站右上角提供独立的 IP、端口输入框和“发送艾晟报文/停止发送”按钮。此功能在地面站本机执行，和网关 `status_udp.json` 的完整主动状态副本相互独立。每份来自已配置网关、已确认飞机身份的协议 5 `telemetry` 转换为一个 UTF-8 JSON 数据报；仅包含下表九个字段，不包含飞机 ID、帧表、时间戳、type 或外层封装。`hello`、`pong`、回执和指令不发送。
+
+| 字段 | 类型 | 发送数值与来源 |
+|---|---|---|
+| `track_status` | uint8 数值 | 视觉模式为 `manual_track`，或已确认 `AUTO_LOCKED` 且有锁定 ID 的 `auto_lock`；同时 `mode=TRACK`、`tracking.state=TRACK`、`target.valid=true`、`target.miss.valid=true` 且无视觉错误时为 1，其他为 0 |
+| `pitch_angle` | float32 数值 | `attitude_deg.pitch.pos × 100`，朝前为负，不额外反号 |
+| `yaw_angle` | float32 数值 | `attitude_deg.yaw.pos × 100` |
+| `pitch_misalignment` | float32 数值 | 有效时 `target.miss.offset_deg[1] × 100`，向下为正；无效为 0 |
+| `yaw_misalignment` | float32 数值 | 有效时 `target.miss.offset_deg[0] × 100`，向右为正；无效为 0 |
+| `tracking_confidence` | float32 数值 | 有效时 255.0，无效时 0.0；接收端乘 0.1 后为 25.5/0，仅表示有效性，不是真实概率或连续质量分 |
+| `target_confidence` | float32 数值 | 固定 80.0，不缩放，不随跟踪有效/丢失状态变化，不取自模型评分 |
+| `pitch_los_rate` | float32 数值 | `attitude_deg.pitch.vel × 100` |
+| `yaw_los_rate` | float32 数值 | `attitude_deg.yaw.vel × 100` |
+
+JSON 中发送数值而非二进制结构体，不进行 int16 量化；接收端对角度、脱靶角和角速度乘 0.01。丢失或未跟踪时仍发送当前机械角及机械角速度，脱靶角和 `tracking_confidence` 置零，`target_confidence` 始终为 80.0。`*_los_rate` 按接收约定承载现有机械轴角速度（度/秒），不是线速度，也不是独立估计的世界系目标视线角速度。非有限值、缺少有效机械角、有效跟踪却缺少角脱靶量、数值超出 float32 范围或协议不符时丢弃该包并显示转换错误，不发送 NaN/Infinity 或旧测量替代值。
+
+例如 pitch −56.37°、yaw 12.34°、垂直/水平脱靶 +0.5°/−0.25°、俯仰/偏航角速度 −1.23°/s、+2.34°/s：
+
+```json
+{"track_status":1,"pitch_angle":-5637.0,"yaw_angle":1234.0,"pitch_misalignment":50.0,"yaw_misalignment":-25.0,"tracking_confidence":255.0,"target_confidence":80.0,"pitch_los_rate":-123.0,"yaw_los_rate":234.0}
+```
+
+关闭视觉、仅检测、自动搜索/交接、未选框、初始化、临时/最终丢失和视觉错误均发送 `track_status=0`、`tracking_confidence=0.0`。即使插件暂时残留 TRACK 标志，也不能绕过视觉模式判定。网关在 off/detect 下发现插件仍处于 TRACK 时，每 0.25 秒最多发布一次停止，直到插件遥测实际退出 TRACK；不伪造插件停车状态，不干扰 MANUAL/HOME。显式再次关闭视觉仍会发布停止指令。
+
+发送频率跟随收到的 station 遥测，默认约 50 Hz。发送线程使用有界队列和非阻塞 socket，过载或发送失败时丢弃对应包，不阻塞图像/控制，不重发积压旧状态；没有新遥测就没有新副本。停止或退出地面站后停止发送。接收端无需登记或 ping；UDP 不保证到达。接收 IP/端口可直接单击编辑；发送中进入编辑会先暂停并清空待发队列，避免输入未完成的地址生效。修改完成后须点击“发送艾晟报文”才使用新地址并保存到 INI `[forward]`；Enter/Esc 不自动恢复发送，每次启动默认关闭发送。
 
 网关在 `hello` 和遥测中附加 `aircraft_id`（非负整数，默认 1）与 `video_rtsp_path`（例如 `/two_axis_pod_1`）。`hello.capabilities` 包含 `vision_mode`、`server_video_overlay`、`auto_lock` 和 `frame_exact_track`。同机多路共用 RTSP 8555，按路径末尾的飞机 ID 区分；ID 不改变机械角度语义，UDP 控制仍使用各机独立端口。详见[多机视频配置](../controller/service/README.md#多机共享-rtsp)。
 

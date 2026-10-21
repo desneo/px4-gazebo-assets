@@ -29,7 +29,7 @@ class ModelTest(unittest.TestCase):
         self.assertEqual(len(joints),2)
         for name, parent, child, axis, limits in [
             ('yaw_joint','mount_link','yaw_arm_link','0 0 1',(-90,90)),
-            ('pitch_joint','yaw_arm_link','camera_link','0 1 0',(-45,90))]:
+            ('pitch_joint','yaw_arm_link','camera_link','0 -1 0',(-90,45))]:
             j=self.model.find(f"joint[@name='{name}']")
             self.assertEqual(j.findtext('parent'),parent)
             self.assertEqual(j.findtext('child'),child)
@@ -43,8 +43,8 @@ class ModelTest(unittest.TestCase):
         roll,pitch,yaw=pose[3:]
         optical=matmul(rot('z',yaw),matmul(rot('y',pitch),rot('x',roll)))
         # 从实际SDF光学姿态计算，而非只验证公式本身。
-        for a,p,expected in [(0,0,(0,0,1)),(0,90,(1,0,0)),(90,0,(0,0,1)),(-90,0,(0,0,1)),(0,-45,(-2**-.5,0,2**-.5)),(90,90,(0,1,0))]:
-            r=matmul(rot('z',math.radians(a)),matmul(rot('y',math.radians(p)),optical))
+        for a,p,expected in [(0,0,(0,0,1)),(0,-90,(1,0,0)),(90,0,(0,0,1)),(-90,0,(0,0,1)),(0,45,(-2**-.5,0,2**-.5)),(90,-90,(0,1,0))]:
+            r=matmul(rot('z',math.radians(a)),matmul(rot('y',-math.radians(p)),optical))
             for i in range(3): self.assertAlmostEqual(r[i][0],expected[i],places=8)
 
     def test_generation_and_demo(self):

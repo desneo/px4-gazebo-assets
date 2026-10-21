@@ -7,7 +7,7 @@
   "camera_center_m": [0.015, 0, 0.056],
   "mounting_holes": {"count": 6, "thread_diameter_m": 0.003, "circle_diameter_m": 0.068},
   "yaw_limits_deg": [-90, 90],
-  "pitch_limits_deg": [-45, 90],
+  "pitch_limits_deg": [-90, 45],
   "max_rate_dps": 100,
   "max_acc_dps2": 160,
   "camera": {"width": 1920, "height": 1080, "fps": 30, "hfov_deg": 60, "near_m": 0.05, "far_m": 30000}

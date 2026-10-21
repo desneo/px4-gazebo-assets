@@ -125,6 +125,13 @@ def check_output(output, manifest):
                 for key in ('command', 'telemetry', 'command_result'):
                     dynamic.set_text(expected, key + '_topic', manifest['topic_prefix'] + '/' + key)
             assert canonical(model.find(f"plugin[@name='{original.get('name')}']")) == canonical(expected)
+    # 同时校验对外机械角约定，不能只依赖源资产相等而漏掉轴方向回归。
+    for name, axis in (('yaw_joint', '0 0 1'), ('pitch_joint', '0 -1 0')):
+        joint = model.find(f"joint[@name='{name}']")
+        assert joint.findtext('axis/xyz') == axis
+    pitch_limit = model.find("joint[@name='pitch_joint']/axis/limit")
+    assert math.isclose(scalar(pitch_limit, 'lower'), math.radians(-90), abs_tol=1e-12)
+    assert math.isclose(scalar(pitch_limit, 'upper'), math.radians(45), abs_tol=1e-12)
     total = 0.
     for link in links.values():
         inertial = link.find('inertial')
@@ -247,7 +254,7 @@ def main():
                 raise AssertionError('源目录覆盖未被拒绝')
     assert before == dynamic.source_fingerprints(), '基础组件被修改'
     assert static_hash == hashlib.sha256(static_path.read_bytes()).hexdigest(), '静态造型被覆盖'
-    print(f'动态装配验证通过：12 links，11 joints，总质量 {total:.9f} kg；原生惯性/PX4继承、接口完整、生成确定、源资产不变。')
+    print(f'动态装配验证通过：12 links，11 joints，yaw +Z / pitch -Y，总质量 {total:.9f} kg；原生惯性/PX4继承、接口完整、生成确定、源资产不变。')
 
 
 if __name__ == '__main__':

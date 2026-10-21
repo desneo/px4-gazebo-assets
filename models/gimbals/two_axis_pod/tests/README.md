@@ -18,9 +18,23 @@ gz sdf -k models/gimbals/two_axis_pod/model.sdf
 gz sdf -k models/gimbals/two_axis_pod/tests/world.sdf
 ```
 
-网络与地面站测试包含 95 项。其中 `ground_station/tests/test_config.py` 验证带注释 INI 的类型读取和对 JSON 配置的拒绝；`test_status_udp.py` 使用本机 UDP 回环验证额外状态输出：配置读取和覆盖、默认关闭、20 Hz 独立发送、原 station 50 Hz 遥测与 ping、字段完整保留、遥测过期暂停、发送异常恢复、关闭额外输出后 station 继续工作；`test_windows.py` 验证 Windows 配置、视频帧处理、D3D11 硬解打开参数以及拒绝软件解码回退。不会向外部 IP 发送测试数据。
+网络与地面站测试包含 112 项。其中 `ground_station/tests/test_config.py` 验证带注释 INI 的类型读取和对 JSON 配置的拒绝；`test_status_udp.py` 使用本机 UDP 回环验证额外完整状态输出：配置读取和覆盖、默认关闭、20 Hz 独立发送、原 station 50 Hz 遥测与 ping、字段完整保留、遥测过期暂停、发送异常恢复、关闭额外输出后 station 继续工作；`test_windows.py` 验证 Windows 配置、视频帧处理、D3D11 硬解打开参数以及拒绝软件解码回退。不会向外部 IP 发送测试数据。
+
+`test_protocol.py` 另验证重复关闭视觉的停止、网关在 off/detect 下限频清理遗留 TRACK，且不影响人工转动和回零。
 
 `test_lifecycle.py` 检查同仓库/端口/飞机 ID 匹配、远端网关隔离、PID 复用保护，以及真实后台进程忽略 SIGINT 时的有界 SIGTERM 停止。
+
+`test_forward.py` 使用本机真实 UDP 检查艾晟仅九字段输出、关闭视觉/检测/搜索与残留 TRACK 矛盾时清零、自动/手动有效性切换、角度/速度倍率、右下为正的脱靶量、无效状态清零、非法值/旧协议拒绝及发送恢复、身份与来源过滤、停止/重启不重发旧状态、IP/端口校验、发送中点击编辑自动暂停且修改后仅发往新端口、INI 注释保留、输入焦点屏蔽云台快捷键和脱靶量过期显示。`test_client.py` 验证协议 5 门禁，缺少遥测版本或版本为 4 时不允许角度控制。CTest 验证负俯仰朝前、图像 Jacobian 与载机补偿、脱靶量中心/四象限、测量帧号、初始化/停止/遮挡/断帧超时失效及重捕获。
+
+实窗自测需先启动独立两轴飞机靶标场景并将相机对准默认靶标，使用单独的 Station INI。该自测会切换到手动框选并发起一次跟踪，仅用于隔离验收；转发接收端须配置为本机回环地址：
+
+```bash
+.venv-linux/bin/python models/gimbals/two_axis_pod/ground_station/tests/check_forward_live.py \
+  --config runs/two_axis_forward_acceptance/station.ini \
+  --output runs/two_axis_forward_acceptance/forward_check
+```
+
+自测执行实际输入/点击发送、停止与重启，逐包比对艾晟转换结果，验证朝前角度为负、有效/无效输出及原始框中心和角偏差，结果与截图保存在输出目录。只允许回环目标地址，勿覆盖实际接收地址；需要时为自测另建 INI。
 
 ## 在线验证
 

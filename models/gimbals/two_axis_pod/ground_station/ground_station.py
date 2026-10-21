@@ -57,6 +57,7 @@ except Exception as _exc:  # noqa: BLE001 - 供 selftest 在无 GStreamer 时也
 # 本程序自包含：stamp.py 与主程序同目录，直接导入（不 import server/）
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from stamp import decode_stamp_from_bgr  # noqa: E402
+from telemetry_forward import TelemetryForwarder, ForwardInputs, endpoint, save_destination  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_CONFIG = os.path.join(HERE, "config.ini")
@@ -123,9 +124,15 @@ DEFAULT_CONFIG_VALUES = {
     "bridge_topic_prefix": "/two_axis_pod",
     "bridge_image_topic": "",
     "bridge_gz_partition": "",
+    "forward_ip": "127.0.0.1",
+    "forward_port": 9000,
 }
 
 INI_CONFIG_FIELDS = {
+    "forward": {
+        "ip": ("forward_ip", str),
+        "port": ("forward_port", int),
+    },
     "bridge": {
         "manage": ("bridge_manage", bool),
         "world": ("bridge_world", str),
@@ -399,7 +406,8 @@ class UdpClient(threading.Thread):
             hello = self.hello or {}
             tele = self.telemetry or {}
             fresh = time.monotonic() - getattr(self, "last_telemetry_mono", 0.0) <= self.client_timeout
-            return bool(self.identity_ready and fresh and type(hello.get("version")) is int and hello.get("version") == 4
+            return bool(self.identity_ready and fresh and type(hello.get("version")) is int and hello.get("version") == 5
+                        and type(tele.get("protocol_version")) is int and tele.get("protocol_version") == 5
                         and hello.get("angle_convention") == "upright_joint"
                         and tele.get("angle_convention") == "upright_joint"
                         and self._valid_attitude(tele.get("attitude_deg")))
@@ -624,6 +632,9 @@ class UdpClient(threading.Thread):
                 if len(self.frame_t0) > 3000:
                     for k in sorted(self.frame_t0)[:-1500]:
                         self.frame_t0.pop(k, None)
+            callback = getattr(self, "on_telemetry", None)
+            if callback is not None and self.identity_ready:
+                callback(data)
         elif mtype == "hello":
             with self.lock:
                 self.hello = msg
@@ -872,6 +883,13 @@ class GroundStation:
             retry_max=int(cfg.get("retry_max", 5)),
             aircraft_id=cfg.get("aircraft_id", 1))
         self.manual = ManualController(self.tele)
+        self.forwarder = TelemetryForwarder()
+        self.tele.on_telemetry = self.forwarder.offer
+        self.forward_inputs = ForwardInputs(cfg.get("forward_ip", "127.0.0.1"),
+                                            cfg.get("forward_port", 9000))
+        self.forward_note = "未发送"
+        self._forward_pointer = False
+        self._forward_pressed = False
         self.pipeline = None
         self.sink = None
         self.decoder = None
@@ -1050,6 +1068,8 @@ class GroundStation:
         return None
 
     def on_mouse(self, event, x, y, flags, param):
+        if self._forward_mouse(event, x, y):
+            return
         if event == cv2.EVENT_LBUTTONDOWN:
             hit = self._joystick_at(x, y)
             if hit:
@@ -1209,6 +1229,132 @@ class GroundStation:
             self.last_cmd = "人工控制：已退出目标跟踪"
 
     # ------------------------------------------------------------- ui
+    def _forward_geometry(self):
+        width = min(416, max(300, self.display_size[0] - 16))
+        x = max(8, self.display_size[0] - width - 12)
+        ip_width = width - 232
+        return {"ip": (x, 92, ip_width, 32),
+                "port": (x + ip_width + 6, 92, 64, 32),
+                "toggle": (x + ip_width + 76, 92, 156, 32)}
+
+    @staticmethod
+    def _inside(rect, x, y):
+        return rect[0] <= x < rect[0] + rect[2] and rect[1] <= y < rect[1] + rect[3]
+
+    def _forward_mouse(self, event, x, y):
+        if not hasattr(self, "forward_inputs"):
+            return False
+        geometry = self._forward_geometry()
+        if event == cv2.EVENT_LBUTTONDOWN:
+            hit = next((name for name, rect in geometry.items() if self._inside(rect, x, y)), None)
+            self.forward_inputs.focus = None
+            if hit is None:
+                return False
+            self._release_joystick()
+            self._forward_pointer = True
+            self._forward_pressed = hit == "toggle"
+            if hit in ("ip", "port"):
+                self._pause_forward_for_edit()
+                self.forward_inputs.activate(hit)
+            return True
+        if event == cv2.EVENT_LBUTTONUP and self._forward_pointer:
+            self._forward_pointer = False
+            pressed, self._forward_pressed = self._forward_pressed, False
+            if pressed and self._inside(geometry["toggle"], x, y):
+                self._toggle_forward()
+            return True
+        return event == cv2.EVENT_MOUSEMOVE and self._forward_pointer
+
+    def _pause_forward_for_edit(self):
+        if self.forwarder.snapshot()["active"]:
+            self.forwarder.stop()
+            self.forward_note = "已暂停，修改后点击发送"
+
+    def _handle_forward_key(self, key):
+        inputs = getattr(self, "forward_inputs", None)
+        if inputs is not None and inputs.focus is not None and key not in (-1, 0):
+            self._pause_forward_for_edit()
+        return inputs.key(key) if inputs is not None else False
+
+    def _toggle_forward(self):
+        self.forward_inputs.focus = None
+        if self.forwarder.snapshot()["active"]:
+            self.forwarder.stop()
+            self.forward_note = "已停止发送"
+            return
+        try:
+            if not self.tele.public_angles_ready:
+                raise ValueError("请等待两轴协议 5 的有效姿态")
+            ip, port = endpoint(self.forward_inputs.values["ip"], self.forward_inputs.values["port"])
+            if (ip, port) == self.tele.target:
+                raise ValueError("接收端不能是吊舱网关控制端口")
+            self.forwarder.start(ip, port)
+            self.forward_inputs.values.update(ip=ip, port=str(port))
+            self.cfg.update(forward_ip=ip, forward_port=port)
+            self.forward_note = "等待新遥测"
+            try:
+                save_destination(self.args.config, ip, port)
+            except OSError as exc:
+                self.forward_note = "已发送；地址保存失败"
+                print(f"[forward] 地址保存失败: {exc}", flush=True)
+        except (ValueError, OSError) as exc:
+            self.forward_note = str(exc)
+
+    def _draw_forward_panel(self, disp):
+        if not hasattr(self, "forward_inputs"):
+            return
+        geometry = self._forward_geometry()
+        status = self.forwarder.snapshot()
+        for name, rect in geometry.items():
+            x, y, width, height = rect
+            active = self.forward_inputs.focus == name
+            bg = (0, 110, 0) if name == "toggle" and status["active"] else (35, 35, 35)
+            cv2.rectangle(disp, (x, y), (x + width, y + height), bg, -1)
+            cv2.rectangle(disp, (x, y), (x + width, y + height),
+                          (0, 230, 255) if active else (190, 190, 190), 1)
+            if name != "toggle":
+                value = self.forward_inputs.values[name]
+                visible = value[-max(5, (width - 12) // 10):]
+                color = (0, 230, 255) if active and self.forward_inputs.selected else (255, 255, 255)
+                cv2.putText(disp, visible + ("|" if active and not self.forward_inputs.selected else ""),
+                            (x + 5, y + 22), cv2.FONT_HERSHEY_SIMPLEX, .5, color, 1, cv2.LINE_AA)
+        x = geometry["ip"][0]
+        note = status["error"] or (f"发送中 {status['sent']} 包" if status["active"] and status["sent"] else self.forward_note)
+        if status["active"] and self.forward_note == "已发送；地址保存失败":
+            note = self.forward_note
+        if status["active"] and (not self.tele.identity_ready
+                                 or time.monotonic() - self.tele.last_telemetry_mono > 1):
+            note = "等待有效新遥测"
+        labels = [(geometry["toggle"][0] + 8, 94,
+                   "停止发送" if status["active"] else "发送艾晟报文"),
+                  (x, 130, note)]
+        # 只绘制小区域，避免覆盖左侧姿态和脱靶量文字。
+        if self.font is not None:
+            pil = Image.fromarray(cv2.cvtColor(disp[64:159, x:], cv2.COLOR_BGR2RGB))
+            painter = ImageDraw.Draw(pil)
+            small_font = self.font.font_variant(size=18)
+            for px, py, label in labels:
+                painter.text((px - x, py - 64), label, font=small_font,
+                             fill=(255, 150, 60) if status["error"] else (245, 245, 245))
+            disp[64:159, x:] = cv2.cvtColor(np.asarray(pil), cv2.COLOR_RGB2BGR)
+        else:
+            rect = geometry["toggle"]
+            cv2.putText(disp, "STOP" if status["active"] else "SEND", (rect[0]+12, 114), cv2.FONT_HERSHEY_SIMPLEX, .5, (255,255,255), 1)
+
+    @staticmethod
+    def _miss_lines(tele, fresh):
+        target = (tele or {}).get("target") or {}
+        miss = target.get("miss") or {}
+        if not fresh or not target.get("valid") or not miss.get("valid"):
+            return ["脱靶量: 无效（无新鲜有效跟踪目标）"]
+        pixel, angle = miss.get("offset_px"), miss.get("offset_deg")
+        if (not isinstance(pixel, list) or len(pixel) != 2
+                or not isinstance(angle, list) or len(angle) != 2
+                or not all(type(v) in (float, int) and math.isfinite(v) for v in pixel + angle)):
+            return ["脱靶量: 不可用"]
+        return [f"脱靶量 px: X {pixel[0]:+.1f}  Y {pixel[1]:+.1f}",
+                f"脱靶量 °:  X {angle[0]:+.3f}  Y {angle[1]:+.3f}（右/下为正）"]
+
     def draw(self, frame, tele):
         w, h = self.frame_size
         disp = frame
@@ -1297,6 +1443,10 @@ class GroundStation:
                 f"输入/输出 {metric('input_fps'):.1f}/{metric('output_fps'):.1f} fps"
             )
             colors.append((0, 255, 0) if not vision.get("error") else (0, 0, 255))
+            miss_lines = self._miss_lines(tele, st["connected"]
+                                          and time.monotonic() - self.tele.last_telemetry_mono <= 1)
+            lines.extend(miss_lines)
+            colors.extend([(0, 255, 255)] * len(miss_lines))
             if vision.get("error"):
                 lines.append(f"视觉错误: {vision['error']}")
                 colors.append((0, 0, 255))
@@ -1418,6 +1568,7 @@ class GroundStation:
                             cv2.FONT_HERSHEY_SIMPLEX, 0.38, (255, 255, 255), 1, cv2.LINE_AA)
             for label, rect, cmd, extra in axis_buttons:
                 cv2.putText(disp, extra["axis"].upper() + " RESET", (rect[0] + 6, rect[1] + 23), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (255, 255, 255), 1, cv2.LINE_AA)
+        self._draw_forward_panel(disp)
         return disp
 
     def _vision_mode_buttons(self):
@@ -1502,6 +1653,8 @@ class GroundStation:
                 visible = 0
             if visible < 1:
                 break
+            if self._handle_forward_key(key):
+                continue
             if key == 27:  # ESC
                 break
             elif key in (ord('s'), ord('S')):
@@ -1533,6 +1686,9 @@ class GroundStation:
             return
         self._shutdown_done = True
         self._stop = True
+        forwarder = getattr(self, "forwarder", None)
+        if forwarder is not None:
+            forwarder.close()
         self._release_joystick()
         self.pointer_guard.close()
         try:

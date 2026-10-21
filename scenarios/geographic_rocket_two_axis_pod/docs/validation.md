@@ -2,7 +2,9 @@
 
 当前静态装配总高590 mm、包络z=-0.210～+0.380 m，吊舱零旋转安装面z=0.289 m、肩部起点z=0.277 m。基础机质量4.76 kg、重心z=+0.030 m，另加0.24 kg吊舱得到组合质量5.00 kg；动态CA/EKF位置和组件自验证真值均使用组合零关节固定名义重心参考。
 
-组合CA/EKF位置已从基础机重心平移到固定零关节名义重心 `(0.000204,0,0.043856) m` FLU，组件自验证的真值测量支持也已实现。4.76 kg单机与5.00 kg组合均已通过各自完整组件飞行；本地理场景往返、视频和目标跟踪尚未重新验证，见[装配状态](../../../assembledmodels/rocket_two_axis_pod/docs/validation.md)。
+组合CA/EKF位置已从基础机重心平移到固定零关节名义重心 `(0.000204,0,0.043856) m` FLU，组件自验证的真值测量支持也已实现。4.76 kg基础单机当前完整飞行通过，5.00 kg组合保留归档配置的完整组件飞行证据；当前采用两轴协议v5，俯仰绕随动−Y、−90°朝安装+X、0°朝安装+Z、范围−90°～+45°，运动链为 `Rz(yaw) Ry(-pitch)`。当前合并源指纹的组合组件完整飞行，以及本地理场景往返、视频和目标跟踪尚未重新验证，见[装配状态](../../../assembledmodels/rocket_two_axis_pod/docs/validation.md)。
+
+配套Station支持9字段艾晟JSON转换输出，框架角使用当前机械角，脱靶量保持右、下正；该能力的组件验证与本地理飞行/视频验收分别记录，不能互相替代。字段定义见[地面站说明](../../../models/gimbals/two_axis_pod/ground_station/README.md)。
 
 ## 判定与复测范围
 
@@ -24,6 +26,8 @@
 - [低速单机参考摘要](baseline_validation.json)、[低速原始记录](../tests/results/baseline_flight.json.gz)：其质量和解锁怠速等配置与当前基础机不同，也不能作为当前通过证据。
 
 当前4.76 kg基础单机已通过30 s悬停、200 km/h连续30.012 s巡航、300 km/h连续10.000 s冲刺及落地停机，见[基础结果](../../../models/vehicles/rocket_racing_quad/docs/validation.md)。最高稳定速度另由[速度场景](../../rocket_speed_comparison/README.md)专门验收；组件飞行不替代地理往返或视频跟踪复测。
+
+当前角度定义的离线回归入口：`python3 -m unittest discover -s scenarios/geographic_rocket_two_axis_pod -p 'test_*.py'`。离线运动学、目标可达性和投影检查不构成完整PX4在线往返与图像跟踪通过证据。
 
 ## 复现与证据要求
 

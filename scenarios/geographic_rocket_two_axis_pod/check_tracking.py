@@ -63,7 +63,8 @@ def mm(a, b):
 
 
 def joints_rotation(yaw, pitch):
-    y, p = math.radians(yaw), math.radians(pitch)
+    """机械关节链 Rz(yaw) Ry(-pitch)，负俯仰朝安装 +X。"""
+    y, p = math.radians(yaw), -math.radians(pitch)
     cy, sy, cp, sp = math.cos(y), math.sin(y), math.cos(p), math.sin(p)
     return ((cy*cp, -sy, cy*sp), (sy*cp, cy, sy*sp), (-sp, 0., cp))
 
@@ -144,11 +145,11 @@ def camera_pose(pose, telemetry):
 def reachable_angles(pose, target):
     body = rotation(pose['quaternion'])
     vector = mv(transpose(body), sub(target, pose['position']))
-    pitch = math.degrees(math.atan2(math.hypot(vector[0], vector[1]), vector[2]))
+    pitch = -math.degrees(math.atan2(math.hypot(vector[0], vector[1]), vector[2]))
     yaw = math.degrees(math.atan2(vector[1], vector[0]))
     candidates = [(yaw, pitch), (wrap_deg(yaw + 180), -pitch)]
     for y, p in candidates:
-        if -90 <= y <= 90 and -45 <= p <= 90:
+        if -90 <= y <= 90 and -90 <= p <= 45:
             return dict(reachable=True, yaw=y, pitch=p, singular=abs(p) < 3)
     return dict(reachable=False, yaw=yaw, pitch=pitch, singular=False)
 
@@ -345,8 +346,8 @@ class Session:
                 poses = list(self.poses)
             if t is None or not poses or self.matched(t) is None:
                 continue
-            if t.get('protocol_version') != 4 or t.get('angle_convention') != 'upright_joint':
-                raise AssertionError('需要两轴 v4 upright_joint 遥测')
+            if t.get('protocol_version') != 5 or t.get('angle_convention') != 'upright_joint':
+                raise AssertionError('需要两轴 v5 upright_joint 遥测')
             if t.get('mount', {}).get('static') is not False:
                 raise AssertionError('动态载机姿态补偿未开启')
             if not stable_cruise(poses, self.args.altitude, self.args.cruise_speed):
@@ -534,7 +535,7 @@ class Session:
                     self.save_snapshot(f'frame_{len(samples):06d}.png', image, t, pose, frame_joints)
                     last_snapshot = row['stamp']
                     seen_states.add(state)
-                if not -90.25 <= t['joints_deg']['yaw']['pos'] <= 90.25 or not -45.25 <= t['joints_deg']['pitch']['pos'] <= 90.25:
+                if not -90.25 <= t['joints_deg']['yaw']['pos'] <= 90.25 or not -90.25 <= t['joints_deg']['pitch']['pos'] <= 45.25:
                     raise AssertionError('实际关节角超出机械限位')
             sim_elapsed = latest['frame']['sim_stamp']-start_sim
             wall_elapsed = time.monotonic()-start_wall

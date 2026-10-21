@@ -1,6 +1,6 @@
 # 火箭穿越机与顶部两轴吊舱
 
-总长590 mm的火箭机与顶部两轴吊舱组合，吊舱替换机头顶部91 mm，各同名轴对齐。当前5.00 kg动态组合已通过完整无风组件世界飞行自验证，真值与CA/EKF均参考固定零关节名义重心。组合静态外形仍待人工确认；入库 `model.sdf`为静态造型评审模型。
+总长590 mm的火箭机与顶部两轴吊舱组合，吊舱替换机头顶部91 mm，各同名轴对齐。5.00 kg动态组合保留完整无风组件世界飞行自验证记录，真值与CA/EKF均参考固定零关节名义重心；当前协议v5合并源指纹的完整飞行尚待复测。组合静态外形仍待人工确认；入库 `model.sdf`为静态造型评审模型。
 
 ## 外形与装配
 
@@ -14,9 +14,9 @@
 
 ## 两轴方向
 
-外轴 yaw 绕组合模型 +Z，即火箭机纵轴，正值从 +X 转向 +Y；内轴 pitch 绕随 yaw 转动的局部 +Y，正值使镜头从 +Z 转向局部 +X。yaw 范围 ±90°，pitch 范围 −45°～+90°。
+外轴 yaw 绕组合模型 +Z，即火箭机纵轴，正值从 +X 转向 +Y；内轴 pitch 绕随 yaw 转动的局部 −Y，负值使镜头从 +Z 转向局部 +X。yaw 范围 ±90°，pitch 范围 −90°～+45°。
 
-零位镜头朝机头+Z，pitch=+90°时转向随yaw旋转的+X侧方，方向为 `(cos(yaw)sin(pitch),sin(yaw)sin(pitch),cos(pitch))`。pitch=0°时镜头方向与外轴平行，yaw不改变视线方向。静态预览将机械姿态写入视觉位姿；相机球心在吊舱局部为 `(15,0,56) mm`，零位组合坐标为 `(15,0,345) mm`。
+零位镜头朝机头+Z，pitch=−90°时转向随yaw旋转的+X侧方，方向为 `(-cos(yaw)sin(pitch),-sin(yaw)sin(pitch),cos(pitch))`，运动链为 `Rz(yaw) Ry(-pitch)`。pitch=0°时镜头方向与外轴平行，yaw不改变视线方向。机体倾转后安装轴随机体变化，不等于世界偏航、俯仰轴；模型、插件、网关和地面站均使用协议v5。静态预览将机械姿态写入视觉位姿；相机球心在吊舱局部为 `(15,0,56) mm`，零位组合坐标为 `(15,0,345) mm`。
 
 ## 造型预览
 
@@ -27,17 +27,17 @@
 sh assembledmodels/rocket_two_axis_pod/tests/run.sh overall
 
 # 吊舱近景；镜头侧向 +X，方便检查支架与罩壳
-sh assembledmodels/rocket_two_axis_pod/tests/run.sh close 0 90
+sh assembledmodels/rocket_two_axis_pod/tests/run.sh close 0 -90
 
-# 组合姿态 yaw=45°、pitch=45°；或改为 close 0 -45 检查另一俯仰端点
-sh assembledmodels/rocket_two_axis_pod/tests/run.sh close 45 45
+# 组合姿态 yaw=45°、pitch=-45°；或改为 close 0 45 检查另一俯仰端点
+sh assembledmodels/rocket_two_axis_pod/tests/run.sh close 45 -45
 
 # 重新生成入库的零位造型与评审图
 python3 assembledmodels/rocket_two_axis_pod/tools/generate_model.py
 python3 assembledmodels/rocket_two_axis_pod/tools/render_views.py --poses
 
-# 原生资产继承、裁切网格与预览配置检查
-python3 assembledmodels/rocket_two_axis_pod/tests/test_appearance.py
+# 原生资产继承、裁切网格、预览配置与机械角检查
+python3 -m unittest discover -s assembledmodels/rocket_two_axis_pod/tests -p 'test_*.py'
 ```
 
 启动器每次生成独立 `/tmp/rocket-two-axis-pod.*`运行副本和Gazebo分区。整机实体 `ROCKET_TWO_AXIS_POD`位于 `(0,0,0.225) m`，尾端离地15 mm；安装面世界z=0.514 m、最高点z=0.605 m，零位相机球心世界坐标 `(0.015,0,0.570) m`。橙色无碰撞定位箭头 `ROCKET_POD_LOCATION_MARKER`位于-X侧，箭杆中心 `(-0.20,0,0.55) m`。预览模型本身也无碰撞体；实体树聚焦或 `close`入口可观察吊舱。
@@ -85,7 +85,7 @@ python3 assembledmodels/rocket_two_axis_pod/tools/check_dynamic_model.py
 
 ## 完整飞行自验证
 
-完整飞行入口使用实际运行快照、对应世界/实体与固定名义重心测量声明。当前5.00 kg配置已完成30 s悬停、200 km/h连续30.000 s巡航、300 km/h连续10.008 s冲刺及落地停机，结果见[完整验证](docs/validation.md)。严格门槛与[基础自验证](../../models/vehicles/rocket_racing_quad/tests/README.md)一致。
+完整飞行入口使用实际运行快照、对应世界/实体与固定名义重心测量声明。所附5.00 kg配置记录完成30 s悬停、200 km/h连续30.000 s巡航、300 km/h连续10.008 s冲刺及落地停机；当前协议v5合并源指纹尚待完整飞行复测，既有结果见[完整验证](docs/validation.md)。严格门槛与[基础自验证](../../models/vehicles/rocket_racing_quad/tests/README.md)一致。
 
 ```bash
 # 默认 headless、PX4 instance0，结果写入本次运行目录的 flight.json
@@ -103,6 +103,8 @@ PX4_INSTANCE=1 \
 
 此入口验证组件世界中的飞行。该世界包含惯性导航等物理传感器系统，没有加载图像渲染的 `Sensors` 系统，未在此入口重验视频、地面站或目标跟踪。完整地理场景的飞行与视频跟踪需要独立证据。
 
+配套地面站可发送仅含9个转换字段的艾晟UDP JSON，框架角直接采用上述机械角，朝前俯仰值为负；网关独立状态输出仍为完整原始遥测。发送、倍率及字段定义见[地面站说明](../../models/gimbals/two_axis_pod/ground_station/README.md)。
+
 ## 多机接入
 
 每架载机的吊舱分别配置飞机ID、UDP控制/遥测端口及RTSP URL；同机可共用RTSP 8555，通过 `/two_axis_pod_<aircraft_id>` 路径区分。控制端口由网关启动配置显式指定，不随飞机ID自动改变。逐机地址表、地面站连接示例和PX4实例隔离要求见[多机集成说明](../../scenarios/geographic_rocket_two_axis_pod/README.md#多机集成的地址与端口对应)。
@@ -111,10 +113,10 @@ PX4_INSTANCE=1 \
 
 ## 验证范围
 
-当前静态装配为35个visual、无碰撞体，包络z=-0.210～+0.380 m，安装面z=0.289 m、肩部起点z=0.277 m。32项组合离线单测和动态检查通过，覆盖原生继承、名义重心、CA/EKF平移及真值测量声明等逻辑。
+当前静态装配为35个visual、无碰撞体，包络z=-0.210～+0.380 m，安装面z=0.289 m、肩部起点z=0.277 m。组合离线单测和动态检查覆盖原生继承、名义重心、CA/EKF平移及真值测量声明，并同步机械姿态 `(yaw,pitch)=(0,0)/(0,-90)/(45,-45)/(0,45)/(-90,-90)/(90,-90)` 的镜头方向与两轴运动学。实际通过数量以本次运行结果为准。
 
-当前5.00 kg组合已通过完整飞行：悬停30 s最大漂移0.115301 m，巡航连续30.000 s、冲刺连续10.008 s，落地停机确认。归档核对固定名义重心声明、快照与22项当前源指纹，见[验证结果](docs/validation.md)。组合外形仍待人工确认；完整地理场景往返、视频与目标跟踪未重新验收。
+所附5.00 kg组合完整飞行记录：悬停30 s最大漂移0.115301 m，巡航连续30.000 s、冲刺连续10.008 s，落地停机确认。归档包含固定名义重心声明、快照与22项源指纹，这些指纹对应归档运行资产，不代表当前版本已通过，见[验证结果](docs/validation.md)。组合外形仍待人工确认；当前协议v5合并源指纹的组件完整飞行、完整地理场景往返、视频与目标跟踪未重新验收。
 
 - [整体三视图与斜视图](docs/model_views.png)、[头部尺寸与轴向](docs/head_detail.png)、[四组机械姿态对比](docs/mechanical_poses.png)：由实际 SDF 视觉几何生成的离线评审图，不是 Gazebo 截图。
 
-以上图像是静态评审资料，不替代人工确认或动态证据。当前组件完整飞行的摘要、曲线和原始记录见[验证结果](docs/validation.md)；[地理场景验收](../../scenarios/geographic_rocket_two_axis_pod/docs/validation.md)属于独立范围，不能据本次组件飞行推断视频/跟踪已经通过。
+以上图像是静态评审资料，不替代人工确认或动态证据。所附组件完整飞行的摘要、曲线和原始记录见[验证结果](docs/validation.md)；[地理场景验收](../../scenarios/geographic_rocket_two_axis_pod/docs/validation.md)属于独立范围，不能据组件飞行归档推断视频/跟踪已经通过。

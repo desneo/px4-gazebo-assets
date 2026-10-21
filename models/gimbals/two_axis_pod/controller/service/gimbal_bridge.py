@@ -151,6 +151,7 @@ class GimbalBridge:
         self._vision_times = deque(maxlen=120)
         self._last_vision_seq = None
         self._auto_lock_sent_at = None
+        self._last_tracking_stop_at = -math.inf
 
         self.clients_lock = threading.RLock()
         self.clients: dict[tuple, _Client] = {}
@@ -200,6 +201,14 @@ class GimbalBridge:
         with self.lock:
             self._latest_tel = tel
             self._latest_tel_received = time.monotonic()
+            # 网关重启不能让默认 off 与插件遗留 TRACK 并存；停止发布可能
+            # 早于 Transport 建连，按遥测限频重试，直到实际退出跟踪。
+            # off/detect 仍允许人工转动和回零，只清理残留的 TRACK。
+            now = self._latest_tel_received
+            if (self._vision_mode in {"off", "detect"} and tel.get("mode") == "TRACK"
+                    and now - getattr(self, "_last_tracking_stop_at", -math.inf) >= .25):
+                self._last_tracking_stop_at = now
+                self._publish_internal("stop")
 
     def status_snapshot(self):
         with self.lock:
@@ -443,7 +452,7 @@ class GimbalBridge:
         except Exception:
             return False
 
-    def _set_vision_mode(self, mode):
+    def _set_vision_mode(self, mode, *, force_stop=False):
         """原子切换互斥视觉模式，并停止前一模式留下的跟踪输出。"""
         if mode not in VISION_MODES:
             raise ValueError(f"无效视觉模式 {mode}")
@@ -476,7 +485,7 @@ class GimbalBridge:
                     "auto_lock": "AUTO_SEARCH",
                     "manual_track": "MANUAL_READY",
                 }[mode]
-        if previous != mode:
+        if previous != mode or force_stop:
             self._publish_internal("stop")
 
     # ---------------- 遥测组装 ----------------
@@ -569,7 +578,7 @@ class GimbalBridge:
             hello = {
                 "type": "hello",
                 "proto": "gimbal-udp",
-                "version": 4,
+                "version": 5,
                 "angle_convention": "upright_joint",
                 "clock_domain": self.clock_domain,
                 "telemetry_hz": self.args.telemetry_hz,
@@ -650,7 +659,7 @@ class GimbalBridge:
                                                 "ok": False,
                                                 "message": "mode 必须为 off/detect/auto_lock/manual_track"})
                 return
-            self._set_vision_mode(mode)
+            self._set_vision_mode(mode, force_stop=mode == "off")
             self._reply_and_cache(cl, seq, {"type": "command_result", "cmd": cmd,
                                             "ok": True, "message": ""})
             return

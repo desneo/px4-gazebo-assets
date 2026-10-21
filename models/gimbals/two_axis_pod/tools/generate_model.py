@@ -262,7 +262,7 @@ def generate():
     elem(clip, 'near', c['camera']['near_m'])
     elem(clip, 'far', c['camera']['far_m'])
     joint(m, 'yaw_joint', 'mount_link', 'yaw_arm_link', '0 0 1', c['yaw_limits_deg'], c['max_rate_dps'])
-    joint(m, 'pitch_joint', 'yaw_arm_link', 'camera_link', '0 1 0', c['pitch_limits_deg'], c['max_rate_dps'])
+    joint(m, 'pitch_joint', 'yaw_arm_link', 'camera_link', '0 -1 0', c['pitch_limits_deg'], c['max_rate_dps'])
     plugin = elem(m, 'plugin', filename='gz-two-axis-pod-controller', name='two_axis::GimbalController')
     settings = dict(yaw_joint='yaw_joint', pitch_joint='pitch_joint', mount_link='mount_link', camera_link='camera_link', camera_sensor='camera', mount_mode='upright', command_topic='/two_axis_pod/command', telemetry_topic='/two_axis_pod/telemetry', command_result_topic='/two_axis_pod/command_result', control_rate=100, telemetry_rate=50, max_rate_dps=c['max_rate_dps'], max_acc_dps2=c['max_acc_dps2'], yaw_min_deg=c['yaw_limits_deg'][0], yaw_max_deg=c['yaw_limits_deg'][1], pitch_min_deg=c['pitch_limits_deg'][0], pitch_max_deg=c['pitch_limits_deg'][1])
     for k,v in settings.items():

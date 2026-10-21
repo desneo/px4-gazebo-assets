@@ -13,9 +13,9 @@ export GZ_SIM_SYSTEM_PLUGIN_PATH=models/gimbals/two_axis_pod/controller/build/li
 
 ## 机械约定
 
-水平安装面法线为 +Z，+X 为参考前方、+Y 朝左。外轴 `yaw` 绕 +Z 旋转，内轴 `pitch` 绕随动 +Y 旋转，旋转链为 `Rz(yaw) Ry(pitch)`。两轴零位时镜头朝 +Z 天空，pitch 正值朝前，+90° 朝 +X；pitch −45° 指向后上方。yaw 正值把前向视线从 +X 转向 +Y。
+水平安装面法线为 +Z，+X 为参考前方、+Y 朝左。外轴 `yaw` 绕 +Z 旋转，内轴 `pitch` 绕随动 −Y 旋转，旋转链为 `Rz(yaw) Ry(-pitch)`。两轴零位时镜头朝 +Z 天空，pitch 负值朝前，−90° 朝 +X；pitch +45° 指向后上方。yaw 正值把前向视线从 +X 转向 +Y。
 
-硬限位 yaw ∈ [−90°, +90°]、pitch ∈ [−45°, +90°]。`mount_mode` 必须为 `upright`。姿态显示、手动输入、回零全部采用机械角约定；home/reset 回到 (0°, 0°)。reset_axis 只复位选定机械轴，另一轴保持执行指令时的采样角度。
+硬限位 yaw ∈ [−90°, +90°]、pitch ∈ [−90°, +45°]。`mount_mode` 必须为 `upright`。姿态显示、手动输入、回零全部采用机械角约定；home/reset 回到 (0°, 0°)。reset_axis 只复位选定机械轴，另一轴保持执行指令时的采样角度。
 
 ## 控制与保护
 
@@ -37,6 +37,6 @@ export GZ_SIM_SYSTEM_PLUGIN_PATH=models/gimbals/two_axis_pod/controller/build/li
 
 命令支持 track（归一化 `box:[x,y,w,h]`）、manual（`yaw/pitch` 机械速度）、stop、home、reset、reset_axis（axis 为 yaw/pitch）、reset_fault、ping。任何 manual 的 roll 字段均拒绝，包括零值。
 
-遥测 `protocol_version:4`、`angle_convention:"upright_joint"`；`attitude_deg`、`joints_deg` 只有 yaw/pitch 的 pos/vel/acc，`cmd_dps` 只有 yaw/pitch。`limits` 包含 yaw/pitch/saturated，`los_mount` 是安装系单位视线，顶层 `singular` 表示视线退化。`camera` 包含相机传感器相对安装系/世界的四元数与欧拉姿态及帧序号，不将机械轴角误称为世界偏航/俯仰。tracking、target、stability、frame 保留配套网关所需信息。网络接口见 [网关说明](service/README.md)。
+遥测 `protocol_version:5`、`angle_convention:"upright_joint"`；`attitude_deg`、`joints_deg` 只有 yaw/pitch 的 pos/vel/acc，`cmd_dps` 只有 yaw/pitch。`limits` 包含 yaw/pitch/saturated，`los_mount` 是安装系单位视线，顶层 `singular` 表示视线退化。`camera` 包含相机传感器相对安装系/世界的四元数与欧拉姿态及帧序号，不将机械轴角误称为世界偏航/俯仰。tracking、target、stability、frame 保留配套网关所需信息。模型、插件、网关及地面站须共同使用协议 v5；不混用不同俯仰定义的客户端。网络接口见 [网关说明](service/README.md)。
 
 测试覆盖旋转链、有限差分 Jacobian、退化、动态安装角速度估计与独立积分后的世界视线漂移、手动超时、双轴限位、单轴回零、CSRT 跟踪及断帧丢失保护。

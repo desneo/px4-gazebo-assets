@@ -266,7 +266,11 @@ class WindowsGroundStation(common.GroundStation):
                 visible = cv2.getWindowProperty(self.win, cv2.WND_PROP_VISIBLE)
             except cv2.error:
                 visible = 0
-            if visible < 1 or key == 27:
+            if visible < 1:
+                break
+            if self._handle_forward_key(key):
+                continue
+            if key == 27:
                 break
             if key in (ord("s"), ord("S")):
                 self._send_ctrl("stop", "已停止跟踪")

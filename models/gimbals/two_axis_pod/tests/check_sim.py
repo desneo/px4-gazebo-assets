@@ -68,13 +68,13 @@ def main():
             send('manual',**{axis:rate})
             t=snapshot();pos=t['joints_deg'][axis]['pos']
             assert -90.2<=t['joints_deg']['yaw']['pos']<=90.2,t
-            assert -45.2<=t['joints_deg']['pitch']['pos']<=90.2,t
+            assert -90.2<=t['joints_deg']['pitch']['pos']<=45.2,t
             if abs(pos-target)<.4 and t['limits'][axis]:
                 accepted('stop');return pos
             time.sleep(.1)
         raise AssertionError(f'{axis}未到限位 {target}: {snapshot()}')
     t=wait(lambda t:'joints_deg' in t)
-    assert t['protocol_version']==4 and t['angle_convention']=='upright_joint'
+    assert t['protocol_version']==5 and t['angle_convention']=='upright_joint'
     assert set(t['joints_deg'])=={'yaw','pitch'}
     accepted('reset_axis',expected=False,axis='roll')
     accepted('manual',expected=False,roll=0)
@@ -103,9 +103,9 @@ def main():
     assert t['joints_deg']['yaw']['pos']>2 and t['los_mount'][2]>.999
     home()
     positions={}
-    for axis,rate,target in [('yaw',80,90),('yaw',-80,-90),('pitch',80,90),('pitch',-80,-45)]:
+    for axis,rate,target in [('yaw',80,90),('yaw',-80,-90),('pitch',-80,-90),('pitch',80,45)]:
         home();positions[f'{axis}_{target}']=drive(axis,rate,target)
-        if axis=='pitch' and target==90:
+        if axis=='pitch' and target==-90:
             t=snapshot();assert not t['singular'] and t['los_mount'][0]>.999
     home();send('manual',yaw=20,pitch=20)
     wait(lambda t:t['mode']=='MANUAL')

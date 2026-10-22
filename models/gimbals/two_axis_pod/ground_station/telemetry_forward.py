@@ -20,7 +20,7 @@ def aisheng_message(message):
     def scaled(value):
         if type(value) not in (int, float) or not math.isfinite(value):
             raise ValueError("角度、角速度或脱靶量不是有限数值")
-        raw = value * 100.
+        raw = value
         if not math.isfinite(raw) or abs(raw) > 3.4028234663852886e38:
             raise ValueError("艾晟数值超出 float32 范围")
         return float(round(raw, 6)) if raw else 0.0
@@ -51,8 +51,8 @@ def aisheng_message(message):
         "yaw_angle": scaled(attitude["yaw"].get("pos")),
         "pitch_misalignment": scaled(offsets[1]) if valid else 0.0,
         "yaw_misalignment": scaled(offsets[0]) if valid else 0.0,
-        "tracking_confidence": 255.0 if valid else 0.0,
-        "target_confidence": 80.0,
+        "tracking_confidence": 25.5 if valid else 0.0,
+        "target_confidence": 0.80,
         "pitch_los_rate": scaled(attitude["pitch"].get("vel")),
         "yaw_los_rate": scaled(attitude["yaw"].get("vel")),
     }

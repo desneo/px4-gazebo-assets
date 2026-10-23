@@ -69,9 +69,22 @@ class NativeLayoutTests(unittest.TestCase):
             channel = int(plugin.findtext('motorNumber')) + 1
             idle = self.parameters[f'SIM_GZ_EC_MIN{channel}']
             maximum = self.parameters[f'SIM_GZ_EC_MAX{channel}']
+            self.assertEqual(maximum, float(plugin.findtext('maxRotVelocity')))
+            self.assertEqual(maximum, 800)
             speed = idle + (maximum - idle) * np.sqrt(configured)
             thrust += float(plugin.findtext('motorConstant')) * speed**2
         self.assertAlmostEqual(thrust, self.mass * gravity, places=10)
+
+    def test_high_acceleration_profile_is_explicit(self):
+        expected = {
+            'MPC_ACC_HOR': 15,
+            'MPC_ACC_HOR_MAX': 15,
+            'MPC_ACC_UP_MAX': 12,
+            'MPC_ACC_DOWN_MAX': 6,
+            'MPC_JERK_AUTO': 30,
+            'MPC_JERK_MAX': 40,
+        }
+        self.assertEqual({key: self.parameters[key] for key in expected}, expected)
 
 
 if __name__ == '__main__':

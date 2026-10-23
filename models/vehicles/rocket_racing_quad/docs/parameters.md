@@ -44,10 +44,10 @@
 | 电机 x/y 位置幅值 | 0.2086 m | 0.2086 m；x保留、y反号 |
 | 桨盘z位置 | -0.065 m，参考 `base_link`原点（FLU） | `CA_ROTOR*_PZ=+0.095 m`，参考整机重心（FRD） |
 | 反扭矩/推力比幅值 | 0.02863386 m | `CA_ROTOR*_KM` 的0/1路为+0.02863386 m，2/3路为-0.02863386 m |
-| 最大转速 | 1570 rad/s | `SIM_GZ_EC_MAX1`～`MAX4` 均为 1570 rad/s |
+| 最大转速 | 800 rad/s | `SIM_GZ_EC_MAX1`～`MAX4` 均为 800 rad/s |
 | 解锁怠速 / 未解锁转速 | 由 PX4 映射输入 | 50 / 0 rad/s |
 | 单桨推力系数 | 8.9119×10⁻⁵ N·s²/rad² | 通过转速映射使用 SDF 推力 |
-| 悬停推力 | 4.76 kg静态理论值约0.0420638578 | `MPC_THR_HOVER=0.04206385775789426`；PX4内部悬停下限0.05 |
+| 悬停推力 | 4.76 kg静态理论值约0.1727721546 | `MPC_THR_HOVER=0.1727721546023802` |
 
 Gazebo FLU转为PX4 FRD时y/z反号。控制分配位置以整机重心为参考，桨盘相对重心为z=-0.095 m FLU，故 `CA_ROTOR*_PZ=+0.095 m` FRD；x/y参考点没有偏移。传感器在link局部z=+0.015 m，比整机重心低0.015 m，对应 `EKF2_IMU_POS_X/Y=0`、`EKF2_GPS_POS_X/Y=0`及两者Z=+0.015 m FRD。启动器复制这些原生配置，不自动改写参考点。
 
@@ -58,9 +58,9 @@ Gazebo FLU转为PX4 FRD时y/z反号。控制分配位置以整机重心为参考
 uhover = ((√(mg/(4k)) − ωidle) / (ωmax − ωidle))²
 ```
 
-按4.76 kg、`g=9.8 m/s²`、四个相同电机及50/1570 rad/s映射，静态悬停转速约361.744025 rad/s，公式值 `uhover≈0.0420638578`，机体文件配置 `MPC_THR_HOVER=0.04206385775789426`。所用PX4源码的 `PositionControl::setHoverThrust`将内部值限制在下限0.05以上，不能据参数文件值声称控制器实际采用0.0420638578，也不能据此宣称本布局飞行通过。`MPC_USE_HTE=0`；`MPC_THR_MIN=0.03`、`MPC_THR_MAX=0.9`。
+按4.76 kg、`g=9.8 m/s²`、四个相同电机及50/800 rad/s映射，静态悬停转速约361.744025 rad/s，公式值 `uhover≈0.1727721546`，机体文件配置 `MPC_THR_HOVER=0.1727721546023802`。上限调整不改变推力系数、电机时间常数或实际悬停转速，只缩减未使用的峰值动力并扩大归一化低侧控制余量。`MPC_USE_HTE=0`；`MPC_THR_MIN=0.03`、`MPC_THR_MAX=0.9`。
 
-`MPC_XY_VEL_MAX=95 m/s` 是水平控制速度限制；`MPC_XY_CRUISE=15 m/s` 是 PX4 任务模式设置，本项目 OFFBOARD 的200 km/h巡航目标来自 `flight_test`。`MPC_TILTMAX_AIR=85°`，`MPC_VEL_MANUAL=20 m/s`。`EKF2_BCOEF_X` / `EKF2_BCOEF_Y` / `EKF2_MCOEF` 为0 / 0 / 0.12，是估计器设置，不是 Gazebo 气动系数。
+`MPC_XY_VEL_MAX=95 m/s` 是水平控制速度限制；`MPC_XY_CRUISE=15 m/s` 是 PX4 任务模式设置，本项目 OFFBOARD 的200 km/h巡航目标来自 `flight_test`。`MPC_TILTMAX_AIR=85°`，`MPC_VEL_MANUAL=20 m/s`。高机动限制为 `MPC_ACC_HOR=15 m/s²`、`MPC_ACC_HOR_MAX=15 m/s²`、`MPC_ACC_UP_MAX=12 m/s²`、`MPC_ACC_DOWN_MAX=6 m/s²`，`MPC_JERK_AUTO=30 m/s³`、`MPC_JERK_MAX=40 m/s³`。飞行验收的 `ramp_seconds=8`，表示巡航和冲刺速度设定各用8 s线性爬升。`EKF2_BCOEF_X` / `EKF2_BCOEF_Y` / `EKF2_MCOEF` 为0 / 0 / 0.12，是估计器设置，不是 Gazebo 气动系数。
 
 SDF 的空气密度1.225 kg/m³、阻力系数0.73、参考面积0.0177 m²，用于简化阻力关系 `D≈0.5ρCdAv²`。参考面积独立配置，不随尾翼网格或机臂长度重算；转子附加阻力另由电机插件计算。当前没有独立尾翼气动力、实测标定或电压下降模型。四个电机的 `timeConstantUp` / `timeConstantDown` 均为0.0125 / 0.025 s。
 
@@ -95,7 +95,7 @@ python3 models/vehicles/rocket_racing_quad/tests/flight_check.py \
   --log /tmp/rocket-test-result.json
 ```
 
-飞行脚本的 `--config`应指向实际运行快照。`--ground-truth`从 `model.links`质量与惯性位姿计算固定零关节名义重心，单机为 `(0,0,0.030) m`、组合为 `(0.000204,0,0.043856) m` FLU；每条模型姿态旋转该固定偏移，再换算ENU→NED并由参考点差分求速度。报告 `measurement_reference`记录 `kind=nominal_cg`、`body_offset_flu_m`、`reference_pose=zero_joint_positions`，归档时核对与快照一致。它不表示运动关节的瞬时重心；离线JSON不能替代含有效 `model.links`的运行快照。
+飞行脚本的 `--config`应指向实际运行快照。`--ground-truth`从 `model.links`质量与惯性位姿计算固定零关节名义重心，单机为 `(0,0,0.030) m`、当前组合为 `(-0.000176261396,-0.000000003426,0.044398504845) m` FLU；每条模型姿态旋转该固定偏移，再换算ENU→NED并由参考点差分求速度。报告 `measurement_reference`记录 `kind=nominal_cg`、`body_offset_flu_m`、`reference_pose=zero_joint_positions`，归档时核对与快照一致。它不表示运动关节的瞬时重心；离线JSON不能替代含有效 `model.links`的运行快照。
 
 ## 显式离线生成
 

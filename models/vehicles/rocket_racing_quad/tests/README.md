@@ -61,7 +61,7 @@ python3 models/vehicles/rocket_racing_quad/tests/flight_check.py \
 
 真值目标默认取运行快照的 `simulation.world_name` 和 `model.name`；未提供这些字段时，使用基础单机默认值 `rocket_racing_quad_test` 与 `rocket_racing_quad`。可用 `--world-name`、`--model-name` 显式指定已运行的世界名和实体名。真值模块订阅 `/world/<世界名>/dynamic_pose/info`，仅采集所选实体的位姿；这两个选项不改写世界或模型，也不改变速度、高度及连续保持时间的验收门槛。动态组合的运行快照可提供其对应名称供同一验收工具使用。
 
-`--ground-truth`要求运行快照含有效 `model.links`，按各link质量及惯性位姿加权得到固定零关节名义重心；每条模型姿态先旋转机体系偏移并加到世界ENU原点，再转换到本地NED，速度由该参考点位置差分计算。单机偏移为 `[0,0,0.03]` m FLU，组合中立偏移为 `[0.000204,0,0.043856]` m FLU。它是固定名义点，不实时重算运动关节的瞬时重心。报告记录 `measurement_reference={kind:nominal_cg,body_offset_flu_m:[...],reference_pose:zero_joint_positions}`，归档核对声明与快照一致；无效真值及采样错误传播到主线程终止验收，严格门槛不变。
+`--ground-truth`要求运行快照含有效 `model.links`，按各link质量及惯性位姿加权得到固定零关节名义重心；每条模型姿态先旋转机体系偏移并加到世界ENU原点，再转换到本地NED，速度由该参考点位置差分计算。单机偏移为 `[0,0,0.03]` m FLU，当前组合中立偏移为 `[-0.000176261396,-0.000000003426,0.044398504845]` m FLU。它是固定名义点，不实时重算运动关节的瞬时重心。报告记录 `measurement_reference={kind:nominal_cg,body_offset_flu_m:[...],reference_pose:zero_joint_positions}`，归档核对声明与快照一致；无效真值及采样错误传播到主线程终止验收，严格门槛不变。
 
 常用覆盖项见 `--help`。`--target-speed` 保留兼容，单位为m/s；`--cruise-speed` 与 `--sprint-speed` 单位为km/h。命令行覆盖只影响本次验收，不会改写配置文件或飞控。脚本启动前检查目标速度加控制余量不超过配置中的 `MPC_XY_VEL_MAX`；提高目标速度时应先调整实际PX4参数并重启。`MPC_XY_CRUISE` 是PX4任务模式设置，本脚本的OFFBOARD巡航目标取自 `flight_test.cruise_speed_km_h`。
 
@@ -122,6 +122,6 @@ XY 方向使用速度设定值，Z 方向使用位置设定值，由 PX4 保持�
 
 独立脚本默认写入 `/tmp/rocket-flight-<时间戳>.json`，可用 `--log`指定；`run_check.sh`默认结果为运行目录 `flight_result.json`。日志包含实际配置与SHA-256、测量来源、`measurement_target`世界/实体名、`measurement_reference`固定名义重心声明、真值和PX4遥测、仿真时间、航段、设定值、状态、结果及错误。使用运行快照时保留源资产指纹。只有所有航段通过且确认落地，`passed`才为true，退出码为0；其余为1。
 
-当前4.76 kg配置已通过30 s悬停、200 km/h连续30.012 s巡航、300 km/h连续10.000 s冲刺及落地停机。悬停最大漂移0.074685 m，测量点为固定零关节名义重心 `(0,0,0.030) m` FLU；51项基础离线回归通过。`MPC_THR_HOVER`文件值0.04206385775789426与PX4内部0.05下限分别记录。当前摘要和15项源资产指纹见[验证结果](../docs/validation.md)。
+当前4.76 kg配置在水平/向上/向下加速度限制15/12/6 m/s²、自动/最大jerk 30/40 m/s³及8 s速度设定爬升下，已通过30 s悬停、200 km/h连续30.000 s巡航、300 km/h连续10.000 s冲刺及落地停机。悬停最大漂移0.083901 m，测量点为固定零关节名义重心 `(0,0,0.030) m` FLU；52项基础离线回归通过。`MPC_THR_HOVER`文件值为0.1727721546023802。当前摘要和15项源资产指纹见[验证结果](../docs/validation.md)。
 
 独立运行真值验收时，先将 `GZ_PARTITION` 设置为启动器打印的分区，并给 `flight_check.py` 加 `--ground-truth`。真值模式不会改写飞控传感器；遥测和真值任一失联都会终止验收。地面显示为平面，碰撞采用顶部位于 z=0 的实体箱体。

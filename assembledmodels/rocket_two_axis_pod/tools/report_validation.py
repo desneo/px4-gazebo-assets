@@ -90,6 +90,20 @@ def validate_report(report, current_sources, defaults):
         raise ValueError('完整飞行必须通过且确认降落停机，不能归档为通过')
     if report.get('error') or report.get('recovery_error'):
         raise ValueError('报告包含飞行或恢复错误')
+    expected_stability = dynamic.settings()['stability_validation']
+    stability = report.get('stability_validation')
+    if snapshot.get('stability_validation') != expected_stability:
+        raise ValueError('运行快照的稳定性验收门槛与当前配置不一致')
+    if (not isinstance(stability, dict) or stability.get('passed') is not True or
+            stability.get('error') or stability.get('settings') != expected_stability):
+        raise ValueError('报告缺少通过的当前稳定性验收')
+    camera = stability.get('camera_los')
+    if not isinstance(camera, dict) or camera.get('available') not in (True, False):
+        raise ValueError('稳定性报告缺少实际camera.quat_world可用性结论')
+    if expected_stability['camera_los_required'] and camera.get('available') is not True:
+        raise ValueError('当前稳定性门槛要求实际camera.quat_world，但报告中不可用')
+    if camera.get('available') is True and camera.get('passed') is not True:
+        raise ValueError('可用的实际camera.quat_world LOS验收未通过')
     settings = report.get('settings')
     if not isinstance(settings, dict) or snapshot.get('flight_test') != defaults:
         raise ValueError('运行快照的完整验收门槛与当前默认配置不一致')
@@ -183,7 +197,8 @@ def archive_report(raw, *, output_root=ROOT, current_sources=None, defaults=None
         defaults = json.loads((dynamic.ROCKET / 'parameters.json').read_text())['flight_test']
     sources, windows = validate_report(report, current_sources, defaults)
     summary = {key: report[key] for key in ('passed', 'landing_confirmed', 'measurement_source',
-               'measurement_target', 'measurement_reference', 'config_sha256', 'results', 'settings', 'model_parameters')}
+               'measurement_target', 'measurement_reference', 'config_sha256', 'results', 'settings',
+               'stability_validation', 'model_parameters')}
     summary.update(validated_at=datetime.fromtimestamp(report['finished_at_unix_s'], ZoneInfo('Asia/Shanghai')).isoformat(),
                    elapsed_wall_s=report['finished_at_unix_s'] - report['started_at_unix_s'],
                    raw_report_sha256=hashlib.sha256(raw).hexdigest(),

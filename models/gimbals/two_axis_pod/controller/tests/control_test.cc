@@ -248,6 +248,32 @@ int main()
         "姿态瞬移不生成补偿冲击");
   Check(MountAngularVelocity(Identity(), Rz(.003), 0).z == 0,
         "无效时间间隔不生成角速度");
+  const auto localAngular = WorldAngularVelocityInMount(Rz(M_PI / 2), {0, 1, 0});
+  Check(std::abs(localAngular.x - 1) < 1e-12 &&
+        std::abs(localAngular.y) < 1e-12 && std::abs(localAngular.z) < 1e-12,
+        "Gazebo世界角速度按当前world到mount旋转转换为安装局部值");
+  MountRateFallback fallback;
+  Check(fallback.Update(Identity(), .004).z == 0,
+        "姿态差分后备首帧只建立基准");
+  const double alpha = 1 - std::exp(-2 * M_PI * 35 * .004);
+  auto fallbackRate = fallback.Update(Rz(.004), .004);
+  Check(std::abs(fallbackRate.z - alpha) < 1e-8,
+        "姿态差分后备使用35Hz一阶低通而非原始差分");
+  for (int index = 2; index <= 20; ++index)
+    fallbackRate = fallback.Update(Rz(index * .004), .004);
+  Check(std::abs(fallbackRate.z - 1) < 1e-7,
+        "恒定角速度的低通后备收敛且不改变稳态增益");
+  Check(fallback.Update(Rz(1), .004).z == 0,
+        "姿态差分后备拒绝大于0.5rad的单步跳变");
+  fallbackRate = fallback.Update(Rz(1.004), .004);
+  Check(std::abs(fallbackRate.z - alpha) < 1e-8,
+        "跳变后以后续连续姿态重新建立滤波结果");
+  fallback.Observe(Ry(.2));
+  fallbackRate = fallback.Update(MatMul(Ry(.2), Rz(.004)), .004);
+  Check(std::isfinite(fallbackRate.z) && std::abs(fallbackRate.z) > 0,
+        "直接角速度恢复时可同步姿态差分后备基准");
+  Check(fallback.Update(Ry(1), 0).x == 0,
+        "无效时间间隔重置后备而不生成补偿冲击");
   // 独立积分载机旋转与机械轴补偿，检查世界视线的一阶漂移。
   for (double yaw : {-.7, .2, .8})
     for (double pitch : {-80*d, -1.2, -.5, 0., 30*d})

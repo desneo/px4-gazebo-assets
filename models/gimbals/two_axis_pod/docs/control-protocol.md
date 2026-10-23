@@ -137,7 +137,7 @@ close socket
 - `cmd_dps.yaw/pitch`：关节速度指令；`limits.yaw/pitch/saturated`：限位与饱和。
 - `los_mount`：安装系镜头单位方向；`singular`：光轴接近外轴方向时视线控制退化，不禁止机械手动或回零；当前机械限位内不出现该退化。
 - `camera.quat_body/quat_world`：实际光学系的四元数，顺序 wxyz；`rpy_body_deg/rpy_world_deg` 是光学姿态的诊断表示，与机械角不同。
-- `mount.mode=upright`：底座向下的立装机械结构，外轴沿安装 +X；此字段不表示竖直偏航轴。默认 `mount.static=true`；装配插件设置 `mount_dynamic=true` 时为 `false`，每步更新安装系实际世界姿态，TRACK 中以载机角速度前馈抵消载机转动。
+- `mount.mode=upright`：底座向下的立装机械结构，外轴沿安装 +X；此字段不表示竖直偏航轴。默认 `mount.static=true`；装配插件设置 `mount_dynamic=true` 时为 `false`，每步更新安装系实际世界姿态。动态安装优先把Gazebo `mount_link` 世界角速度转换到当前安装局部系；仅在速度数据不可用时使用带35 Hz一阶低通和单步跳变拒绝的姿态差分。TRACK 中以前馈抵消载机转动，IDLE不主动稳像。
 - `mount.quat_world`：安装参考系相对世界的四元数，顺序 wxyz；动态模式随载机变化。
 - `tracking.backend`：`sim_truth` 或 `csrt`；`tracking.constraint`：`NONE`、`SINGULAR`（外轴视线退化）、`LIMITED`（机械限位）、`RATE_LIMITED`（速度输出饱和）。`tracking.state=TRACK` 表示当前后端持续提供有效目标，不等于所有轴均可稳定指向；应同时检查中心误差、稳定性和约束。
 - `mode`：IDLE/MANUAL/HOME/TRACK；`tracking.state`、`target`、`stability`：跟踪状态、选框和中心误差。真值绑定期间 `target.entity_id/entity_name` 为固定实体，CSRT 或未绑定时为 `null`。

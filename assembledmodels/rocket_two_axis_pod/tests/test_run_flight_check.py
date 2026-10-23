@@ -50,7 +50,13 @@ def idle(kind):
     while True:
         time.sleep(.02)
 '''
-        self.executable(px4, common + "idle('px4')\n")
+        self.executable(px4, common + '''
+rootfs = Path(sys.argv[sys.argv.index('-w') + 1])
+log = rootfs / 'log/2026-01-01'
+log.mkdir(parents=True)
+(log / 'flight.ulg').write_bytes(b'stub-ulog')
+idle('px4')
+''')
         self.executable(self.bin / 'gz', common + '''
 if sys.argv[1] == 'sim':
     idle('gazebo')
@@ -85,8 +91,31 @@ output = Path(sys.argv[sys.argv.index('--output-dir') + 1])
 config = dict(model=dict(name='rocket_two_axis_pod'),
               simulation=dict(world_name='rocket_two_axis_pod_test', imu_wait_timeout_s=3),
               px4=dict(airframe_id=4023), flight_test=dict(hover_seconds=30, cruise_seconds=30,
-              cruise_speed_km_h=200, sprint_seconds=10, sprint_speed_km_h=300))
+              cruise_speed_km_h=200, sprint_seconds=10, sprint_speed_km_h=300),
+              stability_validation=dict(hover_settle_s=5))
 (output / 'parameters.json').write_text(json.dumps(config))
+(output / 'manifest.json').write_text(json.dumps(dict(topic_prefix='/rocket_two_axis_pod')))
+(output / 'model.sdf').write_text('<sdf version="1.9"><model name="rocket_two_axis_pod"/></sdf>')
+''')
+        capture = self.model / 'tools/capture_gimbal_telemetry.py'
+        capture.write_text(common + '''
+output = Path(sys.argv[sys.argv.index('--output') + 1])
+output.touch()
+idle('camera_capture')
+''')
+        analyzer = self.model / 'tools/analyze_flight_stability.py'
+        analyzer.write_text(common + '''
+output = Path(sys.argv[sys.argv.index('--output') + 1])
+flight = Path(sys.argv[sys.argv.index('--flight-report') + 1])
+result = dict(passed=True, settings=dict(hover_settle_s=5),
+              camera_los=dict(available=False, passed=None, reason='stub'))
+output.write_text(json.dumps(result))
+report = json.loads(flight.read_text())
+report['stability_validation'] = result
+flight.write_text(json.dumps(report))
+event('stability', ulog=sys.argv[sys.argv.index('--ulog') + 1],
+      camera=sys.argv[sys.argv.index('--camera-jsonl') + 1])
+sys.exit(int(os.environ.get('STUB_STABILITY_CODE', '0')))
 ''')
         flight = self.repo / 'models/vehicles/rocket_racing_quad/tests/flight_check.py'
         flight.parent.mkdir(parents=True)
@@ -127,6 +156,8 @@ sys.exit(int(os.environ.get('STUB_FLIGHT_CODE', '0')))
         self.assertEqual(len(runs), 1)
         run = runs[0]
         self.assertEqual((run / 'exit_code.txt').read_text().strip(), '0')
+        self.assertTrue((run / 'stability.json').is_file())
+        self.assertTrue(json.loads(result.read_text())['stability_validation']['passed'])
         execution = json.loads((run / 'execution.json').read_text())
         self.assertEqual(execution['px4_instance'], 0)
         self.assertEqual(execution['mavlink_endpoint'], 'udpin:0.0.0.0:14540')
@@ -134,6 +165,8 @@ sys.exit(int(os.environ.get('STUB_FLIGHT_CODE', '0')))
         self.assertLess(names.index('imu'), names.index('px4'))
         self.assertIn('gazebo_terminated', names)
         self.assertIn('px4_terminated', names)
+        self.assertIn('camera_capture_terminated', names)
+        self.assertIn('stability', names)
         gazebo, = [event for event in events if event['kind'] == 'gazebo']
         self.assertEqual(gazebo['args'][:4], ['sim', '-s', '-r', '--headless-rendering'])
         flight, = [event for event in events if event['kind'] == 'flight']
@@ -146,6 +179,14 @@ sys.exit(int(os.environ.get('STUB_FLIGHT_CODE', '0')))
             self.assertNotIn(option, flight['args'])
         self.assertTrue((run / 'etc/init.d-posix/airframes/4023_gz_rocket_two_axis_pod').is_file())
         self.assertTrue((run / 'rootfs').is_dir())
+
+    def test_stability_gate_failure_is_preserved(self):
+        self.env['STUB_STABILITY_CODE'] = '41'
+        completed, result, runs, events = self.run_launcher()
+        self.assertEqual(completed.returncode, 41, completed.stdout)
+        self.assertTrue(result.is_file())
+        self.assertEqual((runs[0] / 'exit_code.txt').read_text().strip(), '41')
+        self.assertIn('stability', [event['kind'] for event in events])
 
     def test_sitl_instance_and_original_failure_code(self):
         completed, _, runs, events = self.run_launcher(mode='sitl', code=47, instance=1)

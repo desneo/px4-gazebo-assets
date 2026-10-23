@@ -238,13 +238,17 @@ def validate_binding(directory, flight):
 
 
 def validate_world(run, tracking):
-    from prepare_world import absolute_resources
+    from prepare_world import absolute_resources, set_text
     world = ET.parse(run / 'world.sdf').find('world')
     model_path = run / 'models/rocket_two_axis_pod/model.sdf'
     expected = ET.parse(model_path).find('model')
     actual = world.find("model[@name='rocket_two_axis_pod']")
     require(actual is not None, '运行世界缺少组合实体')
     absolute_resources(expected, model_path)
+    # 运行世界会显式覆盖基础吊舱的默认 sim_truth，以保留本场景的 CSRT 验收。
+    gimbal = expected.find(".//plugin[@name='two_axis::GimbalController']")
+    if gimbal is not None:
+        set_text(gimbal, 'tracking_backend', 'csrt')
     for item in (actual, expected):
         pose = item.find('pose')
         if pose is not None:

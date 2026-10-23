@@ -15,6 +15,8 @@ PX4_ETC="$PX4_ROOT/build/px4_sitl_default/etc"
 POD_PLUGIN_DIR="$PROJ/models/gimbals/two_axis_pod/controller/build/lib"
 FLIGHT_PYTHON="${FLIGHT_PYTHON:-python3}"
 FLIGHT_CHECK="$PROJ/models/vehicles/rocket_racing_quad/tests/flight_check.py"
+STABILITY_CHECK="$MODEL_DIR/tools/analyze_flight_stability.py"
+CAMERA_CAPTURE="$MODEL_DIR/tools/capture_gimbal_telemetry.py"
 PX4_INSTANCE="${PX4_INSTANCE:-0}"
 [[ "$PX4_INSTANCE" =~ ^[0-8]$ ]] || { echo 'PX4_INSTANCE 必须是 0～8 的整数' >&2; exit 2; }
 MAVLINK_ENDPOINT="udpin:0.0.0.0:$((14540 + PX4_INSTANCE))"
@@ -28,7 +30,10 @@ done
   echo "缺少两轴吊舱控制插件：$POD_PLUGIN_DIR/libgz-two-axis-pod-controller.so" >&2; exit 1;
 }
 [[ -f "$FLIGHT_CHECK" ]] || { echo "缺少完整飞行验收工具：$FLIGHT_CHECK" >&2; exit 1; }
-"$FLIGHT_PYTHON" -c 'import pymavlink, numpy, gz.transport13, gz.msgs10.pose_v_pb2'
+[[ -f "$STABILITY_CHECK" && -f "$CAMERA_CAPTURE" ]] || {
+  echo '缺少组合机稳定性分析或实际吊舱姿态采集工具' >&2; exit 1;
+}
+"$FLIGHT_PYTHON" -c 'import pymavlink, numpy, pyulog, gz.transport13, gz.msgs10.pose_v_pb2, gz.msgs10.stringmsg_pb2'
 
 # GZ_PARTITION 无法隔离 MAVLink 端口，同一 PX4 instance 须顺序执行。
 exec 9>"${TMPDIR:-/tmp}/rocket-flight-check-instance${PX4_INSTANCE}-${UID}.lock"
@@ -65,6 +70,8 @@ echo "运行目录：$RUN_DIR"
 echo "Gazebo 分区：$GZ_PARTITION；模式：$MODE"
 echo "PX4 instance：$PX4_INSTANCE；MAVLink：$MAVLINK_ENDPOINT"
 echo "验收结果：$RESULT"
+STABILITY_RESULT="$RUN_DIR/stability.json"
+CAMERA_TELEMETRY="$RUN_DIR/camera-telemetry.jsonl"
 
 SERVICES=()
 FLIGHT_PID=
@@ -103,26 +110,38 @@ start_service() {
   SERVICES+=("$LAST_PID")
   printf '%s\n' "$LAST_PID" > "$RUN_DIR/$service.pid"
 }
+stop_service() {
+  local pid="$1"
+  /bin/kill -TERM -- "-$pid" 2>/dev/null || return 0
+  for _ in 1 2 3 4 5 6 7 8 9 10; do
+    /bin/kill -0 -- "-$pid" 2>/dev/null || break
+    sleep .2
+  done
+  /bin/kill -KILL -- "-$pid" 2>/dev/null || true
+  wait "$pid" 2>/dev/null || true
+}
 
 "$FLIGHT_PYTHON" "$MODEL_DIR/tools/generate_dynamic_model.py" --output-dir "$GENERATED" > "$RUN_DIR/generate.log" 2>&1
 CONFIG="$GENERATED/parameters.json"
 "$FLIGHT_PYTHON" - "$RUN_DIR/execution.json" "$PX4_INSTANCE" "$MAVLINK_ENDPOINT" \
-  "$MODE" "$GZ_PARTITION" "$CONFIG" "$RESULT" "$PX4_ROOT" <<'PY_EXECUTION'
+  "$MODE" "$GZ_PARTITION" "$CONFIG" "$RESULT" "$STABILITY_RESULT" "$PX4_ROOT" <<'PY_EXECUTION'
 import json, sys
 from pathlib import Path
-path, instance, endpoint, mode, partition, config, result, px4_root = sys.argv[1:]
+path, instance, endpoint, mode, partition, config, result, stability, px4_root = sys.argv[1:]
 Path(path).write_text(json.dumps(dict(px4_instance=int(instance), mavlink_endpoint=endpoint,
     mode=mode, gz_partition=partition, model_config=config, result_path=result,
-    px4_root=px4_root), ensure_ascii=False, indent=2) + '\n')
+    stability_result_path=stability, px4_root=px4_root), ensure_ascii=False, indent=2) + '\n')
 PY_EXECUTION
-read -r IMU_TIMEOUT WORLD_NAME MODEL_NAME AIRFRAME_ID < <(
-  "$FLIGHT_PYTHON" - "$CONFIG" <<'PY_TARGET'
+read -r IMU_TIMEOUT WORLD_NAME MODEL_NAME AIRFRAME_ID TOPIC_PREFIX < <(
+  "$FLIGHT_PYTHON" - "$CONFIG" "$GENERATED/manifest.json" <<'PY_TARGET'
 import json, math, sys
 config = json.load(open(sys.argv[1]))
+manifest = json.load(open(sys.argv[2]))
 timeout = config['simulation']['imu_wait_timeout_s']
 if isinstance(timeout, bool) or not isinstance(timeout, (int, float)) or not math.isfinite(timeout) or timeout <= 0:
     raise SystemExit('IMU 等待期限必须为有限正数')
-print(timeout, config['simulation']['world_name'], config['model']['name'], config['px4']['airframe_id'])
+print(timeout, config['simulation']['world_name'], config['model']['name'],
+      config['px4']['airframe_id'], manifest['topic_prefix'])
 PY_TARGET
 )
 [[ "$MODEL_NAME" == rocket_two_axis_pod && "$WORLD_NAME" == rocket_two_axis_pod_test ]] || {
@@ -155,14 +174,32 @@ else
   exit "$status"
 fi
 echo 'IMU 已就绪，启动 PX4；按运行快照执行悬停、巡航、冲刺和降落验收。'
+start_service camera_telemetry "$FLIGHT_PYTHON" -u "$CAMERA_CAPTURE" \
+  --topic "$TOPIC_PREFIX/telemetry" --output "$CAMERA_TELEMETRY"
+CAMERA_PID="$LAST_PID"
 start_service px4 env PX4_SIM_MODEL=gz_rocket_two_axis_pod PX4_GZ_STANDALONE=1 \
   PX4_GZ_WORLD="$WORLD_NAME" PX4_GZ_MODEL_NAME="$MODEL_NAME" \
   "$PX4_BIN" -i "$PX4_INSTANCE" -d "$RUN_DIR/etc" -w "$RUN_DIR/rootfs"
+PX4_PID="$LAST_PID"
 start_service flight "$FLIGHT_PYTHON" -u "$FLIGHT_CHECK" --ground-truth \
   --endpoint "$MAVLINK_ENDPOINT" --config "$CONFIG" --log "$RESULT"
 FLIGHT_PID="$LAST_PID"
 if wait "$FLIGHT_PID"; then
-  exit 0
+  :
 else
-  exit "$?"
+  status=$?
+  exit "$status"
 fi
+
+# 先关闭只读采集和PX4，让JSONL与ULog完整落盘，再执行正式稳定性门禁。
+stop_service "$CAMERA_PID"
+stop_service "$PX4_PID"
+mapfile -t ULOGS < <(find "$RUN_DIR/rootfs/log" -type f -name '*.ulg' -print 2>/dev/null)
+if [[ ${#ULOGS[@]} -ne 1 ]]; then
+  echo "完整飞行应产生唯一ULog，实际为 ${#ULOGS[@]} 个" >&2
+  exit 1
+fi
+"$FLIGHT_PYTHON" -u "$STABILITY_CHECK" \
+  --ulog "${ULOGS[0]}" --flight-report "$RESULT" --config "$CONFIG" \
+  --camera-jsonl "$CAMERA_TELEMETRY" --model-sdf "$GENERATED/model.sdf" \
+  --output "$STABILITY_RESULT" --update-flight-report

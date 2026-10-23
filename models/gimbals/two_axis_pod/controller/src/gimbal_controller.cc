@@ -35,6 +35,7 @@
 #include <opencv2/imgproc.hpp>
 
 #include "two_axis/control.hh"
+#include "two_axis/control_schedule.hh"
 #include "two_axis/kinematics.hh"
 #include "two_axis/telemetry.hh"
 #include "two_axis/truth_tracking.hh"
@@ -128,8 +129,8 @@ private:
   std::string resultTopic_{"/two_axis_pod/command_result"};
   std::string mountMode_{"upright"};
   bool mountDynamic_{false};
-  bool hasMountSample_{false};
   Mat3 mountWorldRotation_;
+  MountRateFallback mountRateFallback_;
   double controlHz_{100.0};
   double telemetryHz_{0.0};
   TrackingBackend trackingBackend_{TrackingBackend::SIM_TRUTH};
@@ -174,10 +175,9 @@ private:
 
   // 计时
   double startTime_{-1.0};
-  double controlAccum_{0.0};
+  ControlSchedule controlSchedule_;
   TelemetrySchedule telemetrySchedule_;
   bool configured_{false};
-  bool jointsInitialized_{false};
   std::array<double, 2> lastCmd_{{0.0, 0.0}};
 
   // 关节遥测（角加速度平滑）
@@ -230,7 +230,18 @@ void GimbalController::Configure(
           truthTargetNames_.end())
       truthTargetNames_.push_back(name);
   }
-  controlHz_ = std::max(1.0, getDouble("control_rate", controlHz_));
+  controlHz_ = getDouble("control_rate", controlHz_);
+  if (!std::isfinite(controlHz_) || controlHz_ <= 0.0)
+  {
+    gzerr << "[two_axis] control_rate必须为有限正数，插件禁用\n";
+    return;
+  }
+  controlHz_ = std::max(1.0, controlHz_);
+  if (!controlSchedule_.Configure(controlHz_))
+  {
+    gzerr << "[two_axis] control_rate必须为有限正数，插件禁用\n";
+    return;
+  }
   const auto telemetryConfig = getStr("telemetry_config", kDefaultTelemetryConfig);
   std::string telemetryError;
   if (!LoadTelemetryConfig(telemetryConfig, gz::sim::resourcePaths(),
@@ -258,10 +269,13 @@ void GimbalController::Configure(
     gzerr << "[gimbal] 未找到安装 link [" << mountLinkName_ << "]，插件禁用\n";
     return;
   }
+  gz::sim::Link mountLink(mountEntity);
+  mountLink.EnableVelocityChecks(_ecm, true);
   const auto staticRotation = gz::sim::worldPose(mountEntity, _ecm).Rot();
   mountWorldRotation_ = MatMul(Rz(staticRotation.Yaw()),
                                MatMul(Ry(staticRotation.Pitch()), Rx(staticRotation.Roll())));
   cfg_.mount_world_rotation = mountWorldRotation_;
+  mountRateFallback_.Observe(mountWorldRotation_);
   const auto cameraLinkEntity = model.LinkByName(_ecm, linkName_);
   gz::sim::Link cameraLink(cameraLinkEntity);
   const auto sensorEntity = cameraLink.SensorByName(_ecm, sensorName_);
@@ -722,6 +736,7 @@ void GimbalController::PreUpdate(const gz::sim::UpdateInfo &_info,
   const double dt = std::chrono::duration<double>(_info.dt).count();
   if (_info.paused)
   {
+    this->controlSchedule_.Update(now, true);
     this->telemetrySchedule_.Update(std::chrono::steady_clock::now(), now, true);
     return;
   }
@@ -751,9 +766,20 @@ void GimbalController::PreUpdate(const gz::sim::UpdateInfo &_info,
       const auto rotation = gz::sim::worldPose(this->mountEntity_, _ecm).Rot();
       const auto current = MatMul(Rz(rotation.Yaw()),
         MatMul(Ry(rotation.Pitch()), Rx(rotation.Roll())));
-      this->cfg_.mount_angular_velocity = this->hasMountSample_ ?
-        MountAngularVelocity(this->mountWorldRotation_, current, dt) : Vec3{};
-      this->hasMountSample_ = true;
+      gz::sim::Link mountLink(this->mountEntity_);
+      const auto worldVelocity = mountLink.WorldAngularVelocity(_ecm);
+      if (worldVelocity && std::isfinite(worldVelocity->X()) &&
+          std::isfinite(worldVelocity->Y()) && std::isfinite(worldVelocity->Z()))
+      {
+        this->cfg_.mount_angular_velocity = WorldAngularVelocityInMount(
+          current, {worldVelocity->X(), worldVelocity->Y(), worldVelocity->Z()});
+        this->mountRateFallback_.Observe(current);
+      }
+      else
+      {
+        this->cfg_.mount_angular_velocity =
+          this->mountRateFallback_.Update(current, dt);
+      }
       this->mountWorldRotation_ = current;
       this->cfg_.mount_world_rotation = this->mountWorldRotation_;
       this->control_.Configure(this->cfg_);
@@ -775,16 +801,10 @@ void GimbalController::PreUpdate(const gz::sim::UpdateInfo &_info,
   this->hasPrevJs_ = true;
 
   // ---- 控制循环 ----
-  this->controlAccum_ += dt;
-  const double controlPeriod = 1.0 / this->controlHz_;
   std::array<double, 2> cmd{0.0, 0.0};
-  bool ranControl = false;
-  if (this->controlAccum_ >= controlPeriod || !this->jointsInitialized_)
+  const bool ranControl = this->controlSchedule_.Update(now);
+  if (ranControl)
   {
-    this->controlAccum_ = 0.0;
-    this->jointsInitialized_ = true;
-    ranControl = true;
-
     // 取最新图像 -> BGR（仅在新帧时转换）
     cv::Mat bgr;
     std::int64_t processedSeq{-1};

@@ -167,7 +167,9 @@ def check_output(output, manifest):
             if path.name.startswith(prefix):
                 assert path.read_bytes() == (origin / 'meshes' / path.name[len(prefix):]).read_bytes()
     parameters = json.loads((output / 'parameters.json').read_text())
-    assert set(parameters) == {'model', 'px4', 'simulation', 'flight_test', 'runtime', 'assembly'}
+    assert set(parameters) == {'model', 'px4', 'simulation', 'flight_test',
+                               'stability_validation', 'runtime', 'assembly'}
+    assert parameters['stability_validation'] == config['stability_validation']
     assert parameters['runtime']['source_sha256'] == dynamic.source_fingerprints() == manifest['source_sha256']
     assert math.isclose(parameters['model']['total_mass_kg'], total, abs_tol=1e-12)
     assert parameters['model']['links']['base_link']['inertial_pose'] == source.findtext("link[@name='base_link']/inertial/pose")
@@ -199,18 +201,20 @@ def check_output(output, manifest):
         assert math.isclose(reference['parameters'][key], value, rel_tol=0, abs_tol=1e-12), key
     airframe = (output / 'px4' / f"{manifest['airframe_id']}_gz_{dynamic.NAME}").read_bytes().decode()
     assert airframe == dynamic.assembly_airframe(config['airframe_text'], manifest['px4_hover_thrust'],
-                                                reference['parameters'])
+                                                reference['parameters'], config['px4_parameter_overrides'])
     actual_px4 = dynamic.native.parameter_values(airframe)
     assert actual_px4 == parameters['px4']['parameters']
-    assert set(actual_px4) == set(config['px4_parameters'])
+    assert set(actual_px4) == set(config['px4_parameters']) | set(config['px4_parameter_overrides'])
     for key, value in config['px4_parameters'].items():
         if key in expected_reference:
             assert math.isclose(actual_px4[key], expected_reference[key], rel_tol=0, abs_tol=1e-12), key
             axis = reference_keys.index(key) % 3
             assert math.isclose(actual_px4[key] + signs[axis] * actual_center[axis],
                                 value + signs[axis] * source_center[axis], rel_tol=0, abs_tol=1e-12), key
-        elif key != 'MPC_THR_HOVER':
+        elif key != 'MPC_THR_HOVER' and key not in config['px4_parameter_overrides']:
             assert actual_px4[key] == value, f'原生 PX4 参数被改变：{key}'
+    for key, value in config['px4_parameter_overrides'].items():
+        assert actual_px4[key] == value, f'装配 PX4 参数未生效：{key}'
     motor_plugins = model.findall(f"plugin[@name='{dynamic.MOTOR}']")
     thrust = 0.
     for motor in motor_plugins:

@@ -108,10 +108,13 @@ class DynamicNativeTests(unittest.TestCase):
                 # 从任意 CG 参考恢复后的物理点必须相同。
                 self.assertAlmostEqual(actual_parameters[key] + sign * actual_cg[axis],
                                        source_parameters[key] + sign * source_cg[axis], places=12)
-        self.assertEqual(set(actual_parameters), set(source_parameters))
+        overrides = dynamic.settings()['px4_parameter_overrides']
+        self.assertEqual(set(actual_parameters), set(source_parameters) | set(overrides))
         for key, value in source_parameters.items():
-            if key not in reference_keys and key != 'MPC_THR_HOVER':
+            if key not in reference_keys and key != 'MPC_THR_HOVER' and key not in overrides:
                 self.assertEqual(actual_parameters[key], value, key)
+        for key, value in overrides.items():
+            self.assertEqual(actual_parameters[key], value, key)
 
     def test_old_json_physics_cannot_replace_native_model_or_px4(self):
         path = self.source / 'parameters.json'
@@ -146,7 +149,7 @@ class DynamicNativeTests(unittest.TestCase):
         inertial.find('inertia/ixx').text = '.231'
         inertial.find('inertia/ixy').text = '.002'
         model.write(path)
-        self.airframe.write_text(self.airframe.read_text() + '\n# custom native tuning\nparam set-default MC_ROLLRATE_P .22222\n')
+        self.airframe.write_text(self.airframe.read_text() + '\n# custom native tuning\nparam set-default MC_YAWRATE_P .22222\n')
         before = self.fingerprints()
         output = self.work / 'output'
         manifest = dynamic.generate(output)
@@ -156,10 +159,27 @@ class DynamicNativeTests(unittest.TestCase):
         text = (output / 'px4/4023_gz_rocket_two_axis_pod').read_text()
         original = dynamic.native.parameter_values(self.airframe.read_text())
         generated = dynamic.native.parameter_values(text)
-        self.assertEqual(set(generated), set(original))
+        self.assertEqual(set(generated), set(original) | set(dynamic.settings()['px4_parameter_overrides']))
         self.assert_reference_inheritance(output, manifest)
-        self.assertIn('# custom native tuning\nparam set-default MC_ROLLRATE_P .22222\n', text)
+        self.assertIn('# custom native tuning\nparam set-default MC_YAWRATE_P .22222\n', text)
         self.assertEqual(before, self.fingerprints())
+
+    def test_assembly_px4_parameters_are_validated_and_written(self):
+        output = self.work / 'output'
+        manifest = dynamic.generate(output)
+        generated = dynamic.native.parameter_values(
+            (output / f"px4/{manifest['airframe_id']}_gz_rocket_two_axis_pod").read_text())
+        self.assertEqual(generated['MC_ROLLRATE_P'], 0.08)
+        self.assertEqual(generated['MC_PITCHRATE_D'], 0.0005)
+        self.assertEqual(generated['MC_PR_INT_LIM'], 0.1)
+
+        config, geometry, pod = dynamic.appearance.configuration()
+        config = copy.deepcopy(config)
+        config['px4']['parameters']['MPC_THR_HOVER'] = 0.2
+        with mock.patch.object(dynamic.appearance, 'configuration',
+                               return_value=(config, geometry, pod)):
+            with self.assertRaisesRegex(ValueError, '自动派生'):
+                dynamic.generate(self.work / 'invalid-output')
 
     def test_nominal_cg_reference_preserves_rotor_and_sensor_physical_points(self):
         before = self.fingerprints()
@@ -242,6 +262,7 @@ class DynamicNativeTests(unittest.TestCase):
         self.assertEqual(snapshot['simulation']['world_name'], world.get('name'))
         self.assertEqual(snapshot['simulation']['gravity'], world.findtext('gravity'))
         self.assertEqual(snapshot['simulation']['spawn_pose'], world.findtext("include[uri='model://rocket_two_axis_pod']/pose"))
+        self.assertEqual(snapshot['stability_validation'], dynamic.settings()['stability_validation'])
         self.assertEqual(snapshot['runtime']['source_sha256'], self.fingerprints())
         self.assertEqual(len(snapshot['model']['links']), 12)
         self.assertEqual(len(model.findall('joint')), 11)
@@ -269,7 +290,7 @@ class DynamicNativeTests(unittest.TestCase):
         model = dynamic.build_model(config).find('model')
         parameters = dict(config['px4_parameters'])
         parameters['SIM_GZ_EC_MIN1'] = 45
-        parameters['SIM_GZ_EC_MAX2'] = 1500
+        parameters['SIM_GZ_EC_MAX2'] = 780
         result = dynamic.hover_configuration(model, parameters, 9.80665)
         thrust = 0.
         for motor in model.findall(f"plugin[@name='{dynamic.MOTOR}']"):

@@ -294,7 +294,7 @@
       <commandSubTopic>command/motor_speed</commandSubTopic>
       <motorNumber>0</motorNumber>
       <motorType>velocity</motorType>
-      <maxRotVelocity>1570</maxRotVelocity>
+      <maxRotVelocity>800</maxRotVelocity>
       <motorConstant>8.9119e-05</motorConstant>
       <momentConstant>0.02863386</momentConstant>
       <timeConstantUp>0.0125</timeConstantUp>
@@ -409,7 +409,7 @@
       <commandSubTopic>command/motor_speed</commandSubTopic>
       <motorNumber>1</motorNumber>
       <motorType>velocity</motorType>
-      <maxRotVelocity>1570</maxRotVelocity>
+      <maxRotVelocity>800</maxRotVelocity>
       <motorConstant>8.9119e-05</motorConstant>
       <momentConstant>0.02863386</momentConstant>
       <timeConstantUp>0.0125</timeConstantUp>
@@ -524,7 +524,7 @@
       <commandSubTopic>command/motor_speed</commandSubTopic>
       <motorNumber>2</motorNumber>
       <motorType>velocity</motorType>
-      <maxRotVelocity>1570</maxRotVelocity>
+      <maxRotVelocity>800</maxRotVelocity>
       <motorConstant>8.9119e-05</motorConstant>
       <momentConstant>0.02863386</momentConstant>
       <timeConstantUp>0.0125</timeConstantUp>
@@ -639,7 +639,7 @@
       <commandSubTopic>command/motor_speed</commandSubTopic>
       <motorNumber>3</motorNumber>
       <motorType>velocity</motorType>
-      <maxRotVelocity>1570</maxRotVelocity>
+      <maxRotVelocity>800</maxRotVelocity>
       <motorConstant>8.9119e-05</motorConstant>
       <momentConstant>0.02863386</momentConstant>
       <timeConstantUp>0.0125</timeConstantUp>

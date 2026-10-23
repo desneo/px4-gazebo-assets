@@ -23,6 +23,7 @@ def config_hash(report):
 
 def fixture():
     defaults = json.loads((archive.dynamic.ROCKET / 'parameters.json').read_text())['flight_test']
+    stability_settings = copy.deepcopy(archive.dynamic.settings()['stability_validation'])
     sources = {'assembledmodels/rocket_two_axis_pod/tools/generate_dynamic_model.py': 'a' * 64,
                'models/vehicles/rocket_racing_quad/model.sdf': 'b' * 64,
                'models/vehicles/rocket_racing_quad/tests/flight_check.py': 'c' * 64}
@@ -30,7 +31,8 @@ def fixture():
     model = archive.dynamic.build_model(archive.dynamic.settings()).find('model')
     snapshot = dict(model=archive.dynamic.model_snapshot(model),
                     simulation=dict(world_name='rocket_two_axis_pod_test'),
-                    flight_test=copy.deepcopy(defaults), runtime=dict(source_sha256=copy.deepcopy(sources)))
+                    flight_test=copy.deepcopy(defaults), stability_validation=stability_settings,
+                    runtime=dict(source_sha256=copy.deepcopy(sources)))
     results = {'hover': dict(passed=True, max_drift_m=.1, max_altitude_error_m=.2)}
     truth = []
     clock = 0
@@ -53,6 +55,9 @@ def fixture():
                   measurement_target=dict(world_name='rocket_two_axis_pod_test', model_name='rocket_two_axis_pod'),
                   measurement_reference=archive.truth.nominal_cg_reference(snapshot),
                   results=results, samples=samples, ground_truth_samples=copy.deepcopy(truth),
+                  stability_validation=dict(passed=True, settings=copy.deepcopy(stability_settings),
+                      camera_los=dict(available=True, passed=True, required=True,
+                                      source='two_axis telemetry camera.quat_world')),
                   started_at_unix_s=100., finished_at_unix_s=200.)
     config_hash(report)
     return report, sources, defaults
@@ -96,6 +101,25 @@ class FlightArchiveTests(unittest.TestCase):
                     report[key] = value
                     with self.assertRaises(ValueError):
                         self.validate(report)
+
+    def test_stability_gate_and_camera_availability_are_required(self):
+        for reason in ('missing', 'failed', 'settings', 'camera', 'camera_missing', 'camera_failed'):
+            with self.subTest(reason=reason):
+                report = copy.deepcopy(self.report)
+                if reason == 'missing':
+                    report.pop('stability_validation')
+                elif reason == 'failed':
+                    report['stability_validation']['passed'] = False
+                elif reason == 'settings':
+                    report['stability_validation']['settings']['hover_settle_s'] += 1
+                elif reason == 'camera':
+                    report['stability_validation'].pop('camera_los')
+                elif reason == 'camera_missing':
+                    report['stability_validation']['camera_los'] = dict(available=False, passed=None)
+                else:
+                    report['stability_validation']['camera_los'] = dict(available=True, passed=False)
+                with self.assertRaisesRegex(ValueError, '稳定性|camera'):
+                    self.validate(report)
         for phase in ('hover', 'cruise', 'sprint'):
             with self.subTest(missing_phase=phase):
                 report = copy.deepcopy(self.report)
@@ -232,6 +256,11 @@ class FlightArchiveTests(unittest.TestCase):
         sources = archive.dynamic.source_fingerprints()
         for name in ('assembledmodels/rocket_two_axis_pod/tests/run_flight_check.sh',
                      'assembledmodels/rocket_two_axis_pod/tools/generate_dynamic_model.py',
+                     'assembledmodels/rocket_two_axis_pod/tools/analyze_flight_stability.py',
+                     'assembledmodels/rocket_two_axis_pod/tools/capture_gimbal_telemetry.py',
+                     'models/gimbals/two_axis_pod/controller/include/two_axis/control_schedule.hh',
+                     'models/gimbals/two_axis_pod/controller/src/gimbal_controller.cc',
+                     'models/gimbals/two_axis_pod/controller/src/kinematics.cc',
                      'models/vehicles/rocket_racing_quad/tests/flight_check.py',
                      'models/vehicles/rocket_racing_quad/tests/gazebo_truth.py'):
             self.assertIn(name, sources)

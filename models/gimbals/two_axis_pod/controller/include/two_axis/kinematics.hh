@@ -19,6 +19,20 @@ std::array<double, 2> ImageRates(double pitch, double right, double down);
 bool Singular(double pitch);
 // 两次安装姿态 -> 安装系角速度（rad/s），用于动态载机视线前馈。
 Vec3 MountAngularVelocity(const Mat3 &previous, const Mat3 &current, double dt);
+// Gazebo世界系角速度 -> 当前安装局部系角速度。
+Vec3 WorldAngularVelocityInMount(const Mat3 &mount_world, const Vec3 &world_omega);
+// 仅在Gazebo角速度不可用时使用的姿态差分后备；35Hz一阶低通并拒绝单步大跳变。
+class MountRateFallback
+{
+public:
+  void Observe(const Mat3 &rotation);
+  Vec3 Update(const Mat3 &rotation, double dt);
+
+private:
+  Mat3 previous_;
+  Vec3 filtered_;
+  bool initialized_{false};
+};
 // 抵消安装系转动产生的视线角速度；返回机械角速度（deg/s）。
 std::array<double, 2> StabilizationRates(double yaw, double pitch, const Vec3 &omega);
 }

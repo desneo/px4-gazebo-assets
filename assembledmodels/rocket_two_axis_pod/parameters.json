@@ -8,6 +8,38 @@
     "airframe_id": 4023,
     "topic_prefix": "/rocket_two_axis_pod"
   },
+  "px4": {
+    "parameters": {
+      "MC_ROLLRATE_P": 0.08,
+      "MC_ROLLRATE_I": 0.08,
+      "MC_ROLLRATE_D": 0.0005,
+      "MC_RR_INT_LIM": 0.1,
+      "MC_PITCHRATE_P": 0.08,
+      "MC_PITCHRATE_I": 0.08,
+      "MC_PITCHRATE_D": 0.0005,
+      "MC_PR_INT_LIM": 0.1
+    }
+  },
+  "stability_validation": {
+    "hover_settle_s": 5.0,
+    "spectral_band_hz": [5.0, 35.0],
+    "spectral_window_s": 4.0,
+    "attitude_trend_window_s": 0.5,
+    "rate_error_rms_limit_dps": 2.0,
+    "rate_error_p95_limit_dps": 4.0,
+    "rate_error_max_limit_dps": 10.0,
+    "rate_hf_rms_limit_dps": 0.5,
+    "attitude_p95_limit_deg": 0.1,
+    "attitude_peak_to_peak_limit_deg": 0.5,
+    "allocator_unachieved_ratio_limit": 0.01,
+    "allocator_unachieved_continuous_limit_s": 0.1,
+    "unallocated_torque_p99_limit": 0.002,
+    "motor_floor_threshold": 0.001,
+    "motor_floor_ratio_limit": 0.01,
+    "camera_los_required": true,
+    "camera_los_p95_limit_px": 6.0,
+    "camera_los_max_limit_px": 15.0
+  },
   "view": {
     "mouse_sensitivity": 0.1,
     "near_clip_m": 0.005,

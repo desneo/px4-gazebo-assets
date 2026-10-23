@@ -66,9 +66,30 @@ def settings(body_mass_kg=None, airframe_id=None, topic_prefix=None):
         raise ValueError('基础模型须包含唯一的原生 PX4 机体文件')
     text = airframes[0].read_bytes().decode('utf-8')
     parameters = native.parameter_values(text)
+    overrides = assembly.get('px4', {}).get('parameters', {})
+    if not isinstance(overrides, dict):
+        raise ValueError('px4.parameters 必须为参数名到有限数值的对象')
+    derived = {'MPC_THR_HOVER'} | {
+        prefix + axis
+        for prefix in ([f'CA_ROTOR{channel}_P' for channel in range(4)] +
+                       ['EKF2_IMU_POS_', 'EKF2_GPS_POS_'])
+        for axis in 'XYZ'
+    }
+    for key, value in overrides.items():
+        if not isinstance(key, str) or not re.fullmatch(r'[A-Z][A-Z0-9_]{1,30}', key):
+            raise ValueError(f'无效的 PX4 参数名：{key!r}')
+        if key in derived:
+            raise ValueError(f'PX4 参数 {key} 由动态装配自动派生，不能手动覆盖')
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
+            raise ValueError(f'PX4 参数 {key} 必须为有限数值')
+    stability = assembly.get('stability_validation')
+    if not isinstance(stability, dict) or not stability:
+        raise ValueError('stability_validation 必须为非空对象')
     defaults = json.loads((ROCKET / 'parameters.json').read_text())
     return dict(assembly=assembly, pod=pod, geometry=geometry, source_model=source,
                 source_airframe=airframes[0], airframe_text=text, px4_parameters=parameters,
+                px4_parameter_overrides=overrides,
+                stability_validation=copy.deepcopy(stability),
                 flight_test=defaults['flight_test'], imu_wait_timeout_s=defaults['simulation']['imu_wait_timeout_s'],
                 overall_length_m=length, mount_z_m=mount_z,
                 retained_body_length_m=mount_z - geometry['min_z_m'],
@@ -125,10 +146,25 @@ def build_model(config):
 def source_fingerprints():
     files = [ROOT / 'parameters.json', ROOT / 'tools/generate_model.py',
              ROOT / 'tools/pod_kinematics.py', Path(__file__),
+             ROOT / 'tools/analyze_flight_stability.py',
+             ROOT / 'tools/capture_gimbal_telemetry.py',
              ROOT / 'tests/run_flight_check.sh',
              ROCKET / 'parameters.json', ROCKET / 'tools/prepare_runtime.py',
              ROCKET / 'tools/generate_meshes.py', ROCKET / 'tests/flight_check.py',
              ROCKET / 'tests/gazebo_truth.py', POD / 'parameters.json', POD / 'model.sdf']
+    controller = POD / 'controller'
+    files += [controller / path for path in (
+        'CMakeLists.txt', 'service/telemetry.json',
+        'include/two_axis/control.hh', 'include/two_axis/control_schedule.hh',
+        'include/two_axis/kinematics.hh', 'include/two_axis/telemetry.hh',
+        'include/two_axis/truth_tracking.hh', 'src/control.cc',
+        'src/gimbal_controller.cc', 'src/kinematics.cc', 'src/truth_tracking.cc')]
+    shared = POD.parent / 'three_axis_pod/controller'
+    files += [shared / path for path in (
+        'include/gimbal_controller/kinematics.hh',
+        'include/gimbal_controller/mini_json.hh',
+        'include/gimbal_controller/tracker.hh', 'src/kinematics.cc',
+        'src/mini_json.cc', 'src/tracker.cc')]
     files += native.asset_paths(ROCKET)
     files += sorted((POD / 'meshes').rglob('*'))
     return {str(path.relative_to(REPO)): hashlib.sha256(path.read_bytes()).hexdigest()
@@ -214,7 +250,7 @@ def px4_reference_configuration(source_model, assembly_model, source_parameters)
                 source_parameters=original, parameters=derived)
 
 
-def assembly_airframe(source, hover, reference_parameters):
+def assembly_airframe(source, hover, reference_parameters, overrides):
     text = source.replace('gz_rocket_racing_quad', f'gz_{NAME}')
     text = text.replace('# @name Gazebo rocket racing quad', '# @name Gazebo rocket with two axis pod')
     for key, value in {'MPC_THR_HOVER': hover, **reference_parameters}.items():
@@ -222,6 +258,17 @@ def assembly_airframe(source, hover, reference_parameters):
                               lambda match: match[1] + format(value, '.16g'), text, flags=re.MULTILINE)
         if count != 1:
             raise ValueError(f'原生机体文件须显式且仅一次配置 {key}')
+    additions = []
+    for key, value in overrides.items():
+        replacement = f'param set-default {key} {format(value, ".16g")}'
+        text, count = re.subn(r'^param[ \t]+(?:set-default|set)[ \t]+' + re.escape(key) +
+                              r'[ \t]+[^\r\n]+$', replacement, text, flags=re.MULTILINE)
+        if count > 1:
+            raise ValueError(f'原生机体文件重复配置 PX4 参数 {key}')
+        if count == 0:
+            additions.append(replacement)
+    if additions:
+        text = text.rstrip() + '\n# 组合体飞控参数\n' + '\n'.join(additions) + '\n'
     return text
 
 
@@ -263,7 +310,8 @@ def generate(output_dir, *, body_mass_kg=None, airframe_id=None, topic_prefix=No
     hover = hover_configuration(root.find('model'), config['px4_parameters'], gravity)
     reference = px4_reference_configuration(config['source_model'].find('model'), root.find('model'),
                                             config['px4_parameters'])
-    airframe_text = assembly_airframe(config['airframe_text'], hover['px4_hover_thrust'], reference['parameters'])
+    airframe_text = assembly_airframe(config['airframe_text'], hover['px4_hover_thrust'],
+                                      reference['parameters'], config['px4_parameter_overrides'])
     parameters = native.parameter_values(airframe_text)
     assembly = dict(model_name=NAME, mount_z_m=config['mount_z_m'],
                     retained_body_length_m=config['retained_body_length_m'],
@@ -274,6 +322,7 @@ def generate(output_dir, *, body_mass_kg=None, airframe_id=None, topic_prefix=No
     snapshot = dict(model=model_snapshot(root.find('model')),
                     px4=dict(airframe_id=config['airframe_id'], parameters=parameters),
                     flight_test=copy.deepcopy(config['flight_test']),
+                    stability_validation=copy.deepcopy(config['stability_validation']),
                     simulation=dict(imu_wait_timeout_s=config['imu_wait_timeout_s'],
                                     world_name=world_element.get('name'),
                                     physics={child.tag: child.text for child in world_element.find('physics')},

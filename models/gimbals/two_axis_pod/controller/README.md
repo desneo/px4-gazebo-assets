@@ -23,9 +23,11 @@ export GZ_SIM_SYSTEM_PLUGIN_PATH=models/gimbals/two_axis_pod/controller/build/li
 
 手动命令单位为 °/s。两轴速度上限均为 20°/s，加速度默认上限保持 160°/s²。该机械轴速度限制作用于手动、回零、单轴复位和自动跟踪，包括载机补偿叠加后的最终控制输出；配置可收紧，不能提高 20°/s 的硬上限。运行中降低配置会立即约束已有速度指令，旧场景配置大于 20 时插件明确告警并按 20 执行。加速度平滑之后按剩余行程限制向外速度，保留 0.2° 软件端点缓冲及两倍控制间隔的前瞻余量，避免离散速度指令撞击物理硬限位；允许反向退出。停止与超时保护立即清零速度。非零手动指令超过 0.5 秒未续发即以“控制输入超时”安全停止；显式双轴零速是正常松手停车，立即退出手动模式且不产生超时提示。
 
-`tracking_backend` 默认为 `sim_truth`，只有显式配置 `csrt` 才启用 OpenCV CSRT 和模板重捕获。`track` 可携带 `frame_seq`，插件在最近 4 个已处理图像中按序号精确选帧：真值模式在该帧选框内绑定离框中心最近的已登记飞机实体，CSRT 模式则用该帧初始化纹理跟踪。绑定后真值模式只投影同一实体，不因其他飞机经过而换锁；实体在相机裁剪范围且估算目标框与画面相交时持续输出，物理遮挡不会造成失败。像素误差经比例增益（默认 4）及阻尼最小二乘 Jacobian 转换为关节速度，再施加速度、加速度和机械限位约束。图像断帧超过 0.5 秒立即停止；绑定实体离开视野、删除或持续断帧超过默认 2.5 秒恢复窗口后进入 LOST，需要重新选框。连续 1 秒中心误差小于 1° 标记稳定，误差大于 2° 标记不稳定。无效关节采样进入 FAULT，恢复采样后可用 reset_fault 清除。
+控制调度使用仿真时间并保留未满一个周期的余相。默认100 Hz控制在250 Hz物理步下按8/12 ms交替运行，长期次数与配置频率一致；大物理步丢弃无法补跑的周期但保留余相，每个新物理状态至多运行一次。暂停、恢复及仿真时间回退会重新建立基准，不补跑旧周期。该调度不改变IDLE、stop、手动看门狗和跟踪断帧语义，也不引入独立STABILIZE模式。
 
-`sim_truth_target_name` 可重复配置，列出本场景允许绑定的飞机顶层模型名；未登记的地形、标志物和其他模型不会参与绑定。`mount_dynamic` 默认为 false，沿用固定安装参考。机载装配设置为 true 时，每步读取 `mount_link` 世界姿态，更新安装四元数和相机世界姿态；TRACK 中把载机角速度对视线的影响投影到实际两轴 Jacobian，加入反向前馈。`sim_truth` 使用与图像时间戳匹配的相机和目标世界位置生成像素误差，`csrt` 使用图像框误差。大于 0.5 rad 的单步姿态跳变不转换为角速度前馈。进入机械限位、输出速度受限或视线退化时明确报告约束，不能将后端仍输出目标框解释为稳定锁定。
+`tracking_backend` 默认为 `sim_truth`，只有显式配置 `csrt` 才启用 OpenCV CSRT 和模板重捕获。`track` 可携带 `frame_seq`，插件在最近 4 个已处理图像中按序号精确选帧：真值模式在该帧选框内绑定离框中心最近的已登记飞机实体，CSRT 模式则用该帧初始化纹理跟踪。绑定后真值模式只投影同一实体，不因其他飞机经过而换锁；其距离缩放框上下左右各扩展 5 px，再裁剪到图像边界，作为显式 `target.box_px` 跟踪框。实体在相机裁剪范围且该框与画面相交时持续输出，物理遮挡不会造成失败。像素误差经比例增益（默认 4）及阻尼最小二乘 Jacobian 转换为关节速度，再施加速度、加速度和机械限位约束。图像断帧超过 0.5 秒立即停止；绑定实体离开视野、删除或持续断帧超过默认 2.5 秒恢复窗口后进入 LOST，需要重新选框。连续 1 秒中心误差小于 1° 标记稳定，误差大于 2° 标记不稳定。无效关节采样进入 FAULT，恢复采样后可用 reset_fault 清除。
+
+`sim_truth_target_name` 可重复配置，列出本场景允许绑定的飞机顶层模型名；未登记的地形、标志物和其他模型不会参与绑定。`mount_dynamic` 默认为 false，沿用固定安装参考。机载装配设置为 true 时，插件为 `mount_link` 启用Gazebo速度检查，每步读取世界姿态并优先使用 `Link::WorldAngularVelocity`；世界系角速度按当前world→mount旋转转换为安装局部值。只有速度数据不可用时才使用姿态差分后备，后备值经过35 Hz一阶低通并拒绝大于0.5 rad的单步姿态跳变。TRACK 中把该载机角速度对视线的影响投影到实际两轴 Jacobian，加入反向前馈；IDLE不会主动稳像。`sim_truth` 使用与图像时间戳匹配的相机和目标世界位置生成像素误差，`csrt` 使用图像框误差。进入机械限位、输出速度受限或视线退化时明确报告约束，不能将后端仍输出目标框解释为稳定锁定。
 
 视线方向为 `(-sin(pitch), -sin(yaw)cos(pitch), cos(yaw)cos(pitch))`。图像右/下方向的关节 Jacobian 为 `diag(cos(pitch), -1)`，yaw 使用阻尼最小二乘逆。两轴零位不退化；当视线平行外轴、`abs(cos(pitch)) < 0.05` 时，yaw 无法独立改变视线方向，遥测报告 `singular: true`。确认的机械范围不包含该退化姿态。机械手动控制与回零仍有效。
 
@@ -33,7 +35,7 @@ export GZ_SIM_SYSTEM_PLUGIN_PATH=models/gimbals/two_axis_pod/controller/build/li
 
 - 命令：`/two_axis_pod/command`，`gz.msgs.StringMsg` JSON。
 - 回执：`/two_axis_pod/command_result`，包含 `type/cmd/ok/message/request_id`，request_id 在请求携带时原样返回。
-- 遥测：`/two_axis_pod/telemetry`，与网关共用 `service/telemetry.json` 的 `hz`，默认 50 Hz（单调真实时间）；控制默认 50 Hz（仿真时间）。
+- 遥测：`/two_axis_pod/telemetry`，与网关共用 `service/telemetry.json` 的 `hz`，默认 50 Hz（单调真实时间）；控制默认 100 Hz（仿真时间）。
 
 插件从 SDF `telemetry_config` 指向的 JSON 读取 `hz`，默认 `model://two_axis_pod/controller/service/telemetry.json`。配置缺失或非法时明确报错并禁用插件；修改后需重启仿真及网关。遥测调度使用 `steady_clock`，不由 `UpdateInfo.dt` 或仿真实时因子决定发送目标。只有新的物理状态可发布，单步最多产生一份新姿态；暂停不发布，恢复和仿真时间重置不补发历史周期。物理更新的真实频率不足配置 `hz` 时限频告警。完整配置与发送行为见[网关说明](service/README.md)。
 
@@ -43,4 +45,4 @@ export GZ_SIM_SYSTEM_PLUGIN_PATH=models/gimbals/two_axis_pod/controller/build/li
 
 遥测 `protocol_version:7`、`angle_convention:"motion_head_joint_right_positive"`；`attitude_deg`、`joints_deg` 只有 yaw/pitch 的 pos/vel/acc，`cmd_dps` 只有 yaw/pitch。`limits` 包含 yaw/pitch/saturated，`los_mount` 是安装系单位视线，顶层 `singular` 表示视线退化。`tracking.backend` 报告 `sim_truth` 或 `csrt`；真值绑定期间 `target.entity_id/entity_name` 报告固定实体，CSRT 或未绑定时为 `null`。`camera` 包含相机传感器相对安装系/世界的四元数与欧拉姿态及帧序号，不将机械轴角误称为世界偏航/俯仰。模型、插件、网关及地面站须共同使用协议 v7 和同一机械角约定。网络接口见 [网关说明](service/README.md)。
 
-测试覆盖旋转链、有限差分 Jacobian、退化、动态安装角速度估计与独立积分后的世界视线漂移、手动超时、双轴限位、单轴回零、真值投影/选框/同步保护、CSRT 跟踪及断帧丢失保护。
+测试覆盖旋转链、有限差分 Jacobian、退化、Gazebo世界角速度坐标变换、动态安装姿态差分低通/跳变拒绝与独立积分后的世界视线漂移、4/3 ms及大步长控制余相、暂停/时间回退、手动超时、双轴限位、单轴回零、真值投影/选框/同步保护、真值框四边各扩展 5 px、边界裁剪及框外可见性保持、CSRT 跟踪及断帧丢失保护。

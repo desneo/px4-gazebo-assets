@@ -89,7 +89,7 @@
     "cruise_seconds": 30,
     "sprint_speed_km_h": 300,
     "sprint_seconds": 10,
-    "ramp_seconds": 30,
+    "ramp_seconds": 8,
     "speed_setpoint_margin_km_h": 15,
     "speed_acquire_timeout_s": 60,
     "deceleration_m_s2": 4,

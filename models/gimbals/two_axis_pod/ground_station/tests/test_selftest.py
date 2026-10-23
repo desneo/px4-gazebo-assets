@@ -16,7 +16,7 @@ SOURCE = Path(__file__).resolve().parents[1] / 'ground_station.py'
 
 
 class SelftestProtocolTests(unittest.TestCase):
-    def run_selftest(self, version=6, convention='motion_head_joint', stale=False):
+    def run_selftest(self, version=7, convention='motion_head_joint_right_positive', stale=False):
         class SnapshotClient:
             public_angles_ready = UdpClient.public_angles_ready
             _valid_attitude = staticmethod(UdpClient._valid_attitude)
@@ -67,11 +67,13 @@ class SelftestProtocolTests(unittest.TestCase):
 
     def test_old_or_mismatched_protocol_fails_without_motion_requests(self):
         for version, convention in ((5, 'upright_joint'), (6, 'upright_joint'),
-                                    (5, 'motion_head_joint')):
+                                    (6, 'motion_head_joint'), (7, 'motion_head_joint'),
+                                    (6, 'motion_head_joint_right_positive'), (None, None),
+                                    (5, 'motion_head_joint_right_positive')):
             with self.subTest(version=version, convention=convention):
                 result, output = self.run_selftest(version, convention)
                 self.assertEqual(result, 9)
-                self.assertIn('必须同时符合协议 6 / motion_head_joint', output)
+                self.assertIn('必须同时符合协议 7 / motion_head_joint_right_positive', output)
 
     def test_stale_mechanical_telemetry_fails_even_with_fresh_identity(self):
         self.assertEqual(self.run_selftest(stale=True)[0], 9)

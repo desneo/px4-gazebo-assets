@@ -67,6 +67,7 @@ class BridgeProtocolTests(unittest.TestCase):
         self.bridge.lock = threading.RLock()
         self.bridge._vision_lock = threading.RLock()
         self.bridge._latest_tel = {}
+        self.bridge._plugin_protocol_compatible = True
         self.bridge._vision_mode = "off"
         self.bridge._vision_state = "OFF"
         self.bridge._vision = None
@@ -99,6 +100,8 @@ class BridgeProtocolTests(unittest.TestCase):
 
     def test_ping_echoes_seq_and_timestamp_without_publish(self):
         self.command(cmd="ping", seq=1, t=123.5)
+        self.assertEqual(self.sent[-2][1]["type"], "hello")
+        self.assertEqual(self.sent[-2][1]["version"], 7)
         self.assertEqual(self.sent[-1][1], {"type": "pong", "seq": 1, "t": 123.5})
         self.assertEqual(self.published, [])
 
@@ -124,7 +127,7 @@ class BridgeProtocolTests(unittest.TestCase):
         self.assertEqual([item['cmd'] for item in self.published], ['stop', 'stop'])
 
     def test_off_or_detect_reconciles_residual_track_with_rate_limited_retry(self):
-        message = types.SimpleNamespace(data=json.dumps({'mode': 'TRACK', 'tracking': {'state': 'TRACK'}}))
+        message = types.SimpleNamespace(data=json.dumps({'protocol_version': 7, 'angle_convention': 'motion_head_joint_right_positive', 'mode': 'TRACK', 'tracking': {'state': 'TRACK'}}))
         for mode in ('off', 'detect'):
             self.bridge._vision_mode = mode
             self.bridge._last_tracking_stop_at = -math.inf
@@ -135,7 +138,7 @@ class BridgeProtocolTests(unittest.TestCase):
                 self.assertEqual(len(self.published), expected)
             self.assertTrue(all(item['cmd'] == 'stop' for item in self.published))
             self.assertEqual(self.bridge._latest_tel['mode'], 'TRACK')  # 不伪造插件已停车。
-            message_idle = types.SimpleNamespace(data=json.dumps({'mode': 'IDLE'}))
+            message_idle = types.SimpleNamespace(data=json.dumps({'protocol_version': 7, 'angle_convention': 'motion_head_joint_right_positive', 'mode': 'IDLE'}))
             with mock.patch.object(time, 'monotonic', return_value=11.):
                 self.bridge._on_telemetry(message_idle)
             self.assertEqual(len(self.published), 2)
@@ -145,7 +148,7 @@ class BridgeProtocolTests(unittest.TestCase):
                              ('off', 'MANUAL'), ('off', 'HOME'),
                              ('detect', 'MANUAL'), ('detect', 'HOME')):
             self.bridge._vision_mode = vision
-            message = types.SimpleNamespace(data=json.dumps({'mode': mode}))
+            message = types.SimpleNamespace(data=json.dumps({'protocol_version': 7, 'angle_convention': 'motion_head_joint_right_positive', 'mode': mode}))
             self.bridge._on_telemetry(message)
         self.assertEqual(self.published, [])
 
@@ -214,8 +217,8 @@ class BridgeProtocolTests(unittest.TestCase):
         self.bridge._on_datagram(b'{"cmd":"ping","seq":1}', ("127.0.0.1", 12000))
         hello = self.sent[-2][1]
         self.assertEqual(hello["type"], "hello")
-        self.assertEqual(hello["version"], 6)
-        self.assertEqual(hello["angle_convention"], "motion_head_joint")
+        self.assertEqual(hello["version"], 7)
+        self.assertEqual(hello["angle_convention"], "motion_head_joint_right_positive")
 
     def test_duplicate_replays_result_without_second_execution(self):
         self.command(cmd="home", seq=1)

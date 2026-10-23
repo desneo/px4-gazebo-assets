@@ -31,6 +31,19 @@ class TrackingMathTest(unittest.TestCase):
             ray = check.mv(check.joints_rotation(solution['yaw'], solution['pitch']), (0., 0., 1.))
             self.assertVectorClose(ray, tuple(v/check.length(direction) for v in direction))
 
+    def test_right_target_requires_positive_yaw_and_left_target_negative(self):
+        center = (0.015, 0., check.MOUNT_Z + .056)
+        for direction_y, expected_sign in ((-20., 1.), (20., -1.)):
+            target = check.add(center, (0., direction_y, 100.))
+            solution = check.reachable_angles(pose(), target)
+            self.assertTrue(solution['reachable'])
+            self.assertGreater(expected_sign * solution['yaw'], 0.)
+            telemetry = dict(joints_deg=dict(yaw=dict(pos=solution['yaw']), pitch=dict(pos=0.)))
+            origin, optical = check.camera_pose(pose(), telemetry)
+            ray = check.mv(check.joints_rotation(solution['yaw'], 0.), (0., 0., 1.))
+            self.assertVectorClose(ray, check.mv(optical, (1., 0., 0.)))
+            self.assertVectorClose(check.project(target, origin, optical, 1920, 1080, 60), (960., 540.))
+
     def test_reachable_grid_and_limits(self):
         center = (0.015, 0., check.MOUNT_Z + .056)
         for yaw in (-60., -43., 0., 35., 60.):
@@ -74,13 +87,13 @@ class TrackingMathTest(unittest.TestCase):
             origin, optical = check.camera_pose(pose(), telemetry)
             los = check.mv(optical, (1., 0., 0.))
             self.assertVectorClose(check.sub(origin, tuple(.0237*v for v in los)), center)
-            self.assertVectorClose(los, (0., math.sin(math.radians(yaw)), math.cos(math.radians(yaw))))
+            self.assertVectorClose(los, (0., -math.sin(math.radians(yaw)), math.cos(math.radians(yaw))))
 
     def test_low_target_and_outer_axis_limit_are_reported_unreachable(self):
         aircraft = pose(position=(0., 0., 80.))
         result = check.reachable_angles(aircraft, (200., 150., 150.))
         self.assertFalse(result['reachable'])
-        self.assertGreater(result['yaw'], 60.)
+        self.assertLess(result['yaw'], -60.)
 
     def test_pose_and_joint_interpolation_use_frame_time(self):
         half = math.pi/4

@@ -168,11 +168,11 @@ class DynamicNativeTests(unittest.TestCase):
         self.assert_reference_inheritance(output, manifest)
         self.assertEqual(before, self.fingerprints())
 
-    def test_two_axis_pitch_direction_and_limits_are_inherited(self):
+    def test_two_axis_directions_and_limits_are_inherited(self):
         output = self.work / 'output'
         manifest = dynamic.generate(output)
         model = ET.parse(output / 'model.sdf').getroot().find('model')
-        for name, axis, limits in (('yaw_joint', '-1 0 0', (-60., 60.)),
+        for name, axis, limits in (('yaw_joint', '1 0 0', (-60., 60.)),
                                    ('pitch_joint', '0 -1 0', (-80., 30.))):
             joint = model.find(f"joint[@name='{name}']")
             self.assertEqual(canonical(joint), canonical(self.pod_model.find(f"joint[@name='{name}']")))

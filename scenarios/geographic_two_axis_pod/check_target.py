@@ -129,7 +129,7 @@ class Session:
             t=json.loads(data);self.record('received',payload=t)
             if t.get('type')!='telemetry':continue
             self.latest=t;samples.append(t)
-            assert t['protocol_version']==6 and t['angle_convention']=='motion_head_joint','错误的吊舱协议'
+            assert t['protocol_version']==7 and t['angle_convention']=='motion_head_joint_right_positive','错误的吊舱协议'
             assert all(POD_KINEMATICS.joints[a+'_joint']['limits'][0]-.2 <= t['joints_deg'][a]['pos']
                 <= POD_KINEMATICS.joints[a+'_joint']['limits'][1]+.2 for a in ('yaw','pitch')),'机械限位越界'
             if predicate and predicate(t):return samples

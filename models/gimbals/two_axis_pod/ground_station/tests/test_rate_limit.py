@@ -13,8 +13,8 @@ from telemetry_forward import TelemetryForwarder, aisheng_message
 
 def telemetry(pitch_rate=0.0, yaw_rate=0.0):
     return {
-        "type": "telemetry", "protocol_version": 6,
-        "angle_convention": "motion_head_joint", "aircraft_id": 1,
+        "type": "telemetry", "protocol_version": 7,
+        "angle_convention": "motion_head_joint_right_positive", "aircraft_id": 1,
         "mode": "TRACK", "tracking": {"state": "TRACK"},
         "vision": {"mode": "manual_track", "state": "MANUAL_READY"},
         "attitude_deg": {
@@ -34,6 +34,26 @@ OTHER_FIELDS = {
 
 
 class RateLimitTests(unittest.TestCase):
+    def test_yaw_right_positive_passes_directly_and_image_miss_stays_right_positive(self):
+        for yaw in (-12.5, 0.0, 12.5):
+            with self.subTest(yaw=yaw):
+                source = telemetry(yaw_rate=yaw)
+                source["attitude_deg"]["yaw"]["pos"] = yaw
+                source["target"]["miss"]["offset_deg"] = [1.25, -.5]
+                packet = aisheng_message(source)
+                self.assertEqual(packet["yaw_angle"], yaw)
+                self.assertEqual(packet["yaw_los_rate"], yaw)
+                self.assertEqual(packet["yaw_misalignment"], 1.25)
+
+    def test_v6_or_old_yaw_marker_is_rejected(self):
+        for version, convention in ((6, "motion_head_joint"),
+                                    (6, "motion_head_joint_right_positive"),
+                                    (7, "motion_head_joint")):
+            source = telemetry()
+            source.update(protocol_version=version, angle_convention=convention)
+            with self.subTest(version=version, convention=convention), self.assertRaises(ValueError):
+                aisheng_message(source)
+
     def test_positive_and_negative_overspeed_on_both_axes(self):
         for value in (20.000001, 21, 100.5, 3.4028234663852886e38):
             for sign in (-1, 1):

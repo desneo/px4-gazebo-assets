@@ -88,7 +88,7 @@ def main():
             return json.loads(json.dumps(tel))
 
     def check_sample(value):
-        assert value['protocol_version'] == 6 and value['angle_convention'] == 'motion_head_joint', value
+        assert value['protocol_version'] == 7 and value['angle_convention'] == 'motion_head_joint_right_positive', value
         assert set(value['joints_deg']) == {'yaw', 'pitch'}, value
         for axis, (lower, upper) in LIMITS.items():
             assert lower-.2 <= value['joints_deg'][axis]['pos'] <= upper+.2, value
@@ -148,7 +148,7 @@ def main():
         assert similarity > 1-1e-5, (label, actual_q, reported_q)
         actual_los = quaternion_vector(actual_q, (1., 0., 0.))
         yaw, pitch = (math.radians(value['joints_deg'][axis]['pos']) for axis in ('yaw', 'pitch'))
-        expected = (-math.sin(pitch), math.sin(yaw)*math.cos(pitch), math.cos(yaw)*math.cos(pitch))
+        expected = (-math.sin(pitch), -math.sin(yaw)*math.cos(pitch), math.cos(yaw)*math.cos(pitch))
         assert max(abs(a-b) for a, b in zip(actual_los, expected)) < .003, (label, actual_los, expected)
         assert max(abs(a-b) for a, b in zip(actual_los, value['los_mount'])) < .003, value
         optical_checks.append(dict(label=label, joints_deg=value['joints_deg'], actual_quat_world=actual_q,
@@ -208,7 +208,7 @@ def main():
         send('manual', yaw=30)
         time.sleep(.1)
     t = stopped()
-    assert t['joints_deg']['yaw']['pos'] > 2 and t['los_mount'][1] > .03 and t['los_mount'][2] < .999, t
+    assert t['joints_deg']['yaw']['pos'] > 2 and t['los_mount'][1] < -.03 and t['los_mount'][2] < .999, t
     actual_optics('yaw_motion', t)
     positions = {}
     for axis, rate, target in [('yaw', 80, 60), ('yaw', -80, -60),
@@ -234,7 +234,7 @@ def main():
     t = home()
     actual_optics('final_zero', t)
     stopped()
-    report = dict(result='passed', protocol_version=6, angle_convention='motion_head_joint',
+    report = dict(result='passed', protocol_version=7, angle_convention='motion_head_joint_right_positive',
                   actual_limits_deg=positions, rendered_frames=rendered, optical_checks=optical_checks,
                   frame_checks=frame_checks,
                   tracking='CSRT TRACK valid with target miss', watchdog='passed',

@@ -16,8 +16,8 @@ from test_joystick import GroundStation
 
 
 def telemetry():
-    return {"type": "telemetry", "protocol_version": 6,
-            "angle_convention": "motion_head_joint", "aircraft_id": 1,
+    return {"type": "telemetry", "protocol_version": 7,
+            "angle_convention": "motion_head_joint_right_positive", "aircraft_id": 1,
             "attitude_deg": {axis: {"pos": 0., "vel": 0., "acc": 0.}
                              for axis in ("yaw", "pitch")}}
 
@@ -115,7 +115,7 @@ class ReceiveRateTests(unittest.TestCase):
         self.client._on_datagram(json.dumps(value).encode(), addr or self.client.target)
 
     def hello(self, hz=100):
-        self.receive(dict(type="hello", version=6, angle_convention="motion_head_joint",
+        self.receive(dict(type="hello", version=7, angle_convention="motion_head_joint_right_positive",
                           aircraft_id=1, telemetry_hz=hz))
 
     def test_counts_valid_received_samples_and_exposes_target(self):

@@ -7,6 +7,7 @@ import io
 import json
 import math
 from pathlib import Path
+import socket
 import tempfile
 import threading
 import time
@@ -14,7 +15,7 @@ import types
 import unittest
 from unittest import mock
 
-from test_protocol import BRIDGE, ROOT
+from test_protocol import BRIDGE, CLIENT, ROOT
 
 
 SERVICE = ROOT / "models/gimbals/two_axis_pod/controller/service"
@@ -71,6 +72,7 @@ class TelemetryForwardingTests(unittest.TestCase):
         bridge._last_queued_stamp = None
         bridge._last_telemetry_warning = -math.inf
         bridge._latest_tel = None
+        bridge._plugin_protocol_compatible = False
         bridge._latest_tel_received = None
         bridge._running = True
         bridge._t_start = time.time()
@@ -82,6 +84,8 @@ class TelemetryForwardingTests(unittest.TestCase):
         bridge._locked_track_id = None
         bridge._vision_error = None
         bridge._vision_metrics = {}
+        bridge._vision_times = deque(maxlen=120)
+        bridge._vision = None
         bridge._last_tracking_stop_at = -math.inf
         bridge.clients_lock = threading.RLock()
         bridge.retired_clients = {}
@@ -127,7 +131,7 @@ class TelemetryForwardingTests(unittest.TestCase):
         return thread
 
     def produce(self, stamp, hz=None, **extra):
-        payload = {"mode": "IDLE", "ts_mono": stamp,
+        payload = {"protocol_version": 7, "angle_convention": "motion_head_joint_right_positive", "mode": "IDLE", "ts_mono": stamp,
                    "telemetry_hz": self.bridge.args.telemetry_hz if hz is None else hz,
                    "telemetry_clock": "steady",
                    "yaw": stamp, "pitch": -stamp if isinstance(stamp, (int, float)) else 0,
@@ -205,7 +209,7 @@ class TelemetryForwardingTests(unittest.TestCase):
         self.assertEqual(captured.getvalue().count("插件频率"), 2)
         self.assertEqual(len(self.bridge._telemetry_pending), 0)
         self.bridge._broadcast_telemetry()
-        self.assertEqual(self.sent, [])
+        self.assertEqual(self.telemetry(), [])
         self.produce(13.)
         self.start_sender()
         self.wait_for_count(1)
@@ -233,6 +237,123 @@ class TelemetryForwardingTests(unittest.TestCase):
         self.assertEqual([sample["ts_mono"] for sample in self.telemetry()],
                          list(range(17, 1017)))
         self.assertEqual(len(self.bridge._telemetry_pending), 0)
+
+    def test_old_plugin_never_claims_v7_or_sends_old_attitude(self):
+        for version, convention in ((6, "motion_head_joint"),
+                                    (6, "motion_head_joint_right_positive"),
+                                    (7, "motion_head_joint"), (True, "motion_head_joint_right_positive")):
+            with self.subTest(version=version, convention=convention):
+                self.produce(1., protocol_version=version, angle_convention=convention)
+                self.bridge._send_hello(self.client.addr)
+                hello = self.sent[-1][1]
+                self.assertIsNone(hello["version"])
+                self.assertIsNone(hello["angle_convention"])
+                self.assertFalse(hello["plugin_compatible"])
+                self.assertIsNone(self.bridge.snapshot())
+                self.assertEqual(len(self.bridge._telemetry_pending), 0)
+
+    def test_plugin_upgrade_and_downgrade_refresh_registered_clients(self):
+        self.produce(1.)
+        self.assertEqual(self.sent[-1][1]["version"], 7)
+        self.assertEqual(len(self.bridge._telemetry_pending), 1)
+        old_snapshot = self.bridge._telemetry_pending[0]
+        self.produce(2., protocol_version=6, angle_convention="motion_head_joint")
+        self.assertIsNone(self.sent[-1][1]["version"])
+        self.assertEqual(len(self.bridge._telemetry_pending), 0)
+        self.bridge._broadcast_telemetry(old_snapshot)
+        self.assertEqual(self.telemetry(), [])
+        self.produce(3.)
+        self.assertEqual(self.sent[-1][1]["version"], 7)
+        self.assertTrue(self.sent[-1][1]["plugin_compatible"])
+        self.start_sender()
+        self.wait_for_count(1)
+        self.assertEqual(self.telemetry()[0]["ts_mono"], 3.)
+
+    def test_udp_ping_recovers_lost_upgrade_hello_without_reusing_downgraded_pose(self):
+        server = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        server.bind(("127.0.0.1", 0))
+        server.settimeout(1.)
+        self.bridge.sock = server
+        self.bridge.clients.clear()
+        station = CLIENT["UdpClient"](*server.getsockname(), aircraft_id=7)
+        self.assertIsNone(station.bind_error)
+        station.sock.settimeout(1.)
+        self.addCleanup(station.sock.close)
+        drop_upgrade = True
+
+        def send(addr, payload):
+            nonlocal drop_upgrade
+            value = json.loads(payload) if isinstance(payload, str) else payload
+            if value.get("type") == "hello" and value.get("version") == 7 and drop_upgrade:
+                drop_upgrade = False  # 刻意丢失首次升级通知，模拟 UDP 单包丢失。
+                return True
+            server.sendto(json.dumps(value).encode(), addr)
+            return True
+
+        self.bridge._send_json = send
+
+        def receive_station():
+            data, addr = station.sock.recvfrom(65535)
+            station._on_datagram(data, addr)
+
+        def ping():
+            self.assertGreater(station.send_once("ping", t=123.5), 0)
+            data, addr = server.recvfrom(65535)
+            self.bridge._on_datagram(data, addr)
+            receive_station()  # 当前 hello
+            receive_station()  # pong
+
+        def pose(stamp, **extra):
+            attitude = {axis: {"pos": 0., "vel": 0., "acc": 0.} for axis in ("yaw", "pitch")}
+            self.produce(stamp, attitude_deg=attitude, **extra)
+
+        ping()
+        self.assertIsNone(station.hello["version"])
+        pose(1.)  # 唯一升级 hello 丢失，v7 姿态自身不能代替 hello 授权。
+        self.assertFalse(drop_upgrade)
+        self.bridge._broadcast_telemetry(self.bridge._telemetry_pending.popleft())
+        receive_station()
+        self.assertFalse(station.public_angles_ready)
+        ping()  # 已登记客户端仍能在下次保活取得当前 v7 hello。
+        self.assertEqual(station.hello["version"], 7)
+        self.assertTrue(station.public_angles_ready)
+        self.assertGreater(station.send_manual(yaw=10.), 0)
+        data, addr = server.recvfrom(65535)
+        self.bridge._on_datagram(data, addr)
+        published = json.loads(self.bridge._cmd_pub.publish.call_args.args[0].data)
+        self.assertEqual((published["cmd"], published["yaw"]), ("manual", 10.))
+
+        pose(2., protocol_version=6, angle_convention="motion_head_joint")
+        receive_station()
+        for _ in range(2):
+            ping()
+            self.assertIsNone(station.hello["version"])
+            self.assertFalse(station.public_angles_ready)
+            self.assertEqual(station.telemetry, {})
+        pose(3.)
+        receive_station()  # 恢复 hello 时必须等待降级后的新姿态。
+        self.assertFalse(station.public_angles_ready)
+        self.bridge._broadcast_telemetry(self.bridge._telemetry_pending.popleft())
+        receive_station()
+        self.assertTrue(station.public_angles_ready)
+
+    def test_incompatible_plugin_rejects_motion_but_keeps_stop_available(self):
+        commands = [("manual", {"yaw": 1}), ("manual", {"pitch": -1}),
+                    ("home", {}), ("reset", {}), ("reset_axis", {"axis": "yaw"}),
+                    ("track", {"box": [0, 0, .2, .2]}),
+                    ("set_vision_mode", {"mode": "auto_lock"}),
+                    ("set_vision_mode", {"mode": "manual_track"})]
+        for seq, (cmd, extra) in enumerate(commands, 1):
+            with self.subTest(cmd=cmd, extra=extra):
+                self.bridge._handle_command(self.client, dict(cmd=cmd, seq=seq, **extra))
+                self.assertFalse(self.sent[-1][1]["ok"])
+                self.assertIn("插件尚未确认协议 7", self.sent[-1][1]["message"])
+        self.bridge._cmd_pub.publish.assert_not_called()
+        self.assertFalse(self.bridge._publish_internal("track", box=[0, 0, .2, .2]))
+        self.bridge._handle_command(self.client, {"cmd": "manual", "seq": 20, "yaw": 0, "pitch": 0})
+        self.bridge._handle_command(self.client, {"cmd": "stop", "seq": 21})
+        published = [json.loads(call.args[0].data) for call in self.bridge._cmd_pub.publish.call_args_list]
+        self.assertEqual([value["cmd"] for value in published], ["manual", "stop"])
 
     def test_idle_maintenance_expires_clients_without_sampling_stale_pose(self):
         self.bridge.snapshot = mock.Mock(side_effect=AssertionError("空队列不得采旧姿态"))

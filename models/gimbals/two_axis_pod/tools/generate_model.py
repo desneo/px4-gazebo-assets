@@ -127,8 +127,8 @@ def validate_configuration(c, properties):
         raise ValueError('相机球心必须继承 CAD 导出属性')
     if c['kinematics']['yaw_origin_m'] != properties['groups']['yaw_arm_link']['origin_m']:
         raise ValueError('外轴轴心必须继承 CAD 导出属性')
-    if c['kinematics']['yaw_axis'] != [-1, 0, 0] or c['kinematics']['pitch_axis'] != [0, -1, 0]:
-        raise ValueError('机械轴必须与 CAD 及专用控制器一致')
+    if c['kinematics']['yaw_axis'] != [1, 0, 0] or c['kinematics']['pitch_axis'] != [0, -1, 0]:
+        raise ValueError('机械轴必须为左负右正的外轴 +X 及内轴 -Y')
     expected = [0, -math.pi/2, 0]
     rpy = c['camera']['sensor_rpy_rad']
     if len(rpy) != 3 or any(not math.isfinite(v) or abs(v-e) > 1e-10 for v, e in zip(rpy, expected)):

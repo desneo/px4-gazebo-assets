@@ -130,7 +130,7 @@ class PodKinematics:
         if not np.isfinite(vector).all() or distance < 1e-9:
             return dict(reachable=False, yaw=0., pitch=0., singular=True)
         unit = vector / distance
-        yaw = math.degrees(math.atan2(unit[1], unit[2]))
+        yaw = math.degrees(math.atan2(-unit[1], unit[2]))
         pitch = -math.degrees(math.atan2(unit[0], math.hypot(unit[1], unit[2])))
         limits = [self.joints[axis + '_joint']['limits'] for axis in ('yaw', 'pitch')]
         reachable = all(lo-1e-8 <= angle <= hi+1e-8 for angle, (lo, hi) in zip((yaw, pitch), limits))
@@ -142,5 +142,5 @@ class PodKinematics:
                 return dict(reachable=False, yaw=yaw, pitch=pitch, singular=singular)
             # 校核所读取的 SDF 确实满足该机构几何，防止基础接口改变后静默误算。
             if np.linalg.norm(np.cross(actual[:3, 0], ray / np.linalg.norm(ray))) > 1e-7:
-                raise ValueError('基础 SDF 运动链与 motion_head_joint 解析逆解不一致')
+                raise ValueError('基础 SDF 运动链与 motion_head_joint_right_positive 解析逆解不一致')
         return dict(reachable=reachable, yaw=yaw, pitch=pitch, singular=singular)

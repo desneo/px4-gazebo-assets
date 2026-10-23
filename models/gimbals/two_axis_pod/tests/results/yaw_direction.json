@@ -1,0 +1,71 @@
+{
+  "result": "passed",
+  "protocol_version": 7,
+  "angle_convention": "motion_head_joint_right_positive",
+  "checks": [
+    {
+      "side": "right",
+      "mouse_rate_dps": 20.0,
+      "moving": {
+        "pos": 14.387,
+        "vel": 20,
+        "acc": 0
+      },
+      "stopped_angle_deg": 14.947,
+      "actual_los_mount": [
+        3.176348073452573e-13,
+        -0.25792880175346244,
+        0.966163926684299
+      ],
+      "aisheng": {
+        "track_status": 0,
+        "pitch_angle": 0.0,
+        "yaw_angle": 14.387,
+        "pitch_misalignment": 0.0,
+        "yaw_misalignment": 0.0,
+        "tracking_confidence": 0.0,
+        "target_confidence": 0.8,
+        "pitch_los_rate": 0.0,
+        "yaw_los_rate": 20.0
+      }
+    },
+    {
+      "side": "left",
+      "mouse_rate_dps": -20.0,
+      "moving": {
+        "pos": -14.442,
+        "vel": -20,
+        "acc": 0
+      },
+      "stopped_angle_deg": -14.922,
+      "actual_los_mount": [
+        2.220446049250313e-16,
+        0.2575096724416555,
+        0.9662757207955666
+      ],
+      "aisheng": {
+        "track_status": 0,
+        "pitch_angle": 0.0,
+        "yaw_angle": -14.442,
+        "pitch_misalignment": 0.0,
+        "yaw_misalignment": 0.0,
+        "tracking_confidence": 0.0,
+        "target_confidence": 0.8,
+        "pitch_los_rate": 0.0,
+        "yaw_los_rate": -20.0
+      }
+    }
+  ],
+  "old_axis_rejected": true,
+  "scope": "独立物理世界，无渲染、无PX4、无整机飞行",
+  "source_sha256": {
+    "parameters.json": "d0c9c4f737250218d71182dca8681b5001a2e280c5f16430c8a3d5d37933cd3d",
+    "model.sdf": "556bd0f79cf3ff97e24aa8eb63ff476ea2ccd98fe8a01faf725a33af1e6daccc",
+    "tools/generate_model.py": "9b18233b5ab9ba78587a139873e40ab96f70b76fd22a0b0738c963e086de7ef4",
+    "controller/src/kinematics.cc": "e2804feb743d915726468658171e844a9ac9e436c2bc99310c3cdad80f4da2c7",
+    "controller/src/gimbal_controller.cc": "6c1d97fab565477e54a0aa8ce3b25cf93542dc4c839797c221d499d87c5826fa",
+    "ground_station/ground_station.py": "49d94a765c758b90ea1524670b22e1853940fe5ef703a043f5ed516cc4c45bc5",
+    "ground_station/telemetry_forward.py": "58612db503053e9bdafac80ba8a2b42e43bc451571c2a604b3fe108cce4abcd3",
+    "tests/check_yaw_direction.py": "97d262dc0bd67da2de4c3296b368002830fd68848a217a921090a5f55e31a481"
+  }
+}

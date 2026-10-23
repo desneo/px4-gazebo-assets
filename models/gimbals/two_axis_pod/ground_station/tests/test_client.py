@@ -124,8 +124,8 @@ class ClientTests(unittest.TestCase):
         self.assertEqual(self.client.messages, count)
 
     def confirm_public_angles(self):
-        self.receive({"type": "hello", "aircraft_id": 1, "version": 6, "angle_convention": "motion_head_joint"})
-        self.receive({"type": "telemetry", "protocol_version": 6, "angle_convention": "motion_head_joint", "attitude_deg": {
+        self.receive({"type": "hello", "aircraft_id": 1, "version": 7, "angle_convention": "motion_head_joint_right_positive"})
+        self.receive({"type": "telemetry", "protocol_version": 7, "angle_convention": "motion_head_joint_right_positive", "attitude_deg": {
             axis: {"pos": 0.0, "vel": 0.0, "acc": 0.0} for axis in ("yaw", "pitch")}})
 
     def test_public_control_requires_both_version_and_valid_public_telemetry(self):
@@ -142,8 +142,10 @@ class ClientTests(unittest.TestCase):
     def test_stale_or_downgraded_protocol_blocks_even_retransmission_but_allows_zero(self):
         self.confirm_public_angles()
         seq = self.client.send_reliable("reset_axis", axis="yaw")
+        pending_payload = self.client._pending[seq]["payload"]
         self.receive({"type": "hello", "aircraft_id": 1, "version": 1})
-        self.assertFalse(self.client._raw_send(self.client._pending[seq]["payload"]))
+        self.assertFalse(self.client._pending)
+        self.assertFalse(self.client._raw_send(pending_payload))
         self.client.send_manual(yaw=10.0)
         self.client.send_manual()
         self.assertEqual(len(self.packets), 2)
@@ -156,7 +158,7 @@ class ClientTests(unittest.TestCase):
 
     def test_old_or_missing_telemetry_version_cannot_authorize_motion_head(self):
         self.confirm_public_angles()
-        for version in (4, 5, None, True):
+        for version in (4, 5, 6, None, True):
             self.client.telemetry['protocol_version'] = version
             self.assertFalse(self.client.public_angles_ready)
             self.assertEqual(self.client.send_manual(pitch=-20), -1)
@@ -166,7 +168,11 @@ class ClientTests(unittest.TestCase):
     def test_old_hello_or_joint_marker_blocks_all_motion_but_allows_stop(self):
         for version, convention in ((5, "upright_joint"),
                                     (6, "upright_joint"),
-                                    (5, "motion_head_joint")):
+                                    (6, "motion_head_joint"),
+                                    (6, "motion_head_joint_right_positive"),
+                                    (7, "motion_head_joint"),
+                                    (None, None),
+                                    (5, "motion_head_joint_right_positive")):
             self.confirm_public_angles()
             self.receive({"type": "hello", "aircraft_id": 1,
                           "version": version, "angle_convention": convention})
@@ -184,20 +190,32 @@ class ClientTests(unittest.TestCase):
         self.assertTrue(all(packet["cmd"] in ("stop", "manual", "set_vision_mode")
                             for packet in self.packets))
 
-    def test_v6_with_old_telemetry_marker_does_not_enable_motion(self):
+    def test_v7_with_old_telemetry_marker_does_not_enable_motion(self):
         self.confirm_public_angles()
-        self.client.telemetry["angle_convention"] = "upright_joint"
+        self.client.telemetry["angle_convention"] = "motion_head_joint"
         self.assertFalse(self.client.public_angles_ready)
         self.assertEqual(self.client.send_reliable("home"), -1)
         self.assertEqual(self.client.send_manual(pitch=-10), -1)
         self.assertFalse(self.packets)
 
+    def test_plugin_unready_hello_cancels_pending_motion_before_upgrade(self):
+        self.confirm_public_angles()
+        self.assertGreater(self.client.send_reliable("home"), 0)
+        self.assertTrue(self.client._pending)
+        self.receive({"type": "hello", "aircraft_id": 1, "version": None,
+                      "angle_convention": None, "plugin_compatible": False})
+        self.assertFalse(self.client.public_angles_ready)
+        self.assertFalse(self.client._pending)
+        self.receive({"type": "hello", "aircraft_id": 1, "version": 7,
+                      "angle_convention": "motion_head_joint_right_positive", "plugin_compatible": True})
+        self.assertFalse(self.client.public_angles_ready)  # 升级不能复用降级前姿态。
+
     def test_marker_alone_or_malformed_public_attitude_cannot_enable_control(self):
-        self.receive({"type": "hello", "aircraft_id": 1, "version": 6, "angle_convention": "motion_head_joint"})
+        self.receive({"type": "hello", "aircraft_id": 1, "version": 7, "angle_convention": "motion_head_joint_right_positive"})
         for attitude in ({}, {axis: {"pos": 0., "vel": 0., "acc": float("nan")} for axis in ("yaw", "pitch")}):
-            self.receive({"type": "telemetry", "angle_convention": "motion_head_joint", "attitude_deg": attitude})
+            self.receive({"type": "telemetry", "angle_convention": "motion_head_joint_right_positive", "attitude_deg": attitude})
             self.assertFalse(self.client.public_angles_ready)
-        self.receive({"type": "telemetry", "angle_convention": "motion_head_joint"})
+        self.receive({"type": "telemetry", "angle_convention": "motion_head_joint_right_positive"})
         self.assertFalse(self.client.public_angles_ready)
 
     def test_singular_view_keeps_joint_control_valid(self):
@@ -235,10 +253,10 @@ class ClientTests(unittest.TestCase):
         self.receive({"type": "hello", "aircraft_id": 23})
         self.assertTrue(self.client.identity_ready)
         self.assertEqual(self.client.send_reliable("home"), -1)
-        self.receive({"type": "hello", "aircraft_id": 23, "version": 6,
-                      "angle_convention": "motion_head_joint"})
-        self.receive({"type": "telemetry", "protocol_version": 6,
-                      "angle_convention": "motion_head_joint", "attitude_deg": {
+        self.receive({"type": "hello", "aircraft_id": 23, "version": 7,
+                      "angle_convention": "motion_head_joint_right_positive"})
+        self.receive({"type": "telemetry", "protocol_version": 7,
+                      "angle_convention": "motion_head_joint_right_positive", "attitude_deg": {
                           axis: {"pos": 0., "vel": 0., "acc": 0.}
                           for axis in ("yaw", "pitch")}})
         self.assertGreater(self.client.send_reliable("home"), 0)

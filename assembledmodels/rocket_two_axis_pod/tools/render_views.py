@@ -210,7 +210,7 @@ def head_axes(ax, yaw_deg=0, pitch_deg=0):
     mount = generator.dimensions()[1] * 1000
     chain = generator.kinematics.PodKinematics()
     poses = chain.link_poses(yaw_deg, pitch_deg)
-    for name, color, label, length in (('yaw_joint', '#1e64b4', 'yaw / −X', 60),
+    for name, color, label, length in (('yaw_joint', '#1e64b4', 'yaw / +X', 60),
                                        ('pitch_joint', '#148050', 'pitch / −Y′', 55)):
         joint = chain.joints[name]
         parent = joint['parent']
@@ -276,7 +276,7 @@ def head_detail(pieces, output_dir):
     draw(ax, pieces, limits, 25, -55, "头部斜视 · 轴向示意")
     head_axes(ax)
     fig.suptitle("顶部替换式安装  |  底环 Ø84 mm  /  机身最大 Ø90 mm  /  吊舱高 91 mm", fontsize=15, y=.96)
-    fig.text(.5, .10, f"yaw：绕机体 −X；pitch：绕随 yaw 转动的 −Y′；零位镜头朝 +Z，负 pitch 转向 +X\n机尾 Z = {min_z:g} mm；整机最高点 Z = +{max_z:g} mm；所有尺寸单位为 mm", ha="center", fontsize=11)
+    fig.text(.5, .10, f"yaw：绕机体 +X；pitch：绕随 yaw 转动的 −Y′；零位镜头朝 +Z，负 pitch 转向 +X\n机尾 Z = {min_z:g} mm；整机最高点 Z = +{max_z:g} mm；所有尺寸单位为 mm", ha="center", fontsize=11)
     fig.text(.5, .025, "由装配 SDF 实际几何生成的静态评审图（非 Gazebo 截图） · 坐标箭头为评审标注", ha="center", color="#5a6470", fontsize=10)
     fig.subplots_adjust(left=.01, right=.99, top=.90, bottom=.20, wspace=.03)
     save(fig, output_dir / "head_detail.png")
@@ -288,7 +288,7 @@ def pose_comparison(output_dir, model_path):
     max_z = generator.source_geometry()['max_z_m'] * 1000
     fig = plt.figure(figsize=(14, 13))
     for index, (yaw, pitch, note) in enumerate([(0, 0, "朝 +Z"), (0, -80, "朝 +X 上方 10°"),
-                                              (60, -80, "朝 +X/+Y/+Z"), (0, 30, "朝 −X/+Z")], 1):
+                                              (60, -80, "朝 +X/−Y/+Z"), (0, 30, "朝 −X/+Z")], 1):
         sdf = generator.build_model(yaw_deg=yaw, pitch_deg=pitch)
         pieces = load_pieces(sdf, model_path)
         ax = fig.add_subplot(2, 2, index, projection="3d")

@@ -102,7 +102,7 @@ class AppearanceTests(unittest.TestCase):
                 actual = appearance.transform(camera.findtext('pose'))[:3, :3] @ source_rotation.T @ np.array([0., 0., 1.])
                 y, p = math.radians(yaw), math.radians(pitch)
                 np.testing.assert_allclose(actual, (-math.sin(p),
-                    math.sin(y)*math.cos(p), math.cos(y)*math.cos(p)), atol=1e-10)
+                    -math.sin(y)*math.cos(p), math.cos(y)*math.cos(p)), atol=1e-10)
 
     def test_pitch_limits_and_zero_determinism(self):
         for pitch in (-80.01, 30.01, float('inf'), float('nan')):
@@ -123,10 +123,26 @@ class AppearanceTests(unittest.TestCase):
                 np.testing.assert_allclose(poses['camera_link'][:3, 3], center, atol=1e-12)
                 np.testing.assert_allclose(poses['mount_link'], np.eye(4), atol=1e-12)
                 y, p = map(math.radians, (yaw, pitch))
-                expected = np.array([-math.sin(p), math.sin(y)*math.cos(p), math.cos(y)*math.cos(p)])
+                expected = np.array([-math.sin(p), -math.sin(y)*math.cos(p), math.cos(y)*math.cos(p)])
                 sensor = chain.camera_pose(yaw, pitch)
                 np.testing.assert_allclose(sensor[:3, 0], expected, atol=1e-10)
                 np.testing.assert_allclose(sensor[:3, 3], center + .0237*expected, atol=1e-12)
+
+    def test_positive_yaw_turns_toward_image_right_and_inverse_preserves_sign(self):
+        chain = appearance.kinematics.PodKinematics()
+        center = np.array([.015, 0., .056])
+        for yaw in (-40., 0., 40.):
+            for pitch in (-70., 0., 20.):
+                with self.subTest(yaw=yaw, pitch=pitch):
+                    previous = chain.camera_pose(yaw, pitch)
+                    following = chain.camera_pose(yaw + 1., pitch)
+                    image_right = -previous[:3, 1]
+                    self.assertGreater(np.dot(following[:3, 0] - previous[:3, 0], image_right), 0.)
+                    target = center + 100. * previous[:3, 0]
+                    solution = chain.inverse(target)
+                    self.assertTrue(solution['reachable'])
+                    self.assertAlmostEqual(solution['yaw'], yaw, places=9)
+                    self.assertAlmostEqual(solution['pitch'], pitch, places=9)
 
     def test_joint_pose_is_read_in_child_frame(self):
         source = ET.parse(appearance.POD / 'model.sdf')
@@ -138,7 +154,7 @@ class AppearanceTests(unittest.TestCase):
             source.write(path)
             chain = appearance.kinematics.PodKinematics(path)
             actual = chain.link_poses(60., 0.)['camera_link'][:3, 3]
-        np.testing.assert_allclose(actual, [.015, -math.sqrt(3)/2, .556], atol=1e-12)
+        np.testing.assert_allclose(actual, [.015, math.sqrt(3)/2, .556], atol=1e-12)
 
     def test_regeneration_matches_checked_assets(self):
         with tempfile.TemporaryDirectory(prefix='rocket-pod-appearance-check-') as temporary:

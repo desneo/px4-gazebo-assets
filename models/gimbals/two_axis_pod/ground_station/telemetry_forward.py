@@ -12,12 +12,12 @@ from packet_rate import PacketRate
 
 
 def aisheng_message(message):
-    """两轴 v6 遥测 -> 九字段艾晟原始量；目标置信度固定为 0.8。"""
+    """两轴 v7 遥测 -> 九字段艾晟原始量；目标置信度固定为 0.8。"""
     if (not isinstance(message, dict) or message.get("type") != "telemetry"
             or type(message.get("protocol_version")) is not int
-            or message["protocol_version"] != 6
-            or message.get("angle_convention") != "motion_head_joint"):
-        raise ValueError("艾晟转换需要两轴协议 6 遥测")
+            or message["protocol_version"] != 7
+            or message.get("angle_convention") != "motion_head_joint_right_positive"):
+        raise ValueError("艾晟转换需要两轴协议 7 遥测")
 
     def scaled(value):
         if type(value) not in (int, float) or not math.isfinite(value):

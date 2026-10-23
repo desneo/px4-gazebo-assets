@@ -135,6 +135,7 @@ class GimbalBridge:
         self._last_telemetry_warning = -math.inf
         self._latest_tel = None                 # 插件遥测 JSON -> dict
         self._latest_tel_received = None        # 插件遥测的接收单调时钟时间
+        self._plugin_protocol_compatible = False
         self._frame = None                      # (seq,w,h,sim_stamp,t_arrive,t0,data)
         self._img_counter = 0
         self.frame_registry = deque(maxlen=600)  # (seq24, t0_mono)
@@ -198,6 +199,23 @@ class GimbalBridge:
         except (json.JSONDecodeError, TypeError):
             return
         if not isinstance(tel, dict):
+            return
+        compatible = (type(tel.get("protocol_version")) is int
+                      and tel["protocol_version"] == 7
+                      and tel.get("angle_convention") == "motion_head_joint_right_positive")
+        with self.lock:
+            changed = compatible != self._plugin_protocol_compatible
+            self._plugin_protocol_compatible = compatible
+            if not compatible:
+                self._latest_tel = None
+                self._latest_tel_received = None
+                self._telemetry_pending.clear()
+        if changed:
+            # 不持有遥测锁取得客户端锁，避免与命令处理形成锁顺序反转。
+            with self.clients_lock:
+                for addr in list(self.clients):
+                    self._send_hello(addr)
+        if not compatible:
             return
         with self.lock:
             self._latest_tel = tel
@@ -472,6 +490,8 @@ class GimbalBridge:
 
     def _publish_internal(self, cmd, **extra):
         """发布网关内部控制命令；回执仅用于插件诊断，不属于任一客户端。"""
+        if cmd == "track" and not self._plugin_protocol_compatible:
+            return False
         message = StringMsg()
         message.data = json.dumps({"cmd": cmd,
                                    "request_id": "bridge-" + uuid.uuid4().hex,
@@ -530,7 +550,7 @@ class GimbalBridge:
                 "error": self._vision_error,
                 **self._vision_metrics,
             }
-        if tel is None:
+        if tel is None or not self._plugin_protocol_compatible:
             return None
         out = dict(tel)  # 插件遥测所有字段
         out.setdefault("type", "telemetry")
@@ -563,6 +583,22 @@ class GimbalBridge:
             return False
 
     # ---------------- 客户端登记 ----------------
+    def _send_hello(self, addr):
+        compatible = self._plugin_protocol_compatible
+        self._send_json(addr, {
+            "type": "hello",
+            "proto": "gimbal-udp",
+            "version": 7 if compatible else None,
+            "angle_convention": "motion_head_joint_right_positive" if compatible else None,
+            "plugin_compatible": compatible,
+            "clock_domain": self.clock_domain,
+            "telemetry_hz": self.args.telemetry_hz,
+            "telemetry_clock": "steady",
+            "video_rtsp_path": self.args.mount,
+            "aircraft_id": getattr(self.args, "aircraft_id", 1),
+            "capabilities": ["vision_mode", "server_video_overlay", "auto_lock", "frame_exact_track"],
+        })
+
     def _on_datagram(self, data: bytes, addr):
         if len(data) > MAX_DATAGRAM:
             print(f"[udp] 丢弃超长数据报 {len(data)}B <- {addr}", flush=True)
@@ -604,19 +640,8 @@ class GimbalBridge:
                 self.clients[addr] = cl
             cl.last_seen = now
         if new:
-            hello = {
-                "type": "hello",
-                "proto": "gimbal-udp",
-                "version": 6,
-                "angle_convention": "motion_head_joint",
-                "clock_domain": self.clock_domain,
-                "telemetry_hz": self.args.telemetry_hz,
-                "telemetry_clock": "steady",
-                "video_rtsp_path": self.args.mount,
-                "aircraft_id": getattr(self.args, "aircraft_id", 1),
-                "capabilities": ["vision_mode", "server_video_overlay", "auto_lock", "frame_exact_track"],
-            }
-            self._send_json(addr, hello)
+            if cmd != "ping":
+                self._send_hello(addr)
             print(f"[udp] 客户端登记 {addr}，当前 {len(self.clients)} 个", flush=True)
         self._handle_command(cl, msg)
 
@@ -643,6 +668,8 @@ class GimbalBridge:
             self._retire_client(cl)
             return
         if cmd == "ping":
+            # UDP hello 可能丢失；每次保活携带当前握手，允许客户端自行恢复。
+            self._send_hello(addr)
             self._send_json(addr, {"type": "pong", "t": msg.get("t"), "seq": seq})
             return
 
@@ -673,6 +700,18 @@ class GimbalBridge:
             snap = self.snapshot()
             self._reply_and_cache(cl, seq, snap if snap is not None else
                                   {"type": "error", "message": "暂无遥测"})
+            return
+
+        # 网关与插件的机械正方向必须一致。身份登记不能代替插件协议确认。
+        zero_manual = (cmd == "manual" and "roll" not in msg
+                       and all(type(msg.get(axis, 0.0)) in (int, float)
+                               and msg.get(axis, 0.0) == 0.0 for axis in ("yaw", "pitch")))
+        safe_request = (cmd in {"stop", "reset_fault"} or zero_manual
+                        or (cmd == "set_vision_mode" and msg.get("mode") in {"off", "detect"}))
+        if not self._plugin_protocol_compatible and not safe_request:
+            self._reply_and_cache(cl, seq, {"type": "command_result", "cmd": cmd,
+                                            "ok": False,
+                                            "message": "插件尚未确认协议 7 / motion_head_joint_right_positive，禁止运动"})
             return
 
         if seq is not None and cmd in PASSTHROUGH_CMDS | LOCAL_CMDS:
@@ -846,7 +885,7 @@ class GimbalBridge:
                 if now - cl.last_seen > self.args.client_timeout:
                     self._retire_client(cl)
             items = list(self.clients.items())
-        if snap is None:
+        if snap is None or not self._plugin_protocol_compatible:
             return
         text = json.dumps(snap)
         for addr, _cl in items:

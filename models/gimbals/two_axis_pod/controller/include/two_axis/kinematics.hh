@@ -3,7 +3,10 @@
 namespace two_axis
 {
 using namespace gimbal;
+// 外轴 +X、随动内轴 -Y：Rx(yaw) Ry(-pitch)，yaw 左负右正。
 Mat3 Rotation(double yaw, double pitch);
+// 实际 SDF joint 局部轴向必须与运动学一致，拒绝旧 yaw=-X 模型。
+bool ValidJointAxis(std::size_t axis, const Vec3 &direction);
 // sensor -> camera_link 的固定光学旋转：RPY=(0,-pi/2,0)。
 Mat3 SensorRotation();
 // 图像伺服只支持 CAD 固定光学基底，拒绝不匹配或无效的 SDF 外参。

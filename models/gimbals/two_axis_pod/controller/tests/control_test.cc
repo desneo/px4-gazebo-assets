@@ -114,11 +114,18 @@ int main()
   Check(std::abs(a.x + .5) < 1e-9 &&
         std::abs(a.z - std::sqrt(.75)) < 1e-9, "正俯仰朝安装后方");
   a = Los(60 * d, 0);
-  Check(std::abs(a.y - std::sqrt(.75)) < 1e-9 &&
-        std::abs(a.z - .5) < 1e-9, "yaw绕安装-X使零位光轴朝+Y转动");
+  Check(std::abs(a.y + std::sqrt(.75)) < 1e-9 &&
+        std::abs(a.z - .5) < 1e-9, "yaw绕安装+X使零位光轴朝图像右侧-Y转动");
+  a = Los(-60 * d, 0);
+  Check(std::abs(a.y - std::sqrt(.75)) < 1e-9 && std::abs(a.z - .5) < 1e-9,
+        "负yaw使视线朝图像左侧+Y转动");
+  Check(ValidJointAxis(0, {1, 0, 0}) && ValidJointAxis(1, {0, -1, 0}) &&
+        !ValidJointAxis(0, {-1, 0, 0}) && !ValidJointAxis(1, {0, 1, 0}) &&
+        !ValidJointAxis(2, {1, 0, 0}) && !ValidJointAxis(0, {std::nan(""), 0, 0}),
+        "只接受右正yaw和原pitch轴向，拒绝旧模型、未知轴与非有限轴向");
   a = Los(60 * d, -80 * d);
   Check(std::abs(a.x - std::sin(80*d)) < 1e-9 &&
-        std::abs(a.y - std::sin(60*d)*std::cos(80*d)) < 1e-9 &&
+        std::abs(a.y + std::sin(60*d)*std::cos(80*d)) < 1e-9 &&
         std::abs(a.z - std::cos(60*d)*std::cos(80*d)) < 1e-9,
         "组合机械角符合两条实际转轴");
   Check(!Singular(-80*d) && !Singular(30*d) &&
@@ -143,7 +150,7 @@ int main()
     const auto optical = OpticalRotation(.4, -.6, sensor);
     const auto ray = MatVec(optical, {1, 0, 0});
     const auto localRay = MatVec(sensor, {1, 0, 0});
-    const auto expected = MatVec(Rx(-.4), MatVec(Ry(.6), localRay));
+    const auto expected = MatVec(Rx(.4), MatVec(Ry(.6), localRay));
     Check(std::abs(ray.x-expected.x) < 1e-9 && std::abs(ray.y-expected.y) < 1e-9 &&
           std::abs(ray.z-expected.z) < 1e-9, "传感器局部旋转和机械旋转各应用一次");
   }
@@ -166,7 +173,7 @@ int main()
     };
     Vec3 dy{(ly.x - l.x) / 1e-6, (ly.y - l.y) / 1e-6, (ly.z - l.z) / 1e-6};
     Vec3 dp{(lp.x - l.x) / 1e-6, (lp.y - l.y) / 1e-6, (lp.z - l.z) / 1e-6};
-    Check(std::abs(dot(dy, right) + std::cos(pitch)) < 1e-5, "yaw Jacobian");
+    Check(std::abs(dot(dy, right) - std::cos(pitch)) < 1e-5, "yaw Jacobian");
     Check(std::abs(dot(dp, down) + 1) < 1e-5, "pitch Jacobian");
     Check(std::abs(dot(dy, down)) < 1e-5 && std::abs(dot(dp, right)) < 1e-5,
           "两个机械轴在图像方向中无交叉项");
@@ -175,11 +182,20 @@ int main()
   Check(std::isfinite(rates[0]) && std::abs(rates[0]) < 1e-8, "退化时yaw速度有限且为零");
   Check(rates[1] == -20, "图像下方误差对应负俯仰速度");
   rates = ImageRates(0, 20, -10);
-  Check(rates[0] < 0 && rates[1] == 10, "零位图像右上误差对应负偏航正俯仰");
+  Check(rates[0] > 0 && rates[1] == 10, "零位图像右上误差对应正偏航正俯仰");
   for (double pitch : {-80*d, 0., 30*d})
   {
     rates = ImageRates(pitch, 20, 10);
-    Check(rates[0] < 0 && rates[1] == -10, "确认范围图像右下误差对应两轴负速度");
+    Check(rates[0] > 0 && rates[1] == -10, "确认范围图像右下误差对应正偏航负俯仰");
+  }
+  for (int sign : {-1, 1})
+  {
+    rates = ImageRates(-70*d, sign*20., 0);
+    Check(sign*rates[0] > 0 && rates[1] == 0,
+          "图像左右目标误差分别驱动负正yaw，不改变pitch");
+    const auto feed = StabilizationRates(0, 0, {sign*.1, 0, 0});
+    Check(sign*feed[0] < 0 && std::abs(feed[1]) < 1e-9,
+          "零位载机绕+X转动时yaw反向补偿，保持世界视线");
   }
   auto angular = MountAngularVelocity(Identity(), Rz(.003), .01);
   Check(std::abs(angular.z - .3) < 1e-8 && std::abs(angular.x) < 1e-8,
@@ -266,6 +282,16 @@ int main()
   cv::Mat im(240, 320, CV_8UC3);
   cv::RNG rng(42);
   rng.fill(im, cv::RNG::UNIFORM, 0, 255);
+  for (int sign : {-1, 1})
+  {
+    GimbalControl directionTrack;
+    const double x = sign > 0 ? .7 : .1;
+    Check(directionTrack.StartTracking(im, {x, .4, .2, .2}, 320, 240).first,
+          "左右方向跟踪使用真实CSRT初始化");
+    const auto output = directionTrack.Step(0, true, im, 320, 240, {}, 0, 400+sign);
+    Check(directionTrack.target_valid() && sign*output[0] > 0,
+          "真实CSRT画面右侧目标驱动正yaw、左侧目标驱动负yaw");
+  }
   for (bool compensate : {false, true})
   {
     GimbalControl limitedTrack;
@@ -330,7 +356,7 @@ int main()
   Check(c.client_message().empty(), "停止后清除已失效的跟踪约束提示");
   Check(c.StartTracking(im, {.65, .35, .2, .2}, 320, 240).first,
         "机械边界图像选框有效");
-  JointSample trackedLimit{-59.9*d, -45*d, 0, 0};
+  JointSample trackedLimit{59.9*d, -45*d, 0, 0};
   c.Step(4.3, true, im, 320, 240, trackedLimit, 33.3);
   Check(c.track_state() == TrackState::TRACK && c.limit_flags()[0] &&
         c.client_message().find("机械限位") != std::string::npos &&

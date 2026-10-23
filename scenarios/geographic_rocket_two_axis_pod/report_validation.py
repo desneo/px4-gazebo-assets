@@ -211,9 +211,9 @@ def validate_binding(directory, flight):
     for row in hellos+telemetry:
         payload = row['payload']
         validate_identity(payload, report['aircraft_id'], report['expected_path'])
-        require(payload.get('angle_convention') == 'motion_head_joint', 'RTSP绑定记录角度协议不一致')
+        require(payload.get('angle_convention') == 'motion_head_joint_right_positive', 'RTSP绑定记录角度协议不一致')
         version = payload.get('version') if row['kind'] == 'hello' else payload.get('protocol_version')
-        require(version == 6, 'RTSP绑定记录必须使用协议v6')
+        require(version == 7, 'RTSP绑定记录必须使用协议v7')
         if payload.get('clock_domain'):
             domains.add(payload['clock_domain'])
         tables.update(int(item[0]) & 0xffffff for item in payload.get('frame_table', []))

@@ -67,7 +67,7 @@ class ModelTest(unittest.TestCase):
     def test_chain_and_limits(self):
         self.assertEqual(len(self.model.findall('joint')), 2)
         for name, parent, child, axis, limits in [
-            ('yaw', 'mount_link', 'yaw_arm_link', [-1, 0, 0], (-60, 60)),
+            ('yaw', 'mount_link', 'yaw_arm_link', [1, 0, 0], (-60, 60)),
             ('pitch', 'yaw_arm_link', 'camera_link', [0, -1, 0], (-80, 30))]:
             joint = self.model.find(f"joint[@name='{name}_joint']")
             self.assertEqual(joint.findtext('parent'), parent)
@@ -108,16 +108,29 @@ class ModelTest(unittest.TestCase):
         np.testing.assert_allclose(optical[:, 2], [-1, 0, 0], atol=1e-11)
         for a, p, expected in [
             (0, 0, (0, 0, 1)), (0, -80, (.984807753, 0, .173648178)),
-            (-60, 0, (0, -.866025404, .5)), (60, 0, (0, .866025404, .5)),
-            (0, 30, (-.5, 0, .866025404)), (60, -80, (.984807753, .150383733, .086824089))]:
+            (-60, 0, (0, .866025404, .5)), (60, 0, (0, -.866025404, .5)),
+            (0, 30, (-.5, 0, .866025404)), (60, -80, (.984807753, -.150383733, .086824089))]:
             np.testing.assert_allclose((self.chain(a, p)@optical)[:, 0], expected, atol=1e-8)
+
+    def test_positive_yaw_moves_lens_to_image_right_across_working_range(self):
+        # 从实际 SDF 轴向和相机外参重建视线，以局部图像右投影验证正转。
+        for yaw in (-59., 0., 59.):
+            for pitch in (-80., 0., 30.):
+                optical = self.chain(yaw, pitch) @ self.optical()
+                moved = self.chain(yaw + .01, pitch) @ self.optical()
+                right = -optical[:, 1]
+                self.assertGreater(float((moved[:, 0] - optical[:, 0]) @ right), 0.)
+                left = self.chain(yaw - .01, pitch) @ self.optical()
+                self.assertLess(float((left[:, 0] - optical[:, 0]) @ right), 0.)
 
     def test_cad_source_articulation_and_asset_hashes(self):
         sidecar = json.loads((ROOT/'cad/motion_head.step.json').read_text())
         self.assertEqual(sidecar['documentHash'], hashlib.sha256((ROOT/'cad/motion_head.step').read_bytes()).hexdigest())
         conversion = np.diag([-1, -1, 1])
         for mate, axis in zip(sidecar['kinematics']['mates'], ('yaw', 'pitch')):
-            np.testing.assert_array_equal(conversion@mate['axis']['dir'], self.axis(axis))
+            # CAD 外轴原始正方向与对外左负右正约定相反；轴线和零位相同。
+            sign = -1 if axis == 'yaw' else 1
+            np.testing.assert_array_equal(sign * (conversion@mate['axis']['dir']), self.axis(axis))
         for relative, expected in self.properties['sha256'].items():
             self.assertEqual(hashlib.sha256((ROOT/relative).read_bytes()).hexdigest(), expected, relative)
         self.assertEqual(len(self.properties['parts']), 9)
@@ -207,9 +220,10 @@ class ModelTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, '光学基底'):
             module.validate_configuration(config, self.properties)
         config = copy.deepcopy(self.parameters)
-        config['kinematics']['yaw_axis'] = [0, 0, 1]
-        with self.assertRaisesRegex(ValueError, '机械轴'):
-            module.validate_configuration(config, self.properties)
+        for old_axis in ([-1, 0, 0], [0, 0, 1]):
+            config['kinematics']['yaw_axis'] = old_axis
+            with self.subTest(axis=old_axis), self.assertRaisesRegex(ValueError, '机械轴'):
+                module.validate_configuration(config, self.properties)
 
 
 if __name__ == '__main__':

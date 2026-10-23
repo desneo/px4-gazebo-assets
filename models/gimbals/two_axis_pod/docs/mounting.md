@@ -12,19 +12,19 @@ CAD 源坐标至安装系的转换为 `(x,y,z)=(-X,-Y,Z)`，不缩放、不镜�
 | `yaw_arm_link` | 双侧支架、两个侧盖紧固件 | `(0,0,0.056)` |
 | `camera_link` | 球壳、镜框、光学窗口 | `(0.015,0,0.056)` |
 
-所有 link 的零位旋转均为单位旋转，网格已经位于对应 link 的局部坐标。外轴 `yaw_joint` 绕安装 −X，经 `(0,0,0.056) m`；内轴 `pitch_joint` 绕随动 −Y，经 `(0.015,0,0.056) m`。两轴相交于球心，因此球心不随任一轴平移。
+yaw 采用镜头视线左负右正，外轴正方向与 CAD 原始关节正方向相反；轴线、枢轴、几何及原始零位保持一致。所有 link 的零位旋转均为单位旋转，网格已经位于对应 link 的局部坐标。外轴 `yaw_joint` 绕安装 +X，经 `(0,0,0.056) m`；内轴 `pitch_joint` 绕随动 −Y，经 `(0.015,0,0.056) m`。两轴相交于球心，因此球心不随任一轴平移。
 
 圆环、外罩及轴承座保持固定，外轴带动支架及球头，内轴仅带动球头、镜框和光学窗口。装配固定 `mount_link`，避免将完整 model 设为 static 冻结关节。
 
 ## 机械角与光学系
 
-`yaw ∈ [-60°,60°]`，`pitch ∈ [-80°,30°]`，采用协议 6 的 `motion_head_joint` 定义。这是仿真采用的 CAD 已检查范围，不是实物机械止挡的测量值。`yaw/pitch` 是外轴、内轴机械角，不是飞行器 Euler 航向/俯仰角。
+`yaw ∈ [-60°,60°]`，`pitch ∈ [-80°,30°]`，采用协议 7 的 `motion_head_joint_right_positive` 定义。这是仿真采用的 CAD 已检查范围，不是实物机械止挡的测量值。`yaw/pitch` 是外轴、内轴机械角，不是飞行器 Euler 航向/俯仰角。
 
 关节链与镜头单位视线为：
 
 ```text
-R_mount_gimbal = Rx(-yaw) Ry(-pitch)
-los_mount = (-sin(pitch), sin(yaw) cos(pitch), cos(yaw) cos(pitch))
+R_mount_gimbal = Rx(yaw) Ry(-pitch)
+los_mount = (-sin(pitch), -sin(yaw) cos(pitch), cos(yaw) cos(pitch))
 ```
 
 两轴机械零位沿安装 +Z 朝天。外轴为零时，pitch=-80° 朝安装 +X 且高于水平面 10°，pitch=+30° 朝安装 −X 上方。外轴为 ±60°、内轴为 −80° 时，光轴高于安装水平面约 4.981°，水平视线相对安装 +X 为左右约 8.682°。这些角度描述光轴中心，不能直接当作画面边界；载机倾转还会改变它们相对世界水平面的值。
@@ -36,7 +36,7 @@ los_mount = (-sin(pitch), sin(yaw) cos(pitch), cos(yaw) cos(pitch))
 视线导数在图像右/下方向上的关节 Jacobian 为：
 
 ```text
-J = diag(-cos(pitch), -1)
+J = diag(cos(pitch), -1)
 ```
 
 视觉伺服使用阻尼最小二乘，零位不奇异。内轴接近 ±90° 时外轴与视线平行，外轴视线控制能力下降；当前仿真限位未达到数学奇异点。两轴不能独立保证视线方向与画面水平同时稳定。专用控制器使用上述固定光学基底，生成器和插件均拒绝不匹配的 sensor 旋转。

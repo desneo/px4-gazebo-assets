@@ -20,6 +20,7 @@
 #include <gz/sim/components/Camera.hh>
 #include <gz/sim/System.hh>
 #include <gz/sim/Util.hh>
+#include <gz/sim/components/JointAxis.hh>
 #include <gz/sim/components/JointPosition.hh>
 #include <gz/sim/components/JointVelocity.hh>
 #include <gz/sim/components/JointVelocityCmd.hh>
@@ -258,6 +259,20 @@ void GimbalController::Configure(
     if (j == gz::sim::kNullEntity)
     {
       gzerr << "[gimbal] 未找到关节 [" << axes_.names[i] << "]，插件禁用\n";
+      return;
+    }
+    const auto *axisComponent = _ecm.Component<gz::sim::components::JointAxis>(j);
+    if (!axisComponent || !axisComponent->Data().XyzExpressedIn().empty())
+    {
+      gzerr << "[two_axis] 关节 [" << axes_.names[i]
+            << "] 必须提供 joint 局部轴向，插件禁用\n";
+      return;
+    }
+    const auto direction = axisComponent->Data().Xyz();
+    if (!ValidJointAxis(i, {direction.X(), direction.Y(), direction.Z()}))
+    {
+      gzerr << "[two_axis] 关节 [" << axes_.names[i]
+            << "] 轴向不符合 yaw=+X / pitch=-Y、左负右正约定，插件禁用\n";
       return;
     }
     jointEntities_[i] = j;
@@ -813,7 +828,7 @@ void GimbalController::PublishTelemetry(double _now, const JointSample &_js,
     os << ",\"center_px\":null,\"offset_px\":null,\"offset_deg\":null,\"frame_seq\":null";
   os << "}}";
 
-  os << ",\"protocol_version\":6,\"angle_convention\":\"motion_head_joint\",\"singular\":" << (singular ? "true" : "false")
+  os << ",\"protocol_version\":7,\"angle_convention\":\"motion_head_joint_right_positive\",\"singular\":" << (singular ? "true" : "false")
      << ",\"los_mount\":[" << Num(los.x, 6) << "," << Num(los.y, 6) << "," << Num(los.z, 6) << "]";
   const double positions[2] = {_js.yaw, _js.pitch}, velocities[2] = {_js.yaw_vel, _js.pitch_vel};
   const char *names[2] = {"yaw", "pitch"};

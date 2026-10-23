@@ -101,7 +101,7 @@ class ReportAuthenticityTest(unittest.TestCase):
         self.tracking_rows = self.samples+[dict(kind='event', wall=231., event='result', **self.tracking)]
         self.binding_dir = self.run / 'rtsp_binding'
         payload = dict(aircraft_id=23, video_rtsp_path='/two_axis_pod_23', clock_domain='test-clock',
-                       version=6, protocol_version=6, angle_convention='motion_head_joint')
+                       version=7, protocol_version=7, angle_convention='motion_head_joint_right_positive')
         self.binding_rows = [dict(kind='hello', wall=120., payload=payload)]
         for index in range(20):
             self.binding_rows.extend([dict(kind='video', wall=121.+index, seq=index),
@@ -200,6 +200,14 @@ class ReportAuthenticityTest(unittest.TestCase):
     def test_unrelated_run_binding_wall_time_is_rejected(self):
         self.binding_rows[0]['wall'] = 50.
         self.assertRejected('本次飞行时间窗口')
+
+    def test_old_yaw_convention_cannot_be_archived_as_current(self):
+        self.binding_rows[0]['payload']['angle_convention'] = 'motion_head_joint'
+        self.assertRejected('角度协议')
+
+    def test_old_protocol_version_cannot_be_archived_as_current(self):
+        self.binding_rows[0]['payload']['version'] = 6
+        self.assertRejected('协议v7')
 
     def test_wrong_rtsp_aircraft_identity_is_rejected(self):
         self.binding_rows[2]['payload']['aircraft_id'] = 24

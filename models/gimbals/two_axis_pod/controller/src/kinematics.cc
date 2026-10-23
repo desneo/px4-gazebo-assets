@@ -5,7 +5,17 @@ namespace two_axis
 {
 Mat3 Rotation(double y, double p)
 {
-  return MatMul(Rx(-y), Ry(-p));
+  return MatMul(Rx(y), Ry(-p));
+}
+bool ValidJointAxis(std::size_t axis, const Vec3 &direction)
+{
+  if (axis > 1 || !std::isfinite(direction.x) ||
+      !std::isfinite(direction.y) || !std::isfinite(direction.z))
+    return false;
+  const Vec3 expected = axis == 0 ? Vec3{1, 0, 0} : Vec3{0, -1, 0};
+  return std::abs(direction.x - expected.x) <= 1e-8 &&
+         std::abs(direction.y - expected.y) <= 1e-8 &&
+         std::abs(direction.z - expected.z) <= 1e-8;
 }
 Mat3 SensorRotation()
 {
@@ -36,9 +46,9 @@ bool Singular(double p)
 }
 std::array<double, 2> ImageRates(double p, double right, double down)
 {
-  // 外轴 -X、内轴随动 -Y；图像右(-Y)、下(+X)：J=diag(-cos(p),-1)。
+  // 外轴 +X、内轴随动 -Y；图像右(-Y)、下(+X)：J=diag(cos(p),-1)。
   // 视线接近外轴时以阻尼最小二乘抑制 yaw 速度发散。
-  const double s = -std::cos(p), damping = 0.05;
+  const double s = std::cos(p), damping = 0.05;
   return {s*right / (s * s + damping * damping), -down};
 }
 Vec3 MountAngularVelocity(const Mat3 &previous, const Mat3 &current, double dt)

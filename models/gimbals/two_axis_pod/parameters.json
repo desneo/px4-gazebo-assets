@@ -8,7 +8,7 @@
   "mounting_holes": {"count": 6, "thread_diameter_m": 0.003, "radial": true, "pilot_diameter_m": 0.0025, "axial_position_m": 0.0034},
   "mass_kg": 0.24,
   "mass_distribution": "uniform_effective_density_over_cad_solids",
-  "kinematics": {"yaw_origin_m": [0, 0, 0.056], "yaw_axis": [-1, 0, 0], "pitch_axis": [0, -1, 0]},
+  "kinematics": {"yaw_origin_m": [0, 0, 0.056], "yaw_axis": [1, 0, 0], "pitch_axis": [0, -1, 0]},
   "yaw_limits_deg": [-60, 60],
   "pitch_limits_deg": [-80, 30],
   "max_rate_dps": 20,

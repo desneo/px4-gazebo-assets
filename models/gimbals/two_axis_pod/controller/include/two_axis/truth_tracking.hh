@@ -10,6 +10,8 @@
 
 namespace two_axis
 {
+inline constexpr double kTruthBoxPaddingPx{5.0};
+
 enum class TrackingBackend { SIM_TRUTH, CSRT };
 const char *ToString(TrackingBackend);
 bool ParseTrackingBackend(const std::string &, TrackingBackend &);

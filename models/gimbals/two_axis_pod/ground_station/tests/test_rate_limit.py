@@ -20,7 +20,7 @@ def telemetry(pitch_rate=0.0, yaw_rate=0.0):
         "attitude_deg": {
             "pitch": {"pos": -56.37, "vel": pitch_rate, "acc": 3.0},
             "yaw": {"pos": 12.34, "vel": yaw_rate, "acc": -4.0}},
-        "target": {"valid": True,
+        "target": {"valid": True, "box_px": [95.0, 195.0, 50.0, 40.0],
                    "miss": {"valid": True, "offset_deg": [-0.25, 0.5]}},
         "frame_table": [[42, 12.3]], "extra": {"measurement": [1, 2]},
     }
@@ -30,6 +30,7 @@ OTHER_FIELDS = {
     "track_status": 1, "pitch_angle": -56.37, "yaw_angle": 12.34,
     "pitch_misalignment": 0.5, "yaw_misalignment": -0.25,
     "tracking_confidence": 25.5, "target_confidence": 0.80,
+    "tracking_gateW": 50.0, "tracking_gateH": 40.0,
 }
 
 
@@ -104,8 +105,10 @@ class RateLimitTests(unittest.TestCase):
                 self.assertEqual(packet["yaw_los_rate"], 20.0)
                 self.assertEqual(packet["pitch_misalignment"], 0.0)
                 self.assertEqual(packet["yaw_misalignment"], 0.0)
+                self.assertEqual(packet["tracking_gateW"], 0.0)
+                self.assertEqual(packet["tracking_gateH"], 0.0)
 
-    def test_other_seven_fields_and_nine_field_format_are_unchanged(self):
+    def test_other_nine_fields_and_eleven_field_format_are_unchanged(self):
         packet = aisheng_message(telemetry(-83.5, 67.25))
         self.assertEqual(set(packet), set(OTHER_FIELDS) | {"pitch_los_rate", "yaw_los_rate"})
         self.assertEqual({key: packet[key] for key in OTHER_FIELDS}, OTHER_FIELDS)
@@ -134,7 +137,7 @@ class RateLimitUdpTests(unittest.TestCase):
     def receive(self):
         return json.loads(self.receiver.recvfrom(8192)[0])
 
-    def test_actual_udp_contains_limited_raw_unit_nine_field_json(self):
+    def test_actual_udp_contains_limited_raw_unit_eleven_field_json(self):
         for pitch, yaw in ((45.5, -37.25), (-45.5, 37.25)):
             source = telemetry(pitch, yaw)
             original = copy.deepcopy(source)
@@ -144,7 +147,7 @@ class RateLimitUdpTests(unittest.TestCase):
                 self.assertEqual(packet["pitch_los_rate"], 20.0 if pitch > 0 else -20.0)
                 self.assertEqual(packet["yaw_los_rate"], 20.0 if yaw > 0 else -20.0)
                 self.assertEqual({key: packet[key] for key in OTHER_FIELDS}, OTHER_FIELDS)
-                self.assertEqual(len(packet), 9)
+                self.assertEqual(len(packet), 11)
                 self.assertEqual(source, original)
         self.assertEqual(self.forwarder.snapshot()["sent"], 2)
         self.assertEqual(self.forwarder.snapshot()["dropped"], 0)

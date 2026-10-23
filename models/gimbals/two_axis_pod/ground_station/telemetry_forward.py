@@ -12,7 +12,7 @@ from packet_rate import PacketRate
 
 
 def aisheng_message(message):
-    """两轴 v7 遥测 -> 九字段艾晟原始量；目标置信度固定为 0.8。"""
+    """两轴 v7 遥测 -> 十一字段艾晟原始量；跟踪门宽高使用像素。"""
     if (not isinstance(message, dict) or message.get("type") != "telemetry"
             or type(message.get("protocol_version")) is not int
             or message["protocol_version"] != 7
@@ -21,7 +21,7 @@ def aisheng_message(message):
 
     def scaled(value):
         if type(value) not in (int, float) or not math.isfinite(value):
-            raise ValueError("角度、角速度或脱靶量不是有限数值")
+            raise ValueError("艾晟数值字段不是有限数值")
         raw = value
         if not math.isfinite(raw) or abs(raw) > 3.4028234663852886e38:
             raise ValueError("艾晟数值超出 float32 范围")
@@ -52,6 +52,13 @@ def aisheng_message(message):
     offsets = miss.get("offset_deg") if valid else None
     if valid and (not isinstance(offsets, (list, tuple)) or len(offsets) != 2):
         raise ValueError("有效跟踪缺少二维角脱靶量")
+    box = target.get("box_px") if valid else None
+    if valid and (not isinstance(box, (list, tuple)) or len(box) != 4):
+        raise ValueError("有效跟踪缺少像素跟踪框")
+    gate_width = scaled(box[2]) if valid else 0.0
+    gate_height = scaled(box[3]) if valid else 0.0
+    if valid and (gate_width <= 0 or gate_height <= 0):
+        raise ValueError("有效跟踪框宽高必须大于0")
     return {
         "track_status": int(valid),
         "pitch_angle": scaled(attitude["pitch"].get("pos")),
@@ -62,6 +69,8 @@ def aisheng_message(message):
         "target_confidence": 0.80,
         "pitch_los_rate": limited_rate(attitude["pitch"].get("vel")),
         "yaw_los_rate": limited_rate(attitude["yaw"].get("vel")),
+        "tracking_gateW": gate_width,
+        "tracking_gateH": gate_height,
     }
 
 

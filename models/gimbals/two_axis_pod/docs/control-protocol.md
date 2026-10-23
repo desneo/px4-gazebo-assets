@@ -81,7 +81,7 @@
 
 `command_result` 的 `seq` 对应控制端请求，而网关与 Gazebo 插件间使用的 `request_id` 不对外暴露。可靠命令等待回执期间，可按同一 `seq` 和相同内容重发；网关不会重复执行，已有结果会被重放。同一会话中将同一 `seq` 用于不同内容会失败；比最近控制序号更旧的控制不会执行。建议 station 对单条可靠命令设置约 0.2 秒重试间隔和有限重试次数，同时继续接收遥测；插件回执最终超过 30 秒时网关返回“执行结果未知”。
 
-`detect` 只检测并在 RTSP 画面烧录红框和轨迹号，不控制云台。`auto_lock` 搜索已确认轨迹时显示相同红框，首次选择离画面中心最近的飞机后把选框交给插件，并暂停检测叠加；随后通过 `target.box_px` 上报单目标框，客户端可将其绘制为绿色。默认 `sim_truth` 在对应 `frame_seq` 中从框内已登记飞机选取离框中心最近者并固定绑定，显式 `csrt` 则初始化图像跟踪。后端进入 LOST 后重新搜索。`manual_track` 才允许客户端提交 `track`，其真值绑定规则同样为框内飞机。切换任一模式会停止前一模式留下的跟踪并清空多目标轨迹；人工停止、回零、复位，以及自动锁定或手动框选期间的非零人工转动，都会先切换到 `off` 并退出目标跟踪。
+`detect` 只检测并在 RTSP 画面烧录红框和轨迹号，不控制云台。`auto_lock` 搜索已确认轨迹时显示相同红框，首次选择离画面中心最近的飞机后把选框交给插件，并暂停检测叠加；随后通过 `target.box_px` 上报单目标框，客户端可将其绘制为绿色。默认 `sim_truth` 在对应 `frame_seq` 中从框内已登记飞机选取离框中心最近者并固定绑定，其距离缩放框上下左右各扩展 5 px 并裁剪到画面边界后写入 `target.box_px`；显式 `csrt` 则初始化图像跟踪且不增加该真值框边距。后端进入 LOST 后重新搜索。`manual_track` 才允许客户端提交 `track`，其真值绑定规则同样为框内飞机。切换任一模式会停止前一模式留下的跟踪并清空多目标轨迹；人工停止、回零、复位，以及自动锁定或手动框选期间的非零人工转动，都会先切换到 `off` 并退出目标跟踪。
 
 ## 第三方 station 接入
 
@@ -149,7 +149,7 @@ CAD 零位两轴均能改变视线方向。数学上 pitch 接近 ±90° 时光�
 
 ### 跟踪脱靶量
 
-像素坐标采用原始相机图像：左上角为原点，X 向右为正，Y 向下为正。`center_px=[cx,cy]` 为跟踪框中心的绝对像素坐标；`offset_px=[cx-W/2,cy-H/2]` 为相对画面中心的有符号脱靶量。界面缩放不改变这些数值。
+像素坐标采用原始相机图像：左上角为原点，X 向右为正，Y 向下为正。`center_px=[cx,cy]` 为后端目标中心的绝对像素坐标：`sim_truth` 使用绑定实体的真实投影中心，`csrt` 使用跟踪框中心；`sim_truth` 的 5 px 扩框和画面边界裁剪不改变该中心。`offset_px=[cx-W/2,cy-H/2]` 为相对画面中心的有符号脱靶量。界面缩放不改变这些数值。
 
 `offset_deg=[horizontal,vertical]` 是相对相机光轴的两分量角偏差，单位度，同样右、下为正；它不是机械 yaw/pitch 角度，也不是地理坐标偏差。当前相机为 60° 水平视场、方形像素，焦距 `f=W/(2*tan(60°/2))`；两分量为 `atan2(offset_px[i],f)*180/pi`，与控制器使用同一相机射线定义。`stability.center_err_deg` 保持原有无符号合成角误差定义。
 
@@ -173,7 +173,7 @@ Gazebo 专用话题为 `/two_axis_pod/command`、`/two_axis_pod/telemetry` 和 `
 
 ## 地面站艾晟报文
 
-Linux/Windows 地面站右上角提供独立的 IP、端口输入框和“发送艾晟报文/停止发送”按钮。此功能在地面站本机执行。每份来自已配置网关、已确认飞机身份的协议 7 `telemetry` 转换为一个 UTF-8 JSON 数据报；仅包含下表九个字段，不包含飞机 ID、帧表、时间戳、type 或外层封装。`hello`、`pong`、回执和指令不发送。
+Linux/Windows 地面站右上角提供独立的 IP、端口输入框和“发送艾晟报文/停止发送”按钮。此功能在地面站本机执行。每份来自已配置网关、已确认飞机身份的协议 7 `telemetry` 转换为一个 UTF-8 JSON 数据报；仅包含下表十一个字段，不包含飞机 ID、帧表、时间戳、type 或外层封装。`hello`、`pong`、回执和指令不发送。
 
 | 字段 | 类型 | 发送数值与来源 |
 |---|---|---|
@@ -186,13 +186,15 @@ Linux/Windows 地面站右上角提供独立的 IP、端口输入框和“发送
 | `target_confidence` | float32 数值 | 固定 0.8，不缩放，不随跟踪有效/丢失状态变化，不取自模型评分 |
 | `pitch_los_rate` | float32 数值 | `clamp(attitude_deg.pitch.vel, −20, +20)`，单位 °/s |
 | `yaw_los_rate` | float32 数值 | `clamp(attitude_deg.yaw.vel, −20, +20)`，单位 °/s |
+| `tracking_gateW` | float32 数值 | 有效跟踪时为最终 `target.box_px[2]`，单位 px；无效时为 0.0 |
+| `tracking_gateH` | float32 数值 | 有效跟踪时为最终 `target.box_px[3]`，单位 px；无效时为 0.0 |
 
-JSON 中发送数值而非二进制结构体，不进行 int16 量化；角度、脱靶角直接使用度，角速度直接使用度/秒，不进行倍率换算。丢失或未跟踪时仍发送当前机械角及机械角速度，脱靶角和 `tracking_confidence` 置零，`target_confidence` 始终为 0.8。`*_los_rate` 在有限值和 float32 范围校验后对称限幅到 −20～+20°/s，原始测量遥测不裁剪。两字段按接收约定承载现有机械轴角速度（度/秒），不是线速度，也不是独立估计的世界系目标视线角速度。非有限值、缺少有效机械角、有效跟踪却缺少角脱靶量、数值超出 float32 范围或协议不符时丢弃该包并显示转换错误，不发送 NaN/Infinity 或旧测量替代值。
+JSON 中发送数值而非二进制结构体，不进行 int16 量化；角度、脱靶角直接使用度，角速度直接使用度/秒，不进行倍率换算。丢失或未跟踪时仍发送当前机械角及机械角速度，脱靶角、`tracking_confidence`、`tracking_gateW` 和 `tracking_gateH` 置零，`target_confidence` 始终为 0.8。有效跟踪时门宽高取最终显式框经画面边界裁剪后的实际像素尺寸。`*_los_rate` 在有限值和 float32 范围校验后对称限幅到 −20～+20°/s，原始测量遥测不裁剪。两字段按接收约定承载现有机械轴角速度（度/秒），不是线速度，也不是独立估计的世界系目标视线角速度。非有限值、缺少有效机械角、有效跟踪却缺少有效像素框或角脱靶量、数值超出 float32 范围或协议不符时丢弃该包并显示转换错误，不发送 NaN/Infinity 或旧测量替代值。
 
 例如 pitch −56.37°、yaw 12.34°、垂直/水平脱靶 +0.5°/−0.25°、俯仰/偏航角速度 −1.23°/s、+2.34°/s：
 
 ```json
-{"track_status":1,"pitch_angle":-56.37,"yaw_angle":12.34,"pitch_misalignment":0.5,"yaw_misalignment":-0.25,"tracking_confidence":25.5,"target_confidence":0.8,"pitch_los_rate":-1.23,"yaw_los_rate":2.34}
+{"track_status":1,"pitch_angle":-56.37,"yaw_angle":12.34,"pitch_misalignment":0.5,"yaw_misalignment":-0.25,"tracking_confidence":25.5,"target_confidence":0.8,"pitch_los_rate":-1.23,"yaw_los_rate":2.34,"tracking_gateW":50.0,"tracking_gateH":40.0}
 ```
 
 关闭视觉、仅检测、自动搜索/交接、未选框、初始化、临时/最终丢失和视觉错误均发送 `track_status=0`、`tracking_confidence=0.0`。即使插件暂时残留 TRACK 标志，也不能绕过视觉模式判定。网关在 off/detect 下发现插件仍处于 TRACK 时，每 0.25 秒最多发布一次停止，直到插件遥测实际退出 TRACK；不伪造插件停车状态，不干扰 MANUAL/HOME。显式再次关闭视觉仍会发布停止指令。

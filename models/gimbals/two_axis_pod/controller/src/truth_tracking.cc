@@ -92,14 +92,23 @@ TruthObservation MakeTruthObservation(
       boxWidth <= 0 || boxHeight <= 0)
     return observation;
 
-  const double left = std::max(0.0, projection.center_x - boxWidth / 2.0);
-  const double top = std::max(0.0, projection.center_y - boxHeight / 2.0);
-  const double right = std::min(static_cast<double>(width),
-                                projection.center_x + boxWidth / 2.0);
-  const double bottom = std::min(static_cast<double>(height),
-                                 projection.center_y + boxHeight / 2.0);
-  if (right <= left || bottom <= top)
+  const double rawLeft = std::max(
+    0.0, projection.center_x - boxWidth / 2.0);
+  const double rawTop = std::max(
+    0.0, projection.center_y - boxHeight / 2.0);
+  const double rawRight = std::min(
+    static_cast<double>(width), projection.center_x + boxWidth / 2.0);
+  const double rawBottom = std::min(
+    static_cast<double>(height), projection.center_y + boxHeight / 2.0);
+  if (rawRight <= rawLeft || rawBottom <= rawTop)
     return observation;
+
+  const double left = std::max(0.0, rawLeft - kTruthBoxPaddingPx);
+  const double top = std::max(0.0, rawTop - kTruthBoxPaddingPx);
+  const double right = std::min(
+    static_cast<double>(width), rawRight + kTruthBoxPaddingPx);
+  const double bottom = std::min(
+    static_cast<double>(height), rawBottom + kTruthBoxPaddingPx);
 
   observation.status = TruthStatus::VISIBLE;
   observation.box = {left, top, right - left, bottom - top};

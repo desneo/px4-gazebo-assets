@@ -20,7 +20,8 @@ def telemetry():
             "vision": {"mode": "manual_track", "state": "MANUAL_READY"},
             "attitude_deg": {"pitch": {"pos": -56.37, "vel": -1.23, "acc": 0},
                              "yaw": {"pos": 12.34, "vel": 2.34, "acc": 0}},
-            "target": {"valid": True, "miss": {"valid": True, "offset_deg": [-.25, .5]}},
+            "target": {"valid": True, "box_px": [95.0, 195.0, 50.0, 40.0],
+                       "miss": {"valid": True, "offset_deg": [-.25, .5]}},
             "frame_table": [[42, 12.3]], "future_field": "不发送"}
 
 
@@ -42,7 +43,7 @@ class ForwardTests(unittest.TestCase):
         self.receiver.settimeout(.08)
         return data
 
-    def test_only_nine_scaled_aisheng_fields_without_wrapper(self):
+    def test_only_eleven_raw_aisheng_fields_without_wrapper(self):
         raw = json.dumps(telemetry(), ensure_ascii=False).encode()
         self.forwarder.offer(raw)
         with self.assertRaises(socket.timeout):
@@ -50,10 +51,11 @@ class ForwardTests(unittest.TestCase):
         self.start()
         self.forwarder.offer(raw)
         self.assertEqual(json.loads(self.receive()), {
-            "track_status": 1, "pitch_angle": -5637.0, "yaw_angle": 1234.0,
-            "pitch_misalignment": 50.0, "yaw_misalignment": -25.0,
-            "tracking_confidence": 255.0, "target_confidence": 80.0,
-            "pitch_los_rate": -123.0, "yaw_los_rate": 234.0})
+            "track_status": 1, "pitch_angle": -56.37, "yaw_angle": 12.34,
+            "pitch_misalignment": 0.5, "yaw_misalignment": -0.25,
+            "tracking_confidence": 25.5, "target_confidence": 0.8,
+            "pitch_los_rate": -1.23, "yaw_los_rate": 2.34,
+            "tracking_gateW": 50.0, "tracking_gateH": 40.0})
         self.assertEqual(self.forwarder.snapshot()["sent"], 1)
         # 没有新遥测不定时重复发送上一次状态。
         with self.assertRaises(socket.timeout):
@@ -63,7 +65,7 @@ class ForwardTests(unittest.TestCase):
         self.start()
         source = telemetry()
         self.forwarder.offer(json.dumps(source).encode())
-        self.assertEqual(json.loads(self.receive())["yaw_angle"], 1234.0)
+        self.assertEqual(json.loads(self.receive())["yaw_angle"], 12.34)
         self.forwarder.stop()
         source["attitude_deg"]["yaw"]["pos"] = 22
         self.forwarder.offer(json.dumps(source).encode())
@@ -72,7 +74,19 @@ class ForwardTests(unittest.TestCase):
             self.receiver.recvfrom(8192)
         source["attitude_deg"]["yaw"]["pos"] = -33
         self.forwarder.offer(json.dumps(source).encode())
-        self.assertEqual(json.loads(self.receive())["yaw_angle"], -3300.0)
+        self.assertEqual(json.loads(self.receive())["yaw_angle"], -33.0)
+
+    def test_tracking_gate_uses_final_float_pixel_box_and_invalid_state_zeroes_it(self):
+        source = telemetry()
+        source["target"]["box_px"] = [94.75, 194.25, 50.5, 40.25]
+        packet = aisheng_message(source)
+        self.assertEqual(packet["tracking_gateW"], 50.5)
+        self.assertEqual(packet["tracking_gateH"], 40.25)
+        source["tracking"]["state"] = "TEMP_LOST"
+        source["target"]["box_px"] = "过期坏框"
+        packet = aisheng_message(source)
+        self.assertEqual(packet["tracking_gateW"], 0.0)
+        self.assertEqual(packet["tracking_gateH"], 0.0)
 
     def test_only_identity_confirmed_telemetry_from_configured_peer_is_forwarded(self):
         self.start()
@@ -111,12 +125,14 @@ class ForwardTests(unittest.TestCase):
                 packet = aisheng_message(source)
                 self.assertEqual(packet['track_status'], 0)
                 self.assertEqual(packet['tracking_confidence'], 0.0)
-                self.assertEqual(packet['target_confidence'], 80.0)
+                self.assertEqual(packet['target_confidence'], 0.8)
                 self.assertIs(type(packet['target_confidence']), float)
                 self.assertEqual(packet['pitch_misalignment'], 0.0)
                 self.assertEqual(packet['yaw_misalignment'], 0.0)
-                self.assertEqual(packet['pitch_angle'], -5637.0)
-                self.assertEqual(packet['pitch_los_rate'], -123.0)
+                self.assertEqual(packet['tracking_gateW'], 0.0)
+                self.assertEqual(packet['tracking_gateH'], 0.0)
+                self.assertEqual(packet['pitch_angle'], -56.37)
+                self.assertEqual(packet['pitch_los_rate'], -1.23)
 
     def test_invalid_source_is_dropped_and_sender_recovers(self):
         self.start()
@@ -146,7 +162,9 @@ class ForwardTests(unittest.TestCase):
                 self.assertEqual(packet['tracking_confidence'], 0.0)
                 self.assertEqual(packet['pitch_misalignment'], 0.0)
                 self.assertEqual(packet['yaw_misalignment'], 0.0)
-                self.assertEqual(packet['target_confidence'], 80.0)
+                self.assertEqual(packet['target_confidence'], 0.8)
+                self.assertEqual(packet['tracking_gateW'], 0.0)
+                self.assertEqual(packet['tracking_gateH'], 0.0)
 
     def test_confirmed_auto_lock_and_manual_track_follow_actual_plugin_validity(self):
         for vision in ({'mode': 'manual_track', 'state': 'MANUAL_READY'},
@@ -158,8 +176,10 @@ class ForwardTests(unittest.TestCase):
                 packet = aisheng_message(source)
                 with self.subTest(vision=vision, state=state):
                     self.assertEqual(packet['track_status'], int(state == 'TRACK'))
-                    self.assertEqual(packet['tracking_confidence'], 255.0 if state == 'TRACK' else 0.0)
-                    self.assertEqual(packet['target_confidence'], 80.0)
+                    self.assertEqual(packet['tracking_confidence'], 25.5 if state == 'TRACK' else 0.0)
+                    self.assertEqual(packet['target_confidence'], 0.8)
+                    self.assertEqual(packet['tracking_gateW'], 50.0 if state == 'TRACK' else 0.0)
+                    self.assertEqual(packet['tracking_gateH'], 40.0 if state == 'TRACK' else 0.0)
 
     def test_rejects_old_protocol_missing_and_nonfinite_measurements(self):
         for path, value in ((('protocol_version',), 4), (('protocol_version',), 5),
@@ -168,9 +188,14 @@ class ForwardTests(unittest.TestCase):
                             (('attitude_deg', 'pitch', 'pos'), None),
                             (('attitude_deg', 'pitch', 'vel'), float('nan')),
                             (('attitude_deg', 'yaw', 'pos'), float('inf')),
-                            (('attitude_deg', 'yaw', 'pos'), 1e38),
+                            (('attitude_deg', 'yaw', 'pos'), 3.5e38),
                             (('target', 'miss', 'offset_deg'), [0]),
-                            (('target', 'miss', 'offset_deg'), [True, 0])):
+                            (('target', 'miss', 'offset_deg'), [True, 0]),
+                            (('target', 'box_px'), None),
+                            (('target', 'box_px'), [0, 0, 50]),
+                            (('target', 'box_px'), [0, 0, 0, 40]),
+                            (('target', 'box_px'), [0, 0, True, 40]),
+                            (('target', 'box_px'), [0, 0, float('inf'), 40])):
             source = telemetry()
             node = source
             for key in path[:-1]:
@@ -267,7 +292,9 @@ class ForwardTests(unittest.TestCase):
             self.assertTrue(self.forwarder.snapshot()['active'])
             self.forwarder.offer(raw)
             packet = json.loads(new_receiver.recvfrom(8192)[0])
-            self.assertEqual(packet['target_confidence'], 80.0)
+            self.assertEqual(packet['target_confidence'], 0.8)
+            self.assertEqual(packet['tracking_gateW'], 50.0)
+            self.assertEqual(packet['tracking_gateH'], 40.0)
             self.assertEqual(gui.cfg['forward_port'], new_receiver.getsockname()[1])
             with self.assertRaises(socket.timeout):
                 self.receiver.recvfrom(8192)

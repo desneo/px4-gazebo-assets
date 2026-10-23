@@ -48,8 +48,20 @@ int main()
   const auto truthBox = MakeTruthObservation(
     choices[1], {110, 80, 100, 80}, 12, 320, 240, 77);
   Check(truthBox.status == TruthStatus::VISIBLE && truthBox.frame_seq == 77 &&
-        truthBox.center_x == 158 && truthBox.center_y == 121,
-        "真值观测保留真实中心与关联帧");
+        truthBox.center_x == 158 && truthBox.center_y == 121 &&
+        truthBox.box.x == 103 && truthBox.box.y == 76 &&
+        truthBox.box.w == 110 && truthBox.box.h == 90,
+        "真值观测保留真实中心并将跟踪框四边各扩展5像素");
+  const auto clippedTruthBox = MakeTruthObservation(
+    {4, "edge", 2, 3, 12}, {0, 0, 20, 20}, 12, 320, 240, 78);
+  Check(clippedTruthBox.status == TruthStatus::VISIBLE &&
+        clippedTruthBox.box.x == 0 && clippedTruthBox.box.y == 0 &&
+        clippedTruthBox.box.w == 17 && clippedTruthBox.box.h == 18,
+        "真值跟踪框扩展后裁剪到画面边界并保留实际宽高");
+  const auto outsideTruthBox = MakeTruthObservation(
+    {5, "outside", -12, 120, 12}, {0, 0, 20, 20}, 12, 320, 240, 79);
+  Check(outsideTruthBox.status == TruthStatus::INVISIBLE,
+        "基础真值框完全离开画面时不能因5像素扩展误判为可见");
 
   ControlConfig rateConfig;
   Check(rateConfig.max_rate_dps == 20 && rateConfig.max_acc_dps2 == 160,
@@ -365,6 +377,8 @@ int main()
     CheckRate(output);
     Check(jitterControl.track_state() == TrackState::TRACK &&
           jitterControl.target_valid() &&
+          jitterControl.target_box().w == 74 &&
+          jitterControl.target_box().h == 58 &&
           jitterControl.target_miss().frame_seq == 800+i,
           "目标跨四象限快速抖动时真值跟踪必须逐帧保持有效");
   }

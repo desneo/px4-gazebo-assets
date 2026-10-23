@@ -2,7 +2,7 @@
 
 ## 当前输出
 
-两轴控制器默认使用 `sim_truth`，显式 `tracking_backend=csrt` 时使用系统 OpenCV 4.6.0，并复用三轴目录中的 CSRT/模板重捕获实现。两种后端都只输出有效状态和目标框，没有连续置信度。艾晟 `tracking_confidence` 的 255.0/0.0 是有效性约定，接收端乘 0.1 后为 25.5/0.0，不是正确跟踪概率或已标定的质量分。
+两轴控制器默认使用 `sim_truth`，显式 `tracking_backend=csrt` 时使用系统 OpenCV 4.6.0，并复用三轴目录中的 CSRT/模板重捕获实现。两种后端都只输出有效状态和目标框，没有连续置信度。艾晟 `tracking_confidence` 的 25.5/0.0 是有效性约定，不是正确跟踪概率或已标定的质量分。
 
 CSRT 公开接口只有初始化、布尔更新结果和目标框等功能，不提供相关响应图或连续分数。OpenCV 4.6.0 的 `psr_threshold` 实际与相关响应的最大值比较，不能仅凭参数名称将其称为标准峰旁比 PSR。依据：[公共接口](https://docs.opencv.org/4.13.0/d2/da2/classcv_1_1TrackerCSRT.html)、[4.6.0 实现](https://github.com/opencv/opencv_contrib/blob/4.6.0/modules/tracking/src/trackerCSRT.cpp#L379-L388)。
 

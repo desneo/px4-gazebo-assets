@@ -348,8 +348,8 @@ class GimbalBridge:
             last_seq = self._last_vision_seq
         if mode not in {"detect", "auto_lock"} or seq == last_seq:
             return data
-        # 自动锁定只把检测器用于搜索和选框。一旦框交给插件 CSRT，视频恢复
-        # 原始画面，由地面站根据 CSRT 遥测绘制单个绿色框；不再叠加多目标红框。
+        # 自动锁定只把检测器用于搜索和选框。一旦框交给插件单目标后端，视频恢复
+        # 原始画面，由地面站根据插件遥测绘制单个绿色框；不再叠加多目标红框。
         if mode == "auto_lock" and self._auto_tracker_controls_frame():
             return data
         if len(data) != width * height * 3:
@@ -396,7 +396,7 @@ class GimbalBridge:
             return data
 
     def _auto_tracker_controls_frame(self):
-        """锁定后由插件 CSRT 独占单目标跟踪；最终丢失才恢复检测搜索。"""
+        """锁定后由插件配置的后端独占单目标跟踪；最终丢失才恢复检测搜索。"""
         with self.lock:
             tel = self._latest_tel or {}
             tracking_state = ((tel.get("tracking") or {}).get("state"))
@@ -428,7 +428,7 @@ class GimbalBridge:
         return True
 
     def _update_auto_lock(self, result, width, height):
-        """搜索阶段选中中心最近目标，并把检测框交给插件 CSRT。"""
+        """搜索阶段选中中心最近目标，并把检测框交给插件单目标后端。"""
         target = nearest_confirmed_track(result.tracks, width, height)
         if target is None:
             with self.lock:

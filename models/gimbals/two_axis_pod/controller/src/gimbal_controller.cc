@@ -15,8 +15,10 @@
 #include <gz/msgs/image.pb.h>
 #include <gz/msgs/stringmsg.pb.h>
 #include <gz/plugin/Register.hh>
+#include <gz/math/Pose3.hh>
 #include <gz/sim/Model.hh>
 #include <gz/sim/Link.hh>
+#include <gz/sim/World.hh>
 #include <gz/sim/components/Camera.hh>
 #include <gz/sim/System.hh>
 #include <gz/sim/Util.hh>
@@ -27,6 +29,7 @@
 #include <gz/sim/components/Name.hh>
 #include <gz/sim/components/World.hh>
 #include <gz/transport/Node.hh>
+#include <sdf/Camera.hh>
 
 #include <opencv2/core.hpp>
 #include <opencv2/imgproc.hpp>
@@ -34,6 +37,7 @@
 #include "two_axis/control.hh"
 #include "two_axis/kinematics.hh"
 #include "two_axis/telemetry.hh"
+#include "two_axis/truth_tracking.hh"
 #include "gimbal_controller/mini_json.hh"
 
 namespace two_axis
@@ -67,12 +71,29 @@ struct ProcessedFrame
   std::int64_t seq{0};
   cv::Mat bgr;
   double arrive{0.0};
+  bool truthSynchronized{false};
+  std::vector<TruthProjection> truthTargets;
+};
+
+struct TruthTargetPose
+{
+  gz::sim::Entity entity{gz::sim::kNullEntity};
+  std::string name;
+  gz::math::Vector3d position;
+};
+
+struct TruthSnapshot
+{
+  double simStamp{0};
+  gz::math::Pose3d cameraPose;
+  std::vector<TruthTargetPose> targets;
 };
 }  // namespace
 
 class GimbalController : public gz::sim::System,
   public gz::sim::ISystemConfigure,
-  public gz::sim::ISystemPreUpdate
+  public gz::sim::ISystemPreUpdate,
+  public gz::sim::ISystemPostUpdate
 {
 public:
   void Configure(const gz::sim::Entity &_entity,
@@ -82,6 +103,9 @@ public:
 
   void PreUpdate(const gz::sim::UpdateInfo &_info,
                  gz::sim::EntityComponentManager &_ecm) override;
+
+  void PostUpdate(const gz::sim::UpdateInfo &_info,
+                  const gz::sim::EntityComponentManager &_ecm) override;
 
 private:
   void OnImage(const gz::msgs::Image &_msg);
@@ -108,9 +132,14 @@ private:
   Mat3 mountWorldRotation_;
   double controlHz_{100.0};
   double telemetryHz_{0.0};
+  TrackingBackend trackingBackend_{TrackingBackend::SIM_TRUTH};
+  std::vector<std::string> truthTargetNames_;
+  double cameraHfov_{0}, cameraNear_{0}, cameraFar_{0};
 
   gz::sim::Entity modelEntity_{gz::sim::kNullEntity};
   gz::sim::Entity mountEntity_{gz::sim::kNullEntity};
+  gz::sim::Entity sensorEntity_{gz::sim::kNullEntity};
+  gz::sim::Entity worldEntity_{gz::sim::kNullEntity};
   std::array<gz::sim::Entity, 2> jointEntities_
   {
     gz::sim::kNullEntity, gz::sim::kNullEntity};
@@ -134,6 +163,14 @@ private:
   std::int64_t lastProcessedSeq_{-1};
   std::int64_t meanSeq_{0};
   std::chrono::steady_clock::time_point manualReceived_{};
+  gz::sim::Entity boundTruthEntity_{gz::sim::kNullEntity};
+  std::string boundTruthName_;
+  Box truthInitialBox_;
+  double truthInitialDepth_{0};
+
+  // PostUpdate 只记录真值快照；图像线程和指令线程都不直接读取 ECM。
+  std::mutex truthMutex_;
+  std::deque<TruthSnapshot> truthHistory_;
 
   // 计时
   double startTime_{-1.0};
@@ -176,6 +213,23 @@ void GimbalController::Configure(
   commandTopic_ = getStr("command_topic", commandTopic_);
   telemetryTopic_ = getStr("telemetry_topic", telemetryTopic_);
   resultTopic_ = getStr("command_result_topic", resultTopic_);
+  const std::string backendText = getStr("tracking_backend", "sim_truth");
+  if (!ParseTrackingBackend(backendText, trackingBackend_))
+  {
+    gzerr << "[two_axis] tracking_backend 必须为 sim_truth 或 csrt，插件禁用\n";
+    return;
+  }
+  for (auto target = _sdf->GetFirstElement(); target;
+       target = target->GetNextElement())
+  {
+    if (target->GetName() != "sim_truth_target_name")
+      continue;
+    const auto name = target->Get<std::string>();
+    if (!name.empty() &&
+        std::find(truthTargetNames_.begin(), truthTargetNames_.end(), name) ==
+          truthTargetNames_.end())
+      truthTargetNames_.push_back(name);
+  }
   controlHz_ = std::max(1.0, getDouble("control_rate", controlHz_));
   const auto telemetryConfig = getStr("telemetry_config", kDefaultTelemetryConfig);
   std::string telemetryError;
@@ -215,6 +269,25 @@ void GimbalController::Configure(
       !_ecm.Component<gz::sim::components::Camera>(sensorEntity))
   {
     gzerr << "[gimbal] 未找到实际相机sensor，插件禁用\n";
+    return;
+  }
+  sensorEntity_ = sensorEntity;
+  const auto *cameraComponent =
+    _ecm.Component<gz::sim::components::Camera>(sensorEntity);
+  const auto *camera = cameraComponent->Data().CameraSensor();
+  if (!camera)
+  {
+    gzerr << "[two_axis] camera sensor 缺少相机内参，插件禁用\n";
+    return;
+  }
+  cameraHfov_ = camera->HorizontalFov().Radian();
+  cameraNear_ = camera->NearClip();
+  cameraFar_ = camera->FarClip();
+  if (!std::isfinite(cameraHfov_) || cameraHfov_ <= 0 || cameraHfov_ >= M_PI ||
+      !std::isfinite(cameraNear_) || !std::isfinite(cameraFar_) ||
+      cameraNear_ <= 0 || cameraFar_ <= cameraNear_)
+  {
+    gzerr << "[two_axis] camera sensor 相机内参无效，插件禁用\n";
     return;
   }
   const auto optical = (gz::sim::worldPose(cameraLinkEntity, _ecm).Rot().Inverse() *
@@ -287,6 +360,7 @@ void GimbalController::Configure(
   // ---------------- 话题名 ----------------
   std::string worldName;
   const auto world = gz::sim::worldEntity(_ecm);
+  worldEntity_ = world;
   if (world != gz::sim::kNullEntity)
   {
     if (auto *n = _ecm.Component<gz::sim::components::Name>(world))
@@ -310,7 +384,8 @@ void GimbalController::Configure(
   configured_ = true;
   gzmsg << "[gimbal] 插件已配置: 模型=" << modelName << " 图像=" << imageTopic
         << " 指令=" << commandTopic_ << " 遥测=" << telemetryTopic_
-        << " 控制=" << controlHz_ << "Hz\n";
+        << " 控制=" << controlHz_ << "Hz 跟踪后端="
+        << ToString(trackingBackend_) << "\n";
 }
 
 void GimbalController::OnImage(const gz::msgs::Image &_msg)
@@ -346,6 +421,37 @@ void GimbalController::OnImage(const gz::msgs::Image &_msg)
                           std::chrono::steady_clock::now().time_since_epoch())
                         .count();
   this->frame_.seq = seq;
+}
+
+void GimbalController::PostUpdate(
+  const gz::sim::UpdateInfo &_info,
+  const gz::sim::EntityComponentManager &_ecm)
+{
+  if (!configured_ || trackingBackend_ != TrackingBackend::SIM_TRUTH ||
+      _info.paused || sensorEntity_ == gz::sim::kNullEntity ||
+      worldEntity_ == gz::sim::kNullEntity)
+    return;
+
+  TruthSnapshot snapshot;
+  snapshot.simStamp = std::chrono::duration<double>(_info.simTime).count();
+  snapshot.cameraPose = gz::sim::worldPose(sensorEntity_, _ecm);
+  const gz::sim::World world(worldEntity_);
+  for (const auto &name : truthTargetNames_)
+  {
+    const auto entity = world.ModelByName(_ecm, name);
+    if (entity == gz::sim::kNullEntity || entity == modelEntity_ ||
+        !_ecm.HasEntity(entity))
+      continue;
+    snapshot.targets.push_back(
+      TruthTargetPose{entity, name, gz::sim::worldPose(entity, _ecm).Pos()});
+  }
+
+  std::lock_guard<std::mutex> lock(truthMutex_);
+  truthHistory_.push_back(std::move(snapshot));
+  while (!truthHistory_.empty() &&
+         truthHistory_.front().simStamp <
+           truthHistory_.back().simStamp - 0.75)
+    truthHistory_.pop_front();
 }
 
 void GimbalController::PublishResult(const std::string &_cmd, bool _ok,
@@ -442,9 +548,8 @@ void GimbalController::OnCommand(const gz::msgs::StringMsg &_msg)
       return;
     }
     std::lock_guard<std::mutex> lock(this->ctrlMutex_);
-    const cv::Mat *trackingImage = &this->latestBgr_;
-    int trackingWidth = this->latestWidth_;
-    int trackingHeight = this->latestHeight_;
+    const ProcessedFrame *selectedFrame = this->processedFrames_.empty() ?
+      nullptr : &this->processedFrames_.back();
     if (requestedFrameSeq)
     {
       const auto it = std::find_if(this->processedFrames_.rbegin(),
@@ -464,18 +569,56 @@ void GimbalController::OnCommand(const gz::msgs::StringMsg &_msg)
         reply(false, "指定视频帧已超时");
         return;
       }
-      trackingImage = &it->bgr;
-      trackingWidth = it->bgr.cols;
-      trackingHeight = it->bgr.rows;
+      selectedFrame = &*it;
     }
-    if (trackingImage->empty())
+    if (!selectedFrame || selectedFrame->bgr.empty())
     {
       reply(false, "尚无视频帧");
       return;
     }
-    auto [ok, message] =
-      this->control_.StartTracking(*trackingImage, box, trackingWidth,
-                                   trackingHeight);
+    std::pair<bool, std::string> result;
+    if (trackingBackend_ == TrackingBackend::SIM_TRUTH)
+    {
+      if (!selectedFrame->truthSynchronized)
+      {
+        reply(false, "选框视频帧尚未与仿真真值同步");
+        return;
+      }
+      const Box selection{box[0] * selectedFrame->bgr.cols,
+                          box[1] * selectedFrame->bgr.rows,
+                          box[2] * selectedFrame->bgr.cols,
+                          box[3] * selectedFrame->bgr.rows};
+      const auto selected = SelectTruthTarget(
+        selectedFrame->truthTargets, selection,
+        selectedFrame->bgr.cols, selectedFrame->bgr.rows);
+      if (!selected)
+      {
+        reply(false, "选框内没有飞机真值候选");
+        return;
+      }
+      const auto &target = selectedFrame->truthTargets[*selected];
+      result = this->control_.StartTruthTracking(
+        box, selectedFrame->bgr.cols, selectedFrame->bgr.rows);
+      if (result.first)
+      {
+        boundTruthEntity_ = static_cast<gz::sim::Entity>(target.entity);
+        boundTruthName_ = target.name;
+        truthInitialBox_ = selection;
+        truthInitialDepth_ = target.depth;
+      }
+    }
+    else
+    {
+      result = this->control_.StartTracking(
+        selectedFrame->bgr, box, selectedFrame->bgr.cols,
+        selectedFrame->bgr.rows);
+      if (result.first)
+      {
+        boundTruthEntity_ = gz::sim::kNullEntity;
+        boundTruthName_.clear();
+      }
+    }
+    const auto &[ok, message] = result;
     reply(ok, message);
   }
   else if (cmd == "stop")
@@ -646,6 +789,7 @@ void GimbalController::PreUpdate(const gz::sim::UpdateInfo &_info,
     cv::Mat bgr;
     std::int64_t processedSeq{-1};
     double processedArrive{0.0};
+    double processedSimStamp{0.0};
     {
       std::lock_guard<std::mutex> imgLock(this->imgMutex_);
       if (this->frame_.valid && this->frame_.seq != this->lastProcessedSeq_ &&
@@ -662,9 +806,47 @@ void GimbalController::PreUpdate(const gz::sim::UpdateInfo &_info,
           cv::cvtColor(rgb, bgr, cv::COLOR_RGB2BGR);
           processedSeq = this->frame_.seq;
           processedArrive = this->frame_.arrive;
+          processedSimStamp = this->frame_.simStamp;
         }
         this->lastProcessedSeq_ = this->frame_.seq;
         this->meanSeq_ = this->frame_.seq;
+      }
+    }
+
+    bool truthSynchronized = false;
+    std::vector<TruthProjection> truthTargets;
+    if (!bgr.empty() && trackingBackend_ == TrackingBackend::SIM_TRUTH)
+    {
+      std::optional<TruthSnapshot> snapshot;
+      {
+        std::lock_guard<std::mutex> truthLock(this->truthMutex_);
+        if (!this->truthHistory_.empty())
+        {
+          const auto closest = std::min_element(
+            this->truthHistory_.begin(), this->truthHistory_.end(),
+            [&](const TruthSnapshot &a, const TruthSnapshot &b)
+            {
+              return std::abs(a.simStamp - processedSimStamp) <
+                     std::abs(b.simStamp - processedSimStamp);
+            });
+          if (std::abs(closest->simStamp - processedSimStamp) <= 0.05)
+            snapshot = *closest;
+        }
+      }
+      if (snapshot)
+      {
+        truthSynchronized = true;
+        for (const auto &target : snapshot->targets)
+        {
+          const auto relative = snapshot->cameraPose.Rot().RotateVectorReverse(
+            target.position - snapshot->cameraPose.Pos());
+          const auto projection = ProjectTruthTarget(
+            static_cast<std::uint64_t>(target.entity), target.name,
+            {relative.X(), relative.Y(), relative.Z()}, bgr.cols, bgr.rows,
+            cameraHfov_, cameraNear_, cameraFar_);
+          if (projection)
+            truthTargets.push_back(*projection);
+        }
       }
     }
 
@@ -675,7 +857,8 @@ void GimbalController::PreUpdate(const gz::sim::UpdateInfo &_info,
       this->latestWidth_ = bgr.cols;
       this->latestHeight_ = bgr.rows;
       this->processedFrames_.push_back(
-        ProcessedFrame{processedSeq, this->latestBgr_, processedArrive});
+        ProcessedFrame{processedSeq, this->latestBgr_, processedArrive,
+                       truthSynchronized, truthTargets});
       while (this->processedFrames_.size() > 4)
         this->processedFrames_.pop_front();
     }
@@ -690,8 +873,36 @@ void GimbalController::PreUpdate(const gz::sim::UpdateInfo &_info,
         std::chrono::duration<double>(steadyNow - this->manualReceived_).count()
         >= 0.5)
       this->control_.WatchdogStop();
+    TruthObservation truthObservation;
+    const TruthObservation *truth = nullptr;
+    if (trackingBackend_ == TrackingBackend::SIM_TRUTH && newFrame)
+    {
+      truth = &truthObservation;
+      if (truthSynchronized)
+      {
+        truthObservation.status = TruthStatus::INVISIBLE;
+        truthObservation.frame_seq = processedSeq;
+        const auto target = std::find_if(
+          truthTargets.begin(), truthTargets.end(),
+          [&](const TruthProjection &projection)
+          {
+            return projection.entity ==
+              static_cast<std::uint64_t>(boundTruthEntity_);
+          });
+        if (target != truthTargets.end())
+          truthObservation = MakeTruthObservation(
+            *target, truthInitialBox_, truthInitialDepth_, useW, useH,
+            processedSeq);
+      }
+    }
     cmd = this->control_.Step(now, newFrame && !useImg.empty(), useImg, useW,
-                              useH, js, watchdogNow, processedSeq);
+                              useH, js, watchdogNow, processedSeq, truth);
+    if (this->control_.mode() != Mode::TRACK)
+    {
+      boundTruthEntity_ = gz::sim::kNullEntity;
+      boundTruthName_.clear();
+      truthInitialDepth_ = 0;
+    }
   }
 
   // ---- 写入关节速度指令（每步写入，物理系统在 Update 中应用后清零）----
@@ -771,6 +982,7 @@ void GimbalController::PublishTelemetry(double _now, const JointSample &_js,
      << ",\"sim_uptime\":" << Num(_now - this->startTime_, 1)
      << ",\"mode\":\"" << ToString(c.mode()) << "\""
      << ",\"tracking\":{\"state\":\"" << ToString(c.track_state())
+     << "\",\"backend\":\"" << ToString(trackingBackend_)
      << "\",\"fault\":";
   if (c.fault_reason().empty())
     os << "null";
@@ -791,7 +1003,17 @@ void GimbalController::PublishTelemetry(double _now, const JointSample &_js,
   os << ",\"stability\":{\"state\":\"" << ToString(c.stability())
      << "\",\"center_err_deg\":" << Num(c.center_err_deg(), 3) << "}";
 
-  os << ",\"target\":{\"valid\":" << (c.target_valid() ? "true" : "false");
+  os << ",\"target\":{\"valid\":" << (c.target_valid() ? "true" : "false")
+     << ",\"entity_id\":";
+  if (boundTruthEntity_ == gz::sim::kNullEntity)
+    os << "null";
+  else
+    os << static_cast<std::uint64_t>(boundTruthEntity_);
+  os << ",\"entity_name\":";
+  if (boundTruthName_.empty())
+    os << "null";
+  else
+    os << "\"" << json::Escape(boundTruthName_) << "\"";
   if (c.has_target_box())
   {
     const Box &b = c.target_box();
@@ -877,5 +1099,6 @@ void GimbalController::PublishTelemetry(double _now, const JointSample &_js,
 }  // namespace two_axis
 
 GZ_ADD_PLUGIN(two_axis::GimbalController, gz::sim::System,
-              gz::sim::ISystemConfigure, gz::sim::ISystemPreUpdate)
+              gz::sim::ISystemConfigure, gz::sim::ISystemPreUpdate,
+              gz::sim::ISystemPostUpdate)
 GZ_ADD_PLUGIN_ALIAS(two_axis::GimbalController, "two_axis::GimbalController")

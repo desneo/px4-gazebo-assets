@@ -1241,7 +1241,7 @@ class GroundStation:
         return mode if mode in VISION_MODES else "off"
 
     def _single_target_overlay_active(self, telemetry):
-        """手动画框或已选定自动目标时显示插件 CSRT 的单目标框。"""
+        """手动画框或已选定自动目标时显示插件单目标后端的目标框。"""
         mode = self._vision_mode(telemetry)
         if mode == "manual_track":
             return True
@@ -1448,7 +1448,7 @@ class GroundStation:
             cv2.rectangle(disp, self.mouse_start, self.mouse_end, (255, 180, 0), 2)
 
         # 检测/搜索阶段的多目标框由服务端烧录为红色；手动框选或自动选定
-        # 目标后，改画插件 CSRT 的单目标框。自动目标固定使用绿色。
+        # 目标后，改画插件单目标后端的目标框。自动目标固定使用绿色。
         target = (tele or {}).get("target") or {}
         track = (tele or {}).get("tracking") or {}
         state = track.get("state", "IDLE")

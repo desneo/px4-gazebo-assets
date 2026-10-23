@@ -53,7 +53,7 @@ bash models/gimbals/two_axis_pod/scripts/stop_bridge.sh
 bash models/gimbals/two_axis_pod/scripts/stop_plugin_sim.sh
 ```
 
-`check_sim.py` 依赖 gz Python 绑定与 Pillow，会运动两轴到四个限位、从限位回零、验证零位非奇异、外轴改变视线与实际活动link光学姿态、单轴复位、无续发超时停车、拒绝滚转、CSRT 跟踪与两路渲染。完成后两轴回零并停止。结果保存到 `runs/two_axis_pod/validation.json`，零位帧为 `camera_zero.png` 与 `overview_zero.png`。测试使用独立分区，不要同时用地面站或其他客户端下发控制命令。
+`check_sim.py` 依赖 gz Python 绑定与 Pillow，会运动两轴到四个限位、从限位回零、验证零位非奇异、外轴改变视线与实际活动link光学姿态、单轴复位、无续发超时停车、拒绝滚转、显式 `csrt` 跟踪与两路渲染。完成后两轴回零并停止。结果保存到 `runs/two_axis_pod/validation.json`，零位帧为 `camera_zero.png` 与 `overview_zero.png`。测试使用独立分区，不要同时用地面站或其他客户端下发控制命令。
 
 RTSP 解码和地面站自检需具备 OpenCV Python 等依赖；`run_bridge.sh` 和地面站 `run.sh` 会自动配置共用的 `.venv-linux`，也可用 `GIMBAL_PYTHON` 指定已配置的独立环境。`--selftest` 会实际运动模型；应在关节在线检查完成后执行。测试目录中的离线网络/UI测试不启动图形窗口。
 
@@ -76,7 +76,7 @@ RTSP 解码和地面站自检需具备 OpenCV Python 等依赖；`run_bridge.sh`
 
 测试使用临时 RTSP 端口，启动独立编码进程验证同端口不同 ID 后缀的视频隔离、重复路径拒绝、单路退出、租约过期和中继重启恢复。测试中继在全部视频退出后空闲约 30 秒自动退出。
 
-机械转速限制为每轴 ±20°/s；`test_model.py` 核对参数、插件和两关节物理速度限制一致，装配 `test_dynamic_model.py` 检查原生继承。CTest 覆盖各模式、补偿叠加、运行中收紧及旧配置无法抬高上限。`test_rate_limit.py` 验证艾晟角速度限幅、有限值/float32 校验、边界、未跟踪状态、输入保留及真实回环 UDP 输出；摇杆测试验证手动流和方向输入最大 20°/s。
+机械转速限制为每轴 ±20°/s；`test_model.py` 核对参数、插件和两关节物理速度限制一致，装配 `test_dynamic_model.py` 检查原生继承。CTest 覆盖各模式、补偿叠加、运行中收紧、旧配置无法抬高上限，以及目标在视野内以 ±22° 水平角、±15° 垂直角快速跨四象限抖动时 `sim_truth` 逐帧保持 TRACK 且不产生无效帧。`test_rate_limit.py` 验证艾晟角速度限幅、有限值/float32 校验、边界、未跟踪状态、输入保留及真实回环 UDP 输出；摇杆测试验证手动流和方向输入最大 20°/s。
 
 ## yaw 左右方向验收
 

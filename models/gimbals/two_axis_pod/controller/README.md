@@ -23,9 +23,9 @@ export GZ_SIM_SYSTEM_PLUGIN_PATH=models/gimbals/two_axis_pod/controller/build/li
 
 手动命令单位为 °/s。两轴速度上限均为 20°/s，加速度默认上限保持 160°/s²。该机械轴速度限制作用于手动、回零、单轴复位和自动跟踪，包括载机补偿叠加后的最终控制输出；配置可收紧，不能提高 20°/s 的硬上限。运行中降低配置会立即约束已有速度指令，旧场景配置大于 20 时插件明确告警并按 20 执行。加速度平滑之后按剩余行程限制向外速度，保留 0.2° 软件端点缓冲及两倍控制间隔的前瞻余量，避免离散速度指令撞击物理硬限位；允许反向退出。停止与超时保护立即清零速度。非零手动指令超过 0.5 秒未续发即以“控制输入超时”安全停止；显式双轴零速是正常松手停车，立即退出手动模式且不产生超时提示。
 
-跟踪采用 OpenCV CSRT，短时遮挡采用模板匹配重捕获。`track` 可携带 `frame_seq`，插件在最近 4 个已处理图像中按序号精确选帧，使网关自动检测框和 CSRT 初始化使用同一图像；手动画框不携带序号时仍使用最新帧。像素误差转换为图像右/下方向角误差，经比例增益（默认 4）及阻尼最小二乘 Jacobian 转换为关节速度，再施加速度、加速度和机械限位约束；不使用目标仿真真值。图像断帧超过 0.5 秒立即停止，超过默认 2.5 秒恢复窗口进入 LOST，需要重新选框。连续 1 秒中心误差小于 1° 标记稳定，误差大于 2° 标记不稳定。无效关节采样进入 FAULT，恢复采样后可用 reset_fault 清除。
+`tracking_backend` 默认为 `sim_truth`，只有显式配置 `csrt` 才启用 OpenCV CSRT 和模板重捕获。`track` 可携带 `frame_seq`，插件在最近 4 个已处理图像中按序号精确选帧：真值模式在该帧选框内绑定离框中心最近的已登记飞机实体，CSRT 模式则用该帧初始化纹理跟踪。绑定后真值模式只投影同一实体，不因其他飞机经过而换锁；实体在相机裁剪范围且估算目标框与画面相交时持续输出，物理遮挡不会造成失败。像素误差经比例增益（默认 4）及阻尼最小二乘 Jacobian 转换为关节速度，再施加速度、加速度和机械限位约束。图像断帧超过 0.5 秒立即停止；绑定实体离开视野、删除或持续断帧超过默认 2.5 秒恢复窗口后进入 LOST，需要重新选框。连续 1 秒中心误差小于 1° 标记稳定，误差大于 2° 标记不稳定。无效关节采样进入 FAULT，恢复采样后可用 reset_fault 清除。
 
-`mount_dynamic` 默认为 false，沿用固定安装参考。机载装配设置为 true 时，每步读取 `mount_link` 世界姿态，更新安装四元数和相机世界姿态；TRACK 中把载机角速度对视线的影响投影到实际两轴 Jacobian，加入反向前馈。目标平移和载机平移仍由图像误差闭环修正，不读取目标世界坐标。大于 0.5 rad 的单步姿态跳变不转换为角速度前馈。进入机械限位、输出速度受限或视线退化时明确报告约束，不能将 CSRT 仍识别选框解释为稳定锁定。
+`sim_truth_target_name` 可重复配置，列出本场景允许绑定的飞机顶层模型名；未登记的地形、标志物和其他模型不会参与绑定。`mount_dynamic` 默认为 false，沿用固定安装参考。机载装配设置为 true 时，每步读取 `mount_link` 世界姿态，更新安装四元数和相机世界姿态；TRACK 中把载机角速度对视线的影响投影到实际两轴 Jacobian，加入反向前馈。`sim_truth` 使用与图像时间戳匹配的相机和目标世界位置生成像素误差，`csrt` 使用图像框误差。大于 0.5 rad 的单步姿态跳变不转换为角速度前馈。进入机械限位、输出速度受限或视线退化时明确报告约束，不能将后端仍输出目标框解释为稳定锁定。
 
 视线方向为 `(-sin(pitch), -sin(yaw)cos(pitch), cos(yaw)cos(pitch))`。图像右/下方向的关节 Jacobian 为 `diag(cos(pitch), -1)`，yaw 使用阻尼最小二乘逆。两轴零位不退化；当视线平行外轴、`abs(cos(pitch)) < 0.05` 时，yaw 无法独立改变视线方向，遥测报告 `singular: true`。确认的机械范围不包含该退化姿态。机械手动控制与回零仍有效。
 
@@ -41,6 +41,6 @@ export GZ_SIM_SYSTEM_PLUGIN_PATH=models/gimbals/two_axis_pod/controller/build/li
 
 命令支持 track（归一化 `box:[x,y,w,h]`）、manual（`yaw/pitch` 机械速度）、stop、home、reset、reset_axis（axis 为 yaw/pitch）、reset_fault、ping。任何 manual 的 roll 字段均拒绝，包括零值。
 
-遥测 `protocol_version:7`、`angle_convention:"motion_head_joint_right_positive"`；`attitude_deg`、`joints_deg` 只有 yaw/pitch 的 pos/vel/acc，`cmd_dps` 只有 yaw/pitch。`limits` 包含 yaw/pitch/saturated，`los_mount` 是安装系单位视线，顶层 `singular` 表示视线退化。`camera` 包含相机传感器相对安装系/世界的四元数与欧拉姿态及帧序号，不将机械轴角误称为世界偏航/俯仰。tracking、target、stability、frame 保留配套网关所需信息。模型、插件、网关及地面站须共同使用协议 v7 和同一机械角约定。网络接口见 [网关说明](service/README.md)。
+遥测 `protocol_version:7`、`angle_convention:"motion_head_joint_right_positive"`；`attitude_deg`、`joints_deg` 只有 yaw/pitch 的 pos/vel/acc，`cmd_dps` 只有 yaw/pitch。`limits` 包含 yaw/pitch/saturated，`los_mount` 是安装系单位视线，顶层 `singular` 表示视线退化。`tracking.backend` 报告 `sim_truth` 或 `csrt`；真值绑定期间 `target.entity_id/entity_name` 报告固定实体，CSRT 或未绑定时为 `null`。`camera` 包含相机传感器相对安装系/世界的四元数与欧拉姿态及帧序号，不将机械轴角误称为世界偏航/俯仰。模型、插件、网关及地面站须共同使用协议 v7 和同一机械角约定。网络接口见 [网关说明](service/README.md)。
 
-测试覆盖旋转链、有限差分 Jacobian、退化、动态安装角速度估计与独立积分后的世界视线漂移、手动超时、双轴限位、单轴回零、CSRT 跟踪及断帧丢失保护。
+测试覆盖旋转链、有限差分 Jacobian、退化、动态安装角速度估计与独立积分后的世界视线漂移、手动超时、双轴限位、单轴回零、真值投影/选框/同步保护、CSRT 跟踪及断帧丢失保护。

@@ -128,6 +128,9 @@ def prepare(output):
             if element.text and element.text.strip().startswith('assets/'):
                 element.text = str((SOURCE.parent / element.text.strip()).resolve())
     pod = ET.parse(ROOT / 'models/gimbals/two_axis_pod/model.sdf').getroot().find('model')
+    # 本场景专门验收实体遮挡后的 CSRT 丢失与重捕获，不能使用忽略遮挡的真值后端。
+    set_text(pod.find("plugin[@name='two_axis::GimbalController']"),
+             'tracking_backend', 'csrt')
     set_text(pod, 'pose', '0 0 50 0 0 0')
     pod.append(ET.fromstring('''<joint name="fixed_installation" type="fixed">
       <parent>world</parent><child>mount_link</child></joint>'''))

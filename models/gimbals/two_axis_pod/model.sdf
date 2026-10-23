@@ -289,6 +289,7 @@
       <telemetry_topic>/two_axis_pod/telemetry</telemetry_topic>
       <command_result_topic>/two_axis_pod/command_result</command_result_topic>
       <control_rate>100</control_rate>
+      <tracking_backend>sim_truth</tracking_backend>
       <telemetry_config>model://two_axis_pod/controller/service/telemetry.json</telemetry_config>
       <max_rate_dps>20</max_rate_dps>
       <max_acc_dps2>160</max_acc_dps2>

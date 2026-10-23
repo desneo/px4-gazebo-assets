@@ -210,6 +210,7 @@ def generate():
                     camera_link='camera_link', camera_sensor='camera', mount_mode='upright',
                     command_topic='/two_axis_pod/command', telemetry_topic='/two_axis_pod/telemetry',
                     command_result_topic='/two_axis_pod/command_result', control_rate=100,
+                    tracking_backend='sim_truth',
                     telemetry_config='model://two_axis_pod/controller/service/telemetry.json', max_rate_dps=c['max_rate_dps'], max_acc_dps2=c['max_acc_dps2'],
                     yaw_min_deg=c['yaw_limits_deg'][0], yaw_max_deg=c['yaw_limits_deg'][1],
                     pitch_min_deg=c['pitch_limits_deg'][0], pitch_max_deg=c['pitch_limits_deg'][1])
@@ -219,6 +220,7 @@ def generate():
     ET.ElementTree(sdf).write(ROOT / 'model.sdf', encoding='utf-8', xml_declaration=True)
     world = ET.parse(ROOT / 'tests/world_base.sdf')
     fixture_pod = copy.deepcopy(model)
+    fixture_pod.find("plugin[@name='two_axis::GimbalController']/tracking_backend").text = 'csrt'
     elem(fixture_pod, 'pose', '0 0 1.5 0 0 0')
     fixed = elem(fixture_pod, 'joint', name='world_mount', type='fixed')
     elem(fixed, 'parent', 'world')

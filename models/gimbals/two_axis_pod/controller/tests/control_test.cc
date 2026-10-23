@@ -19,6 +19,38 @@ void CheckRate(const std::array<double, 2> &cmd, double limit = kMaxJointRateDps
 int main()
 {
   const double d = M_PI / 180;
+  TrackingBackend backend = TrackingBackend::CSRT;
+  Check(ParseTrackingBackend("sim_truth", backend) &&
+        backend == TrackingBackend::SIM_TRUTH &&
+        std::string(ToString(backend)) == "sim_truth",
+        "真值后端配置可解析");
+  Check(ParseTrackingBackend("csrt", backend) &&
+        backend == TrackingBackend::CSRT &&
+        !ParseTrackingBackend("tracker", backend),
+        "仅接受sim_truth和csrt后端");
+  const auto projectedCenter = ProjectTruthTarget(
+    1, "center", {10, 0, 0}, 320, 240, M_PI / 3, .1, 100);
+  const auto projectedLeftUp = ProjectTruthTarget(
+    2, "left_up", {10, 1, 1}, 320, 240, M_PI / 3, .1, 100);
+  Check(projectedCenter && projectedCenter->center_x == 160 &&
+        projectedCenter->center_y == 120 && projectedLeftUp &&
+        projectedLeftUp->center_x < 160 && projectedLeftUp->center_y < 120,
+        "相机真值投影中心及左右上下符号正确");
+  Check(!ProjectTruthTarget(3, "behind", {-1, 0, 0}, 320, 240,
+                            M_PI / 3, .1, 100),
+        "相机后方或裁剪范围外目标不可投影");
+  const std::vector<TruthProjection> choices{
+    {1, "first", 120, 100, 10}, {2, "nearest", 158, 121, 12},
+    {3, "outside", 280, 200, 9}};
+  const auto selected = SelectTruthTarget(choices, {80, 60, 160, 120}, 320, 240);
+  Check(selected && choices[*selected].name == "nearest",
+        "框内多架飞机按离选框中心最近者绑定");
+  const auto truthBox = MakeTruthObservation(
+    choices[1], {110, 80, 100, 80}, 12, 320, 240, 77);
+  Check(truthBox.status == TruthStatus::VISIBLE && truthBox.frame_seq == 77 &&
+        truthBox.center_x == 158 && truthBox.center_y == 121,
+        "真值观测保留真实中心与关联帧");
+
   ControlConfig rateConfig;
   Check(rateConfig.max_rate_dps == 20 && rateConfig.max_acc_dps2 == 160,
         "默认机械轴速度20度每秒，加速度160度每秒平方");
@@ -279,6 +311,66 @@ int main()
   Check(cmd[0] < 0 && cmd[1] > 0, "回机械零位");
   c.Stop();
   Check(c.cmd()[0] == 0, "stop立即停止");
+  GimbalControl truthControl;
+  Check(truthControl.StartTruthTracking({.4, .4, .2, .2}, 320, 240).first,
+        "真值模式选框初始化不依赖图像纹理");
+  TruthObservation truthVisible;
+  truthVisible.status = TruthStatus::VISIBLE;
+  truthVisible.box = {180, 90, 64, 48};
+  truthVisible.center_x = 212;
+  truthVisible.center_y = 114;
+  truthVisible.frame_seq = 700;
+  truthControl.Step(0, true, {}, 320, 240, {}, 0, 700, &truthVisible);
+  Check(truthControl.track_state() == TrackState::TRACK &&
+        truthControl.target_valid() &&
+        truthControl.target_miss().frame_seq == 700,
+        "真值模式直接输出绑定飞机的真实像素位置");
+  TruthObservation unsynchronized;
+  truthControl.Step(.1, true, {}, 320, 240, {}, .1, 701, &unsynchronized);
+  Check(truthControl.track_state() == TrackState::TRACK &&
+        truthControl.target_miss().frame_seq == 700,
+        "真值快照暂未同步时保留上一测量且不误报丢失");
+  TruthObservation invisible;
+  invisible.status = TruthStatus::INVISIBLE;
+  invisible.frame_seq = 702;
+  truthControl.Step(.2, true, {}, 320, 240, {}, .2, 702, &invisible);
+  Check(truthControl.track_state() == TrackState::TEMP_LOST &&
+        !truthControl.target_valid(), "绑定飞机离开视野后进入临时丢失");
+  truthVisible.frame_seq = 703;
+  truthControl.Step(.3, true, {}, 320, 240, {}, .3, 703, &truthVisible);
+  Check(truthControl.track_state() == TrackState::TRACK &&
+        truthControl.target_miss().frame_seq == 703,
+        "同一绑定飞机重入视野后恢复且不换锁");
+  GimbalControl jitterControl;
+  Check(jitterControl.StartTruthTracking({.4, .4, .2, .2}, 320, 240).first,
+        "大幅画面抖动测试可初始化真值跟踪");
+  const std::array<Vec3, 5> jitterSensorPoints{{
+    {30, -30*std::tan(22*d), -30*std::tan(15*d)},
+    {30,  30*std::tan(22*d), -30*std::tan(15*d)},
+    {30, -30*std::tan(22*d),  30*std::tan(15*d)},
+    {30,  30*std::tan(22*d),  30*std::tan(15*d)},
+    {30, 0, 0}}};
+  constexpr int jitterFrames = 240;
+  for (int i = 0; i < jitterFrames; ++i)
+  {
+    const auto projection = ProjectTruthTarget(
+      9, "jitter_aircraft", jitterSensorPoints[i % jitterSensorPoints.size()],
+      320, 240, M_PI/3, .1, 100);
+    Check(projection.has_value(), "大幅抖动期间飞机始终位于相机视野");
+    const auto observation = MakeTruthObservation(
+      *projection, {128, 96, 64, 48}, 30, 320, 240, 800+i);
+    const double now = i / 30.0;
+    const auto output = jitterControl.Step(
+      now, true, {}, 320, 240, {}, now, 800+i, &observation);
+    CheckRate(output);
+    Check(jitterControl.track_state() == TrackState::TRACK &&
+          jitterControl.target_valid() &&
+          jitterControl.target_miss().frame_seq == 800+i,
+          "目标跨四象限快速抖动时真值跟踪必须逐帧保持有效");
+  }
+  Check(jitterControl.valid_frames() == jitterFrames &&
+        jitterControl.invalid_frames() == 0,
+        "大幅画面抖动不产生丢帧或错误跟踪计数");
   cv::Mat im(240, 320, CV_8UC3);
   cv::RNG rng(42);
   rng.fill(im, cv::RNG::UNIFORM, 0, 255);

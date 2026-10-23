@@ -1,6 +1,6 @@
 # 两轴吊舱网络网关
 
-`gimbal_bridge.py` 将 `/two_axis_pod/command`、`telemetry`、`command_result` 三个 Gazebo StringMsg 话题桥接为 UDP 控制与遥测，并提供 RTSP 视频。网关使用单类 YOLO11 ONNX 检测飞机、ByteTrack 风格多目标跟踪和服务端红框/编号叠加；选定目标仍交给 C++ 插件中的 CSRT 与机械控制执行。
+`gimbal_bridge.py` 将 `/two_axis_pod/command`、`telemetry`、`command_result` 三个 Gazebo StringMsg 话题桥接为 UDP 控制与遥测，并提供 RTSP 视频。网关使用单类 YOLO11 ONNX 检测飞机、ByteTrack 风格多目标跟踪和服务端红框/编号叠加；选定目标交给 C++ 插件配置的单目标后端与机械控制执行。
 
 默认世界为 `two_axis_pod_demo`，模型为 `two_axis_pod`，图像来自 `camera_link/camera`。默认 UDP 8766、共享 RTSP 8555 `/two_axis_pod_1`；内部 RTP 端口自动分配。插件和已登记地面站的遥测频率共用本目录 `telemetry.json` 的 `hz`，默认 50 Hz。使用入口见[启动说明](../../scripts/README.md)。
 
@@ -20,7 +20,7 @@
 
 ## 飞机检测与自动锁定
 
-视觉模式为 `off`、`detect`、`auto_lock`、`manual_track`，同一时刻只允许一个。`detect` 对最新相机帧做飞机检测和多目标跟踪，只有连续命中达到配置值的轨迹才输出，红框和 `#轨迹号` 直接烧录进 RTSP，不驱动云台。`auto_lock` 的搜索阶段使用相同红框，在已确认轨迹中首次选择框中心离画面中心最近的一项，以检测帧序号和归一化框启动插件 CSRT；选中后暂停检测叠加，由 CSRT 独占单目标跟踪，地面站显示绿色框。CSRT 进入 LOST 后清除旧轨迹并恢复检测搜索。`manual_track` 才接受地面站拖框。
+视觉模式为 `off`、`detect`、`auto_lock`、`manual_track`，同一时刻只允许一个。`detect` 对最新相机帧做飞机检测和多目标跟踪，只有连续命中达到配置值的轨迹才输出，红框和 `#轨迹号` 直接烧录进 RTSP，不驱动云台。`auto_lock` 的搜索阶段使用相同红框，在已确认轨迹中首次选择框中心离画面中心最近的一项，以检测帧序号和归一化框启动插件单目标后端；选中后暂停检测叠加，地面站显示绿色框。默认 `sim_truth` 将该帧框内、离框中心最近的已登记飞机实体固定绑定，后续不切换到其他飞机；显式 `csrt` 使用图像纹理跟踪。后端进入 LOST 后清除旧轨迹并恢复检测搜索。`manual_track` 才接受地面站拖框。
 
 配置文件为 `vision.json`，`confirmation_hits` 默认 5，另含置信度、NMS、丢失保持、关联阈值和 OpenCV 线程数。模型位于 `../../models/yolo11/aircraft_yolo11n/`，只有 `aircraft` 类；来源、固定上游版本、AGPL-3.0 许可和 SHA-256 随模型保存。网关使用单元素最新帧语义，不积压过期相机帧。当前 1920×1080@30 Hz 场景实测输入 30.35 fps、视觉输出 30.20 fps、推理约 14.9 ms。
 

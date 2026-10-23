@@ -8,7 +8,7 @@ find_package(gz-msgs10 REQUIRED)
 find_package(gz-plugin2 REQUIRED)
 find_package(OpenCV REQUIRED COMPONENTS core imgproc video tracking)
 set(SHARED_CONTROLLER ${CMAKE_CURRENT_SOURCE_DIR}/../../three_axis_pod/controller)
-set(CONTROL_SOURCES src/control.cc src/kinematics.cc
+set(CONTROL_SOURCES src/control.cc src/kinematics.cc src/truth_tracking.cc
   ${SHARED_CONTROLLER}/src/kinematics.cc ${SHARED_CONTROLLER}/src/tracker.cc
   ${SHARED_CONTROLLER}/src/mini_json.cc)
 add_library(gz-two-axis-pod-controller SHARED src/gimbal_controller.cc ${CONTROL_SOURCES})

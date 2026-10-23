@@ -89,6 +89,7 @@ void GimbalControl::Stop()
   valid_ = false;
   miss_ = {};
   has_box_ = false;
+  truth_tracking_ = false;
   message_.clear();
   stability_ = Stability::UNDETERMINED;
   stable_time_ = -1;
@@ -122,6 +123,7 @@ void GimbalControl::Manual(double y, double p, double now)
   message_.clear();
   mode_ = Mode::MANUAL;
   state_ = TrackState::IDLE;
+  truth_tracking_ = false;
   valid_ = false;
   miss_ = {};
   has_box_ = false;
@@ -162,7 +164,35 @@ std::pair<bool, std::string> GimbalControl::StartTracking(const cv::Mat &im, con
   message_.clear();
   return r;
 }
-std::array<double, 2> GimbalControl::Step(double now, bool fresh, const cv::Mat &im, int w, int h, const JointSample &j, double watch, std::int64_t frame_seq)
+
+std::pair<bool, std::string> GimbalControl::StartTruthTracking(
+  const std::array<double, 4> &b, int w, int h)
+{
+  if (!fault_.empty())
+    return {false, "请先复位故障"};
+  for (double v : b)
+    if (!std::isfinite(v))
+      return {false, "选框必须为有限数值"};
+  if (w <= 0 || h <= 0 || b[0] < 0 || b[1] < 0 || b[2] <= 0 ||
+      b[3] <= 0 || b[0] + b[2] > 1 || b[1] + b[3] > 1)
+    return {false, "无效选框或视频"};
+  const Box box{b[0] * w, b[1] * h, b[2] * w, b[3] * h};
+  Stop();
+  box_ = box;
+  has_box_ = true;
+  truth_tracking_ = true;
+  mode_ = Mode::TRACK;
+  state_ = TrackState::INIT;
+  frame_time_ = -1;
+  lost_time_ = -1;
+  message_.clear();
+  return {true, ""};
+}
+
+std::array<double, 2> GimbalControl::Step(
+  double now, bool fresh, const cv::Mat &im, int w, int h,
+  const JointSample &j, double watch, std::int64_t frame_seq,
+  const TruthObservation *truth)
 {
   if (!std::isfinite(j.yaw) || !std::isfinite(j.pitch) || !std::isfinite(j.yaw_vel) || !std::isfinite(j.pitch_vel))
   {
@@ -205,7 +235,36 @@ std::array<double, 2> GimbalControl::Step(double now, bool fresh, const cv::Mat 
   }
   if (mode_ == Mode::TRACK)
   {
-    if (fresh && !im.empty() && w > 0 && h > 0)
+    if (truth_tracking_ && fresh && w > 0 && h > 0 && truth &&
+        truth->status != TruthStatus::UNSYNCHRONIZED)
+    {
+      frame_time_ = watch;
+      if (truth->status == TruthStatus::VISIBLE)
+      {
+        box_ = truth->box;
+        valid_ = true;
+        has_box_ = true;
+        miss_ = MeasureTargetMiss(truth->center_x, truth->center_y, w, h);
+        miss_.frame_seq = truth->frame_seq;
+        ++valid_frames_;
+        state_ = TrackState::TRACK;
+        lost_time_ = -1;
+        const auto ray = PixelToSensorRay(truth->center_x, truth->center_y, w, h);
+        image_error_ = {std::atan2(-ray.y, ray.x) * D,
+                        std::atan2(-ray.z, ray.x) * D};
+        error_ = std::hypot(image_error_[0], image_error_[1]);
+      }
+      else
+      {
+        valid_ = false;
+        miss_ = {};
+        ++invalid_frames_;
+        if (lost_time_ < 0)
+          lost_time_ = watch;
+        state_ = TrackState::TEMP_LOST;
+      }
+    }
+    else if (!truth_tracking_ && fresh && !im.empty() && w > 0 && h > 0)
     {
       frame_time_ = watch;
       auto r = state_ == TrackState::TEMP_LOST ? tracker_.RetryCapture(im) : tracker_.Update(im);

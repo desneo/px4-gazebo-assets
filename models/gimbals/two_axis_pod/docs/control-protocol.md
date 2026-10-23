@@ -42,7 +42,7 @@
 | `home` | 无 | 与 reset 相同，两轴回机械零位 |
 | `reset_axis` | `axis: yaw/pitch` | 指定轴回 0°，另一轴保持收到指令时的机械位置 |
 | `set_vision_mode` | `mode` | 切换 `off/detect/auto_lock/manual_track` 互斥视觉模式 |
-| `track` | `box: [x,y,w,h]`，可选 `frame_seq` | 仅在 `manual_track` 接受外部选框；网关自动锁定可按检测帧启动 CSRT |
+| `track` | `box: [x,y,w,h]`，可选 `frame_seq` | 仅在 `manual_track` 接受外部选框；网关自动锁定按检测帧启动插件单目标后端 |
 | `reset_fault` | 无 | 清除故障并停止 |
 
 ```json
@@ -81,7 +81,7 @@
 
 `command_result` 的 `seq` 对应控制端请求，而网关与 Gazebo 插件间使用的 `request_id` 不对外暴露。可靠命令等待回执期间，可按同一 `seq` 和相同内容重发；网关不会重复执行，已有结果会被重放。同一会话中将同一 `seq` 用于不同内容会失败；比最近控制序号更旧的控制不会执行。建议 station 对单条可靠命令设置约 0.2 秒重试间隔和有限重试次数，同时继续接收遥测；插件回执最终超过 30 秒时网关返回“执行结果未知”。
 
-`detect` 只检测并在 RTSP 画面烧录红框和轨迹号，不控制云台。`auto_lock` 搜索已确认轨迹时显示相同红框，首次选择离画面中心最近的目标后把选框交给 CSRT，并暂停检测叠加；随后通过 `target.box_px` 上报单目标框，客户端可像随仓库地面站一样将其绘制为绿色。CSRT 进入 LOST 后重新搜索。`manual_track` 才允许客户端提交 `track`。切换任一模式会停止前一模式留下的跟踪并清空多目标轨迹；人工停止、回零、复位，以及自动锁定或手动框选期间的非零人工转动，都会先切换到 `off` 并退出目标跟踪。
+`detect` 只检测并在 RTSP 画面烧录红框和轨迹号，不控制云台。`auto_lock` 搜索已确认轨迹时显示相同红框，首次选择离画面中心最近的飞机后把选框交给插件，并暂停检测叠加；随后通过 `target.box_px` 上报单目标框，客户端可将其绘制为绿色。默认 `sim_truth` 在对应 `frame_seq` 中从框内已登记飞机选取离框中心最近者并固定绑定，显式 `csrt` 则初始化图像跟踪。后端进入 LOST 后重新搜索。`manual_track` 才允许客户端提交 `track`，其真值绑定规则同样为框内飞机。切换任一模式会停止前一模式留下的跟踪并清空多目标轨迹；人工停止、回零、复位，以及自动锁定或手动框选期间的非零人工转动，都会先切换到 `off` 并退出目标跟踪。
 
 ## 第三方 station 接入
 
@@ -139,9 +139,9 @@ close socket
 - `camera.quat_body/quat_world`：实际光学系的四元数，顺序 wxyz；`rpy_body_deg/rpy_world_deg` 是光学姿态的诊断表示，与机械角不同。
 - `mount.mode=upright`：底座向下的立装机械结构，外轴沿安装 +X；此字段不表示竖直偏航轴。默认 `mount.static=true`；装配插件设置 `mount_dynamic=true` 时为 `false`，每步更新安装系实际世界姿态，TRACK 中以载机角速度前馈抵消载机转动。
 - `mount.quat_world`：安装参考系相对世界的四元数，顺序 wxyz；动态模式随载机变化。
-- `tracking.constraint`：`NONE`、`SINGULAR`（外轴视线退化）、`LIMITED`（机械限位）、`RATE_LIMITED`（速度输出饱和）。`tracking.state=TRACK` 表示图像跟踪器仍识别选框，不等于所有轴均可稳定指向；应同时检查中心误差、稳定性和约束。
-- `mode`：IDLE/MANUAL/HOME/TRACK；`tracking.state`、`target`、`stability`：跟踪状态、选框和中心误差。
-- `target.miss`：被跟踪目标的二维脱靶量，自动锁定交接后的 CSRT 和手动框选使用相同字段，定义如下。
+- `tracking.backend`：`sim_truth` 或 `csrt`；`tracking.constraint`：`NONE`、`SINGULAR`（外轴视线退化）、`LIMITED`（机械限位）、`RATE_LIMITED`（速度输出饱和）。`tracking.state=TRACK` 表示当前后端持续提供有效目标，不等于所有轴均可稳定指向；应同时检查中心误差、稳定性和约束。
+- `mode`：IDLE/MANUAL/HOME/TRACK；`tracking.state`、`target`、`stability`：跟踪状态、选框和中心误差。真值绑定期间 `target.entity_id/entity_name` 为固定实体，CSRT 或未绑定时为 `null`。
+- `target.miss`：被跟踪目标的二维脱靶量，自动锁定和手动框选及两种单目标后端使用相同字段，定义如下。
 - `frame`、`frame_table`、`ts_wall`、`server_uptime`、`video`：供视频、时序和网关状态显示。`hello.video_rtsp_path` 上报完整 RTSP 路径；地面站按配置的前缀和飞机 ID 生成 URL，两端配置必须一致。
 - `vision.mode/state/target_count/locked_track_id/error`：当前互斥模式、检测/搜索/锁定状态、已确认目标数、锁定轨迹号和视觉错误。`inference_ms/input_fps/output_fps` 是模型推理和最新帧处理速率诊断。
 
@@ -169,7 +169,7 @@ CAD 零位两轴均能改变视线方向。数学上 pitch 接近 ±90° 时光�
 
 Gazebo 专用话题为 `/two_axis_pod/command`、`/two_axis_pod/telemetry` 和 `/two_axis_pod/command_result`，消息均为 `gz.msgs.StringMsg` 中的 JSON。插件遥测与网关 hello 顶层 `telemetry_hz` 表示配置目标，`telemetry_clock:"steady"` 表示以单调真实时间计时；网关须确认插件频率及时基一致才进行周期转发。`ts_mono` 仍是插件采样的仿真时间，实际 Hz 须用接收或发送端单调时钟计算。插件执行结果携带 `cmd`、`ok`、`message` 与网关生成的 `request_id`。
 
-组合模型可以在插件 SDF 中配置上述话题和 `image_topic`。网关的 `--topic-prefix` 与 `--image-topic` 必须对应装配配置；未指定时沿用独立组件的话题。动态补偿不使用目标世界坐标，也不提供第三轴画面水平稳定；平移、目标运动与模型误差由图像反馈修正。
+组合模型可以在插件 SDF 中配置上述话题、`image_topic`、`tracking_backend` 及重复的 `sim_truth_target_name`。网关的 `--topic-prefix` 与 `--image-topic` 必须对应装配配置；未指定时沿用独立组件的话题。`sim_truth` 使用与图像帧同步的目标和相机世界坐标；`csrt` 的平移、目标运动与模型误差由图像反馈修正。动态补偿不提供第三轴画面水平稳定。
 
 ## 地面站艾晟报文
 

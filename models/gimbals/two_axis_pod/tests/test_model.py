@@ -89,6 +89,13 @@ class ModelTest(unittest.TestCase):
                 limit = model.findtext(f"joint[@name='{axis}_joint']/axis/limit/velocity")
                 self.assertAlmostEqual(math.degrees(float(limit)), 20, places=9)
 
+    def test_tracking_backend_defaults_to_truth_but_component_fixture_uses_csrt(self):
+        plugin = self.model.find("plugin[@name='two_axis::GimbalController']")
+        self.assertEqual(plugin.findtext('tracking_backend'), 'sim_truth')
+        fixture = ET.parse(ROOT/'tests/world.sdf').getroot().find(
+            "world/model[@name='two_axis_pod']/plugin[@name='two_axis::GimbalController']")
+        self.assertEqual(fixture.findtext('tracking_backend'), 'csrt')
+
     def test_generated_rate_limit_cannot_exceed_twenty(self):
         spec = importlib.util.spec_from_file_location('generate_rate', ROOT/'tools/generate_model.py')
         module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)

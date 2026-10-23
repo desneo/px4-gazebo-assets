@@ -4,6 +4,7 @@
 #include <string>
 #include "gimbal_controller/tracker.hh"
 #include "two_axis/kinematics.hh"
+#include "two_axis/truth_tracking.hh"
 namespace two_axis
 {
 inline constexpr double kMaxJointRateDps = 20.0;
@@ -40,13 +41,17 @@ class GimbalControl
 public:
   void Configure(const ControlConfig &c);
   std::pair<bool, std::string> StartTracking(const cv::Mat &, const std::array<double, 4>&, int, int);
+  std::pair<bool, std::string> StartTruthTracking(
+    const std::array<double, 4> &, int, int);
   void Stop();
   void WatchdogStop();
   void GoHome();
   void ResetFault();
   void Manual(double yaw, double pitch, double now);
   bool ResetAxis(const std::string &, const JointSample &);
-  std::array<double, 2> Step(double, bool, const cv::Mat &, int, int, const JointSample &, double = -1, std::int64_t = -1);
+  std::array<double, 2> Step(
+    double, bool, const cv::Mat &, int, int, const JointSample &,
+    double = -1, std::int64_t = -1, const TruthObservation * = nullptr);
   const TargetMiss &target_miss()const
   {
     return miss_;
@@ -109,7 +114,7 @@ private:
   Tracker tracker_;
   Box box_;
   TargetMiss miss_;
-  bool has_box_{false}, valid_{false}, saturated_{false};
+  bool has_box_{false}, valid_{false}, saturated_{false}, truth_tracking_{false};
   std::string fault_, message_;
   std::array<double, 2> cmd_{}, manual_{}, target_{}, image_error_{};
   std::array<bool, 2> limits_{};

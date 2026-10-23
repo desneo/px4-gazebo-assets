@@ -121,6 +121,10 @@ def prepare(output, model_path, altitude=.24, start_x=0., start_y=0.,
         raise ValueError(f'需要装配模型 {ENTITY}，实际为 {model.get("name")}')
     absolute_resources(model, model_path)
     model.set('name', ENTITY)
+    # 历史验收依赖纹理靶标和 CSRT；基础吊舱虽默认 sim_truth，此场景仍显式保留 CSRT。
+    gimbal = model.find(".//plugin[@name='two_axis::GimbalController']")
+    if gimbal is not None:
+        set_text(gimbal, 'tracking_backend', 'csrt')
     set_text(model, 'pose', f'{start_x} {start_y} {altitude} 0 0 0')
     world.append(model)
     world.append(location_marker(start_x, start_y))

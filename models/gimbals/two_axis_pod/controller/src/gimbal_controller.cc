@@ -245,6 +245,10 @@ void GimbalController::Configure(
     gzerr << "[two_axis] 无效控制参数或限位不包含机械零位，插件禁用\n";
     return;
   }
+  if (cfg_.max_rate_dps > kMaxJointRateDps)
+    gzwarn << "[two_axis] max_rate_dps=" << cfg_.max_rate_dps
+           << " 超过机械轴上限，按 " << kMaxJointRateDps << " deg/s 限制\n";
+  cfg_.max_rate_dps = JointRateLimit(cfg_.max_rate_dps);
   control_.Configure(cfg_);
 
   // ---------------- 实体与关节 ----------------
@@ -683,6 +687,9 @@ void GimbalController::PreUpdate(const gz::sim::UpdateInfo &_info,
   }
   for (int i = 0; i < 2; ++i)
   {
+    const double rateLimit = JointRateLimit(this->cfg_.max_rate_dps);
+    this->lastCmd_[i] = std::isfinite(this->lastCmd_[i]) ?
+      std::clamp(this->lastCmd_[i], -rateLimit, rateLimit) : 0.0;
     const double v = this->lastCmd_[i] * kDeg2Rad;
     auto comp =
       _ecm.Component<gz::sim::components::JointVelocityCmd>(jointEntities_[i]);

@@ -4,6 +4,24 @@
 namespace two_axis
 {
 constexpr double D = 180 / M_PI;
+double JointRateLimit(double requested)
+{
+  return std::isfinite(requested) && requested > 0 ?
+    std::min(requested, kMaxJointRateDps) : 0.0;
+}
+void GimbalControl::Configure(const ControlConfig &c)
+{
+  cfg_ = c;
+  cfg_.max_rate_dps = JointRateLimit(c.max_rate_dps);
+  // 降低上限立即约束旧指令，不能等待加速度斜坡才满足新上限。
+  for (double &v : cmd_)
+  {
+    const double bounded = std::isfinite(v) ?
+      std::clamp(v, -cfg_.max_rate_dps, cfg_.max_rate_dps) : 0.0;
+    saturated_ |= bounded != v;
+    v = bounded;
+  }
+}
 TargetMiss MeasureTargetMiss(double cx, double cy, int width, int height)
 {
   TargetMiss miss;
@@ -265,9 +283,14 @@ std::array<double, 2> GimbalControl::Step(double now, bool fresh, const cv::Mat 
   double pos[2] = {j.yaw * D, j.pitch * D}, lo[2] = {cfg_.yaw_min_deg, cfg_.pitch_min_deg}, hi[2] = {cfg_.yaw_max_deg, cfg_.pitch_max_deg};
   for (int i = 0; i < 2; ++i)
   {
-    double v = std::clamp(raw[i], -cfg_.max_rate_dps, cfg_.max_rate_dps);
+    double v = std::isfinite(raw[i]) ?
+      std::clamp(raw[i], -cfg_.max_rate_dps, cfg_.max_rate_dps) : 0.0;
     saturated_ |= v != raw[i];
     cmd_[i] += std::clamp(v - cmd_[i], -cfg_.max_acc_dps2 * dt, cfg_.max_acc_dps2 * dt);
+    const double bounded = std::isfinite(cmd_[i]) ?
+      std::clamp(cmd_[i], -cfg_.max_rate_dps, cfg_.max_rate_dps) : 0.0;
+    saturated_ |= bounded != cmd_[i];
+    cmd_[i] = bounded;
     // 速度指令在下一次控制更新前持续保持。先做加速度平滑，再限制
     // 可行进距离，避免100 Hz控制跨过0.2°软件缓冲后撞击物理硬限位。
     // 两倍观测控制间隔给离散更新和物理采样保留余量；只限制向外速度，

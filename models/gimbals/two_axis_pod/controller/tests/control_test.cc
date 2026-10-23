@@ -2,6 +2,7 @@
 #include <opencv2/imgproc.hpp>
 #include <cmath>
 #include <iostream>
+#include <limits>
 #include <stdexcept>
 using namespace two_axis;
 void Check(bool x, const char *m)
@@ -9,9 +10,83 @@ void Check(bool x, const char *m)
   if (!x)
     throw std::runtime_error(m);
 }
+void CheckRate(const std::array<double, 2> &cmd, double limit = kMaxJointRateDps)
+{
+  for (double value : cmd)
+    Check(std::isfinite(value) && std::abs(value) <= limit + 1e-10,
+          "每轴最终机械速度指令必须为有限值且不超过有效上限");
+}
 int main()
 {
   const double d = M_PI / 180;
+  ControlConfig rateConfig;
+  Check(rateConfig.max_rate_dps == 20 && rateConfig.max_acc_dps2 == 160,
+        "默认机械轴速度20度每秒，加速度160度每秒平方");
+  Check(JointRateLimit(100) == 20 && JointRateLimit(7.5) == 7.5,
+        "速度配置只能收紧，旧100度每秒配置不能绕过20度硬上限");
+  for (double invalidRate : {0., -1., std::nan(""), std::numeric_limits<double>::infinity()})
+    Check(JointRateLimit(invalidRate) == 0, "无效速度配置关闭运动输出");
+  GimbalControl boundedManual;
+  rateConfig.max_rate_dps = 100;
+  boundedManual.Configure(rateConfig);
+  std::array<double, 2> previous{};
+  for (int i = 0; i <= 60; ++i)
+  {
+    const double now = i*.01;
+    const double sign = i <= 30 ? 1. : -1.;
+    boundedManual.Manual(sign*1000, -sign*1000, now);
+    const auto output = boundedManual.Step(now, false, {}, 0, 0, {}, now);
+    CheckRate(output);
+    for (int axis = 0; axis < 2; ++axis)
+      Check(std::abs(output[axis]-previous[axis]) <= 160*.01 + 1e-9,
+            "双轴正反向运动保持160度每秒平方加速度平滑");
+    if (i == 30)
+      Check(std::abs(output[0]-20) < 1e-9 && std::abs(output[1]+20) < 1e-9,
+            "大手动请求在20度每秒饱和");
+    previous = output;
+  }
+  Check(std::abs(previous[0]+20) < 1e-9 && std::abs(previous[1]-20) < 1e-9,
+        "正反两个方向均受硬上限约束");
+  ControlConfig tightened = rateConfig;
+  tightened.max_rate_dps = 5;
+  boundedManual.Configure(tightened);
+  CheckRate(boundedManual.cmd(), 5);
+  CheckRate(boundedManual.Step(.6, false, {}, 0, 0, {}, .6), 5);
+  Check(std::abs(boundedManual.cmd()[0]+5) < 1e-9,
+        "运行中降低上限立即约束残留cmd，零dt也不能超出新上限");
+  tightened.max_rate_dps = 1000;
+  boundedManual.Configure(tightened);
+  for (int i = 61; i <= 80; ++i)
+    CheckRate(boundedManual.Step(i*.01, false, {}, 0, 0, {}, i*.01));
+  Check(std::abs(boundedManual.cmd()[0]+20) < 1e-9,
+        "再次调高配置仍只能恢复到20度每秒");
+  tightened.max_rate_dps = std::nan("");
+  boundedManual.Configure(tightened);
+  CheckRate(boundedManual.cmd(), 0);
+
+  for (int sign : {-1, 1})
+  {
+    JointSample displaced{sign*45*d, sign*20*d, 0, 0};
+    GimbalControl home;
+    home.Configure(rateConfig);
+    home.GoHome();
+    for (int i = 0; i <= 30; ++i)
+      CheckRate(home.Step(i*.01, false, {}, 0, 0, displaced, i*.01));
+    Check(std::abs(home.cmd()[0]+sign*20) < 1e-9 &&
+          std::abs(home.cmd()[1]+sign*20) < 1e-9,
+          "大偏角双轴回零沿机械方向以不超过20度每秒运动");
+    for (const std::string axis : {"yaw", "pitch"})
+    {
+      GimbalControl reset;
+      reset.Configure(rateConfig);
+      Check(reset.ResetAxis(axis, displaced), "单轴复位接受机械轴名");
+      for (int i = 0; i <= 30; ++i)
+        CheckRate(reset.Step(i*.01, false, {}, 0, 0, displaced, i*.01));
+      const int active = axis == "yaw" ? 0 : 1;
+      Check(std::abs(reset.cmd()[active]+sign*20) < 1e-9 && reset.cmd()[1-active] == 0,
+            "单轴复位限速20度每秒且保持另一轴");
+    }
+  }
   auto miss = MeasureTargetMiss(960, 540, 1920, 1080);
   Check(miss.valid && miss.center_px[0] == 960 && miss.center_px[1] == 540 &&
         miss.offset_px[0] == 0 && miss.offset_px[1] == 0 &&
@@ -129,7 +204,7 @@ int main()
       std::sqrt(omega.x*omega.x + omega.y*omega.y + omega.z*omega.z);
     Check(drift < dampingBound + 1e-5, "动态补偿保持世界视线，阻尼误差有界");
   }
-  // 距硬限位0.7°时，80°/s持续0.012s会越界。
+  // 距硬限位0.5°时，20°/s持续两倍0.012s控制间隔会跨过软件缓冲。
   // 保护必须在加速度平滑之后生效，并且保留向内退出的能力。
   GimbalControl predictive;
   ControlConfig fast;
@@ -137,14 +212,15 @@ int main()
         fast.pitch_min_deg == -80 && fast.pitch_max_deg == 30,
         "默认机械限位与确认的新模型范围一致");
   fast.max_acc_dps2 = 100000;
+  fast.max_rate_dps = 100;
   predictive.Configure(fast);
   predictive.Manual(-80, 0, 0);
   predictive.Step(0, false, cv::Mat(), 0, 0, {}, 0);
   JointSample nearLower;
-  nearLower.yaw = -59.3 * d;
+  nearLower.yaw = -59.5 * d;
   auto safe = predictive.Step(.012, false, cv::Mat(), 0, 0, nearLower, .012);
-  Check(nearLower.yaw / d + safe[0]*.012 >= -59.8, "负端点前瞻保护");
-  Check(predictive.limit_flags()[0] && safe[0] > -80, "限制向外速度");
+  Check(nearLower.yaw / d + safe[0]*.024 >= -59.8, "负端点两倍控制间隔前瞻保护");
+  Check(predictive.limit_flags()[0] && safe[0] > -20, "20度每秒内仍限制向外速度");
   predictive.Manual(80, 0, .012);
   safe = predictive.Step(.024, false, cv::Mat(), 0, 0, nearLower, .024);
   Check(safe[0] > 0, "端点前瞻允许反向");
@@ -190,6 +266,43 @@ int main()
   cv::Mat im(240, 320, CV_8UC3);
   cv::RNG rng(42);
   rng.fill(im, cv::RNG::UNIFORM, 0, 255);
+  for (bool compensate : {false, true})
+  {
+    GimbalControl limitedTrack;
+    ControlConfig trackingConfig;
+    trackingConfig.max_rate_dps = 100;
+    if (compensate)
+      trackingConfig.mount_angular_velocity = {4, -5, 6};
+    limitedTrack.Configure(trackingConfig);
+    const JointSample trackingJoint{.3, -70*d, 0, 0};
+    const auto feed = StabilizationRates(trackingJoint.yaw, trackingJoint.pitch,
+                                         trackingConfig.mount_angular_velocity);
+    if (compensate)
+      Check(std::abs(feed[0]) > 20 && std::abs(feed[1]) > 20,
+            "测试载机补偿在两轴均超过20度每秒");
+    Check(limitedTrack.StartTracking(im, compensate ? std::array<double, 4>{.4, .4, .2, .2} :
+          std::array<double, 4>{.75, .05, .2, .2}, 320, 240).first,
+          "限速跟踪使用真实CSRT初始化");
+    std::array<double, 2> prev{};
+    for (int i = 0; i <= 30; ++i)
+    {
+      const auto output = limitedTrack.Step(i*.01, i == 0, im, 320, 240,
+                                            trackingJoint, i*.01, 500);
+      CheckRate(output);
+      for (int axis = 0; axis < 2; ++axis)
+        Check(std::abs(output[axis]-prev[axis]) <= 160*.01 + 1e-9,
+              "图像伺服与载机补偿合成后仍保留加速度平滑");
+      prev = output;
+    }
+    Check(limitedTrack.target_valid() && limitedTrack.saturated() &&
+          std::abs(limitedTrack.cmd()[0]) == 20 && std::abs(limitedTrack.cmd()[1]) == 20 &&
+          limitedTrack.client_message().find("角速度受限") != std::string::npos,
+          "图像误差或载机补偿触顶后保持跟踪并明确报告角速度受限");
+    trackingConfig.max_rate_dps = 3;
+    limitedTrack.Configure(trackingConfig);
+    CheckRate(limitedTrack.cmd(), 3);
+    CheckRate(limitedTrack.Step(.3, false, im, 320, 240, trackingJoint, .3), 3);
+  }
   Check(c.StartTracking(im, {.3, .3, .25, .25}, 320, 240).first, "CSRT选框");
   Check(!c.target_miss().valid, "仅选框初始化不宣称有效脱靶量");
   c.Step(1, true, im, 320, 240, {}, 30, 42);

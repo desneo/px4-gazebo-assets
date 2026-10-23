@@ -119,6 +119,10 @@ def load_geometry():
 
 
 def validate_configuration(c, properties):
+    rate = c.get('max_rate_dps')
+    if (type(rate) not in (int, float) or not 0 < rate <= 20
+            or not math.isfinite(rate)):
+        raise ValueError('max_rate_dps 必须为 (0, 20] 的有限数值')
     if c['camera_center_m'] != properties['groups']['camera_link']['origin_m']:
         raise ValueError('相机球心必须继承 CAD 导出属性')
     if c['kinematics']['yaw_origin_m'] != properties['groups']['yaw_arm_link']['origin_m']:

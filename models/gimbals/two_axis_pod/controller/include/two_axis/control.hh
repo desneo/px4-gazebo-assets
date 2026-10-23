@@ -6,6 +6,9 @@
 #include "two_axis/kinematics.hh"
 namespace two_axis
 {
+inline constexpr double kMaxJointRateDps = 20.0;
+// 配置只能收紧机械轴速度上限；无效配置关闭运动输出。
+double JointRateLimit(double requested);
 enum class Mode { IDLE, MANUAL, HOME, TRACK };
 enum class TrackState { IDLE, INIT, TRACK, TEMP_LOST, LOST, FAULT };
 enum class Stability { UNDETERMINED, STABLE, UNSTABLE };
@@ -26,7 +29,7 @@ struct TargetMiss
 TargetMiss MeasureTargetMiss(double cx, double cy, int width, int height);
 struct ControlConfig
 {
-  double max_rate_dps{100}, max_acc_dps2{160}, kp{4};
+  double max_rate_dps{kMaxJointRateDps}, max_acc_dps2{160}, kp{4};
   double yaw_min_deg{-60}, yaw_max_deg{60}, pitch_min_deg{-80}, pitch_max_deg{30};
   double manual_timeout_s{.5}, frame_stop_timeout_s{.5}, occlusion_timeout_s{2.5};
   Mat3 mount_world_rotation, sensor_rotation{SensorRotation()};
@@ -35,10 +38,7 @@ struct ControlConfig
 class GimbalControl
 {
 public:
-  void Configure(const ControlConfig &c)
-  {
-    cfg_ = c;
-  }
+  void Configure(const ControlConfig &c);
   std::pair<bool, std::string> StartTracking(const cv::Mat &, const std::array<double, 4>&, int, int);
   void Stop();
   void WatchdogStop();

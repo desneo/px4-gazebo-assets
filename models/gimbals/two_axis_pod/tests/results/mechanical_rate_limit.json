@@ -1,0 +1,203 @@
+{
+  "mechanical_limit_dps": 20,
+  "legacy_sdf_request_dps": 100,
+  "configured_acceleration_dps2": 160,
+  "source_measurements_unclipped": true,
+  "reset_yaw_other_axis_drift_deg": 0.0,
+  "summary": {
+    "home": {
+      "samples": 130,
+      "modes": [
+        "HOME",
+        "IDLE"
+      ],
+      "command_peak_dps": {
+        "yaw": 20,
+        "pitch": 20
+      },
+      "measured_peak_dps": {
+        "yaw": 20,
+        "pitch": 20
+      },
+      "aisheng_peak_dps": {
+        "yaw": 20.0,
+        "pitch": 20.0
+      }
+    },
+    "manual_positive": {
+      "samples": 65,
+      "modes": [
+        "IDLE",
+        "MANUAL"
+      ],
+      "command_peak_dps": {
+        "yaw": 20,
+        "pitch": 20
+      },
+      "measured_peak_dps": {
+        "yaw": 20,
+        "pitch": 20
+      },
+      "aisheng_peak_dps": {
+        "yaw": 20.0,
+        "pitch": 20.0
+      }
+    },
+    "manual_reverse": {
+      "samples": 36,
+      "modes": [
+        "IDLE",
+        "MANUAL"
+      ],
+      "command_peak_dps": {
+        "yaw": 20,
+        "pitch": 20
+      },
+      "measured_peak_dps": {
+        "yaw": 20,
+        "pitch": 20
+      },
+      "aisheng_peak_dps": {
+        "yaw": 20.0,
+        "pitch": 20.0
+      }
+    },
+    "position_for_reset": {
+      "samples": 60,
+      "modes": [
+        "IDLE",
+        "MANUAL"
+      ],
+      "command_peak_dps": {
+        "yaw": 20,
+        "pitch": 20
+      },
+      "measured_peak_dps": {
+        "yaw": 20,
+        "pitch": 20
+      },
+      "aisheng_peak_dps": {
+        "yaw": 20.0,
+        "pitch": 20.0
+      }
+    },
+    "reset_pitch": {
+      "samples": 130,
+      "modes": [
+        "HOME",
+        "IDLE"
+      ],
+      "command_peak_dps": {
+        "yaw": 0,
+        "pitch": 20
+      },
+      "measured_peak_dps": {
+        "yaw": 0,
+        "pitch": 20
+      },
+      "aisheng_peak_dps": {
+        "yaw": 0.0,
+        "pitch": 20.0
+      }
+    },
+    "reset_yaw": {
+      "samples": 130,
+      "modes": [
+        "HOME",
+        "IDLE"
+      ],
+      "command_peak_dps": {
+        "yaw": 20,
+        "pitch": 0
+      },
+      "measured_peak_dps": {
+        "yaw": 20,
+        "pitch": 0
+      },
+      "aisheng_peak_dps": {
+        "yaw": 20.0,
+        "pitch": 0.0
+      }
+    },
+    "startup": {
+      "samples": 21,
+      "modes": [
+        "IDLE"
+      ],
+      "command_peak_dps": {
+        "yaw": 0,
+        "pitch": 0
+      },
+      "measured_peak_dps": {
+        "yaw": 0,
+        "pitch": 0
+      },
+      "aisheng_peak_dps": {
+        "yaw": 0.0,
+        "pitch": 0.0
+      }
+    },
+    "stopped": {
+      "samples": 11,
+      "modes": [
+        "IDLE"
+      ],
+      "command_peak_dps": {
+        "yaw": 0,
+        "pitch": 0
+      },
+      "measured_peak_dps": {
+        "yaw": 20,
+        "pitch": 20
+      },
+      "aisheng_peak_dps": {
+        "yaw": 20.0,
+        "pitch": 20.0
+      }
+    },
+    "track": {
+      "samples": 59,
+      "modes": [
+        "TRACK"
+      ],
+      "command_peak_dps": {
+        "yaw": 20,
+        "pitch": 20
+      },
+      "measured_peak_dps": {
+        "yaw": 20,
+        "pitch": 20
+      },
+      "aisheng_peak_dps": {
+        "yaw": 20.0,
+        "pitch": 20.0
+      }
+    }
+  },
+  "samples": 642,
+  "unique_timestamps": 642,
+  "commands_ok": 42,
+  "position_difference_peak_dps": {
+    "yaw": 20.00000000000222,
+    "pitch": 20.00000000000222
+  },
+  "source_sha256": {
+    "models/gimbals/two_axis_pod/parameters.json": "e390c8763695a2fb947a9cde14572a19e2234ce31c63fd521790bb0a3b187e7e",
+    "models/gimbals/two_axis_pod/model.sdf": "a5aa0005aa8d0f26113f22e33fe81d269f888d3089e82f53fbad3b199bb34037",
+    "models/gimbals/two_axis_pod/tools/generate_model.py": "815b6164806f664594ee63fe2fa3056b6ec6fb7eb2fc1781d9300431f3428576",
+    "models/gimbals/two_axis_pod/controller/include/two_axis/control.hh": "b75dcc33db8aa837291c3c582857637984930aba48b6c33f8adfe86b60dc616f",
+    "models/gimbals/two_axis_pod/controller/src/control.cc": "a1a18e819a51611f1b98eb8e06e5092da1d71c2ecf1a1d53e9a2ae5f87996b05",
+    "models/gimbals/two_axis_pod/controller/src/gimbal_controller.cc": "081a57d5182f4f6c75d7849ce75ef8b84a8e082010e717ad373e97e8ad3b2eef",
+    "models/gimbals/two_axis_pod/ground_station/telemetry_forward.py": "778ccdb37523f6b0a1629e6ee26a50c7e2f84c29bf22448fb393702358bd0999",
+    "models/gimbals/two_axis_pod/ground_station/ground_station.py": "a643c39d5f5c7de6931677a3a4ed9e6d749b82bc3fbb49262035525b0ca3864d"
+  },
+  "validation": {
+    "model_tests_passed": 10,
+    "dynamic_assembly_tests_passed": 10,
+    "ctest_passed": 2,
+    "aisheng_limit_tests_passed": 9,
+    "joystick_tests_passed": 19,
+    "station_suite_cases": 145,
+    "baseline_aisheng_multiplier_failures": 29
+  }
+}

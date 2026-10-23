@@ -11,7 +11,7 @@
   "kinematics": {"yaw_origin_m": [0, 0, 0.056], "yaw_axis": [-1, 0, 0], "pitch_axis": [0, -1, 0]},
   "yaw_limits_deg": [-60, 60],
   "pitch_limits_deg": [-80, 30],
-  "max_rate_dps": 100,
+  "max_rate_dps": 20,
   "max_acc_dps2": 160,
   "camera": {"width": 1920, "height": 1080, "fps": 30, "hfov_deg": 60, "near_m": 0.005, "far_m": 30000,
     "sensor_offset_m": [0, 0, 0.0237], "sensor_rpy_rad": [0, -1.5707963267948966, 0]}

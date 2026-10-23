@@ -230,6 +230,10 @@ class DynamicNativeTests(unittest.TestCase):
         for key in ('command', 'telemetry', 'command_result'):
             self.assertEqual(plugin.findtext(key + '_topic'), '/test/pod_23/' + key)
         self.assertEqual(plugin.findtext('mount_dynamic'), 'true')
+        self.assertEqual(float(plugin.findtext('max_rate_dps')), 20)
+        for axis in ('yaw', 'pitch'):
+            velocity = model.findtext(f"joint[@name='{axis}_joint']/axis/limit/velocity")
+            self.assertAlmostEqual(math.degrees(float(velocity)), 20, places=9)
         self.assertEqual(model.findtext("link[@name='camera_link']/sensor[@name='camera']/topic"), '/test/pod_23/image')
         self.assertEqual(manifest['airframe_id'], 4999)
         self.assertTrue((output / 'px4/4999_gz_rocket_two_axis_pod').is_file())

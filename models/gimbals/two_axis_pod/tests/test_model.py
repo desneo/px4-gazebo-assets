@@ -80,6 +80,27 @@ class ModelTest(unittest.TestCase):
         for angle in (-60, 0, 60):
             np.testing.assert_allclose(rotation(self.axis('yaw'), math.radians(angle))@(center-origin)+origin, center, atol=1e-12)
 
+    def test_speed_limit_is_shared_by_plugin_and_both_joint_axes(self):
+        self.assertEqual(self.parameters['max_rate_dps'], 20)
+        plugin = self.model.find("plugin[@name='two_axis::GimbalController']")
+        self.assertEqual(float(plugin.findtext('max_rate_dps')), 20)
+        for model in (self.model, ET.parse(ROOT/'tests/world.sdf').getroot().find('world/model[@name="two_axis_pod"]')):
+            for axis in ('yaw', 'pitch'):
+                limit = model.findtext(f"joint[@name='{axis}_joint']/axis/limit/velocity")
+                self.assertAlmostEqual(math.degrees(float(limit)), 20, places=9)
+
+    def test_generated_rate_limit_cannot_exceed_twenty(self):
+        spec = importlib.util.spec_from_file_location('generate_rate', ROOT/'tools/generate_model.py')
+        module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
+        for rate in (0, -1, 20.001, 100, True, float('nan'), float('inf'), 10**400):
+            config = copy.deepcopy(self.parameters)
+            config['max_rate_dps'] = rate
+            with self.subTest(rate=rate), self.assertRaisesRegex(ValueError, 'max_rate_dps'):
+                module.validate_configuration(config, self.properties)
+        config = copy.deepcopy(self.parameters)
+        config['max_rate_dps'] = 10
+        module.validate_configuration(config, self.properties)
+
     def test_actual_optical_pose_and_extremes(self):
         optical = self.optical()
         np.testing.assert_allclose(optical[:, 0], [0, 0, 1], atol=1e-11)

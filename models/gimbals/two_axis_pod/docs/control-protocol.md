@@ -52,7 +52,7 @@
 {"cmd":"track","seq":5,"box":[0.4,0.35,0.2,0.3]}
 ```
 
-`manual` 输入为角速度而非目标角。任一轴非零时，网关会自动将 `auto_lock` 或 `manual_track` 切换为 `off`，停止当前跟踪后再执行人工速度；因此第三方 station 无需复现随仓库地面站的内部抢占逻辑。为让界面立即显示确定状态，station 也可先可靠发送 `set_vision_mode(mode=off)`，收到成功结果后再发送速度流。非零速度至少以 10 Hz、每包新 `seq` 连续发送；双轴零速是正常松手停车。只有非零流超过 0.5 秒未续发时才产生“控制输入超时，已停止”安全告警。
+`manual` 输入为机械角速度而非目标角。两轴最终控制速度均限制为 ±20°/s，适用于人工、回零、单轴复位和跟踪补偿后的输出；超过范围的有效输入限幅执行。任一轴非零时，网关会自动将 `auto_lock` 或 `manual_track` 切换为 `off`，停止当前跟踪后再执行人工速度；因此第三方 station 无需复现随仓库地面站的内部抢占逻辑。为让界面立即显示确定状态，station 也可先可靠发送 `set_vision_mode(mode=off)`，收到成功结果后再发送速度流。非零速度至少以 10 Hz、每包新 `seq` 连续发送；双轴零速是正常松手停车。只有非零流超过 0.5 秒未续发时才产生“控制输入超时，已停止”安全告警。
 
 选框坐标相对完整视频帧归一化：`x/y` 为左上角，`w/h` 为宽高，均不是像素；必须满足 `0≤x,y<1`、`w,h>0`、`x+w≤1`、`y+h≤1`，并具有足够纹理。station 显示视频时应先去除黑边并把显示坐标反算到完整原始帧，再生成归一化选框。无视频、帧超时或未处于 `manual_track` 时拒绝外部跟踪。`frame_seq` 是非负整数；插件只在最近 4 个已处理图像中存在该序号时接受。普通 station 手动画框应省略 `frame_seq` 以使用最新帧；只有能够从 RTSP 帧戳与 `frame_table` 建立精确对应的客户端才应填写。
 
@@ -177,21 +177,21 @@ Linux/Windows 地面站右上角提供独立的 IP、端口输入框和“发送
 | 字段 | 类型 | 发送数值与来源 |
 |---|---|---|
 | `track_status` | uint8 数值 | 视觉模式为 `manual_track`，或已确认 `AUTO_LOCKED` 且有锁定 ID 的 `auto_lock`；同时 `mode=TRACK`、`tracking.state=TRACK`、`target.valid=true`、`target.miss.valid=true` 且无视觉错误时为 1，其他为 0 |
-| `pitch_angle` | float32 数值 | `attitude_deg.pitch.pos × 100`，朝前为负，不额外反号 |
-| `yaw_angle` | float32 数值 | `attitude_deg.yaw.pos × 100` |
-| `pitch_misalignment` | float32 数值 | 有效时 `target.miss.offset_deg[1] × 100`，向下为正；无效为 0 |
-| `yaw_misalignment` | float32 数值 | 有效时 `target.miss.offset_deg[0] × 100`，向右为正；无效为 0 |
-| `tracking_confidence` | float32 数值 | 有效时 255.0，无效时 0.0；接收端乘 0.1 后为 25.5/0，仅表示有效性，不是真实概率或连续质量分 |
-| `target_confidence` | float32 数值 | 固定 80.0，不缩放，不随跟踪有效/丢失状态变化，不取自模型评分 |
-| `pitch_los_rate` | float32 数值 | `attitude_deg.pitch.vel × 100` |
-| `yaw_los_rate` | float32 数值 | `attitude_deg.yaw.vel × 100` |
+| `pitch_angle` | float32 数值 | `attitude_deg.pitch.pos`，朝前为负，不额外反号 |
+| `yaw_angle` | float32 数值 | `attitude_deg.yaw.pos` |
+| `pitch_misalignment` | float32 数值 | 有效时 `target.miss.offset_deg[1]`，向下为正；无效为 0 |
+| `yaw_misalignment` | float32 数值 | 有效时 `target.miss.offset_deg[0]`，向右为正；无效为 0 |
+| `tracking_confidence` | float32 数值 | 有效时 25.5，无效时 0.0，仅表示有效性，不是真实概率或连续质量分 |
+| `target_confidence` | float32 数值 | 固定 0.8，不缩放，不随跟踪有效/丢失状态变化，不取自模型评分 |
+| `pitch_los_rate` | float32 数值 | `clamp(attitude_deg.pitch.vel, −20, +20)`，单位 °/s |
+| `yaw_los_rate` | float32 数值 | `clamp(attitude_deg.yaw.vel, −20, +20)`，单位 °/s |
 
-JSON 中发送数值而非二进制结构体，不进行 int16 量化；接收端对角度、脱靶角和角速度乘 0.01。丢失或未跟踪时仍发送当前机械角及机械角速度，脱靶角和 `tracking_confidence` 置零，`target_confidence` 始终为 80.0。`*_los_rate` 按接收约定承载现有机械轴角速度（度/秒），不是线速度，也不是独立估计的世界系目标视线角速度。非有限值、缺少有效机械角、有效跟踪却缺少角脱靶量、数值超出 float32 范围或协议不符时丢弃该包并显示转换错误，不发送 NaN/Infinity 或旧测量替代值。
+JSON 中发送数值而非二进制结构体，不进行 int16 量化；角度、脱靶角直接使用度，角速度直接使用度/秒，不进行倍率换算。丢失或未跟踪时仍发送当前机械角及机械角速度，脱靶角和 `tracking_confidence` 置零，`target_confidence` 始终为 0.8。`*_los_rate` 在有限值和 float32 范围校验后对称限幅到 −20～+20°/s，原始测量遥测不裁剪。两字段按接收约定承载现有机械轴角速度（度/秒），不是线速度，也不是独立估计的世界系目标视线角速度。非有限值、缺少有效机械角、有效跟踪却缺少角脱靶量、数值超出 float32 范围或协议不符时丢弃该包并显示转换错误，不发送 NaN/Infinity 或旧测量替代值。
 
 例如 pitch −56.37°、yaw 12.34°、垂直/水平脱靶 +0.5°/−0.25°、俯仰/偏航角速度 −1.23°/s、+2.34°/s：
 
 ```json
-{"track_status":1,"pitch_angle":-5637.0,"yaw_angle":1234.0,"pitch_misalignment":50.0,"yaw_misalignment":-25.0,"tracking_confidence":255.0,"target_confidence":80.0,"pitch_los_rate":-123.0,"yaw_los_rate":234.0}
+{"track_status":1,"pitch_angle":-56.37,"yaw_angle":12.34,"pitch_misalignment":0.5,"yaw_misalignment":-0.25,"tracking_confidence":25.5,"target_confidence":0.8,"pitch_los_rate":-1.23,"yaw_los_rate":2.34}
 ```
 
 关闭视觉、仅检测、自动搜索/交接、未选框、初始化、临时/最终丢失和视觉错误均发送 `track_status=0`、`tracking_confidence=0.0`。即使插件暂时残留 TRACK 标志，也不能绕过视觉模式判定。网关在 off/detect 下发现插件仍处于 TRACK 时，每 0.25 秒最多发布一次停止，直到插件遥测实际退出 TRACK；不伪造插件停车状态，不干扰 MANUAL/HOME。显式再次关闭视觉仍会发布停止指令。

@@ -12,7 +12,7 @@ from packet_rate import PacketRate
 
 
 def aisheng_message(message):
-    """两轴 v6 遥测 -> 九字段艾晟原始量；目标置信度固定为 80.0。"""
+    """两轴 v6 遥测 -> 九字段艾晟原始量；目标置信度固定为 0.8。"""
     if (not isinstance(message, dict) or message.get("type") != "telemetry"
             or type(message.get("protocol_version")) is not int
             or message["protocol_version"] != 6
@@ -26,6 +26,11 @@ def aisheng_message(message):
         if not math.isfinite(raw) or abs(raw) > 3.4028234663852886e38:
             raise ValueError("艾晟数值超出 float32 范围")
         return float(round(raw, 6)) if raw else 0.0
+
+    def limited_rate(value):
+        # 先校验有限数值与 float32 范围，非法遥测不能通过限幅变成有效包。
+        rate = scaled(value)
+        return max(-20.0, min(20.0, rate))
 
     attitude = message.get("attitude_deg")
     if not isinstance(attitude, dict) or any(not isinstance(attitude.get(axis), dict)
@@ -55,8 +60,8 @@ def aisheng_message(message):
         "yaw_misalignment": scaled(offsets[0]) if valid else 0.0,
         "tracking_confidence": 25.5 if valid else 0.0,
         "target_confidence": 0.80,
-        "pitch_los_rate": scaled(attitude["pitch"].get("vel")),
-        "yaw_los_rate": scaled(attitude["yaw"].get("vel")),
+        "pitch_los_rate": limited_rate(attitude["pitch"].get("vel")),
+        "yaw_los_rate": limited_rate(attitude["yaw"].get("vel")),
     }
 
 

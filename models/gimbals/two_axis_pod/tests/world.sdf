@@ -540,7 +540,7 @@
             <lower>-1.0471975512</lower>
             <upper>1.0471975512</upper>
             <effort>5</effort>
-            <velocity>1.74532925199</velocity>
+            <velocity>0.349065850399</velocity>
           </limit>
           <dynamics>
             <damping>0.1</damping>
@@ -557,7 +557,7 @@
             <lower>-1.3962634016</lower>
             <upper>0.523598775598</upper>
             <effort>5</effort>
-            <velocity>1.74532925199</velocity>
+            <velocity>0.349065850399</velocity>
           </limit>
           <dynamics>
             <damping>0.1</damping>
@@ -576,7 +576,7 @@
         <command_result_topic>/two_axis_pod/command_result</command_result_topic>
         <control_rate>100</control_rate>
         <telemetry_config>model://two_axis_pod/controller/service/telemetry.json</telemetry_config>
-        <max_rate_dps>100</max_rate_dps>
+        <max_rate_dps>20</max_rate_dps>
         <max_acc_dps2>160</max_acc_dps2>
         <yaw_min_deg>-60</yaw_min_deg>
         <yaw_max_deg>60</yaw_max_deg>

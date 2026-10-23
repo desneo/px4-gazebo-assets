@@ -764,8 +764,12 @@ class ManualController(threading.Thread):
     def hold(self, axis, value, duration=0.4):
         if axis not in ("yaw", "pitch"):
             raise ValueError("两轴吊舱只支持 yaw、pitch")
+        value = float(value)
+        if not math.isfinite(value):
+            raise ValueError("手动角速度必须为有限数值")
+        value = max(-20.0, min(20.0, value))
         with self.lock:
-            self.axes[axis] = (float(value), time.monotonic() + float(duration))
+            self.axes[axis] = (value, time.monotonic() + float(duration))
 
     def cancel(self):
         """取消所有手动输入并立即归零；与发送线程串行，避免归零后残留非零包。"""
@@ -1166,7 +1170,7 @@ class GroundStation:
     def _refresh_joystick(self):
         if self.joystick:
             x, y = self.joystick_values
-            self.manual.hold("yaw", 30.0 * x, 0.3)
+            self.manual.hold("yaw", 20.0 * x, 0.3)
             self.manual.hold("pitch", 20.0 * y, 0.3)
 
     def _release_joystick(self):
@@ -1740,9 +1744,9 @@ class GroundStation:
             elif key == 0 or key == -1:
                 pass
             elif key in (2424832, 65361):   # left
-                self._manual("yaw", -30, "手动: yaw -30°/s")
+                self._manual("yaw", -20, "手动: yaw -20°/s")
             elif key in (2555904, 65363):   # right
-                self._manual("yaw", 30, "手动: yaw +30°/s")
+                self._manual("yaw", 20, "手动: yaw +20°/s")
             elif key in (2490368, 65362):   # up
                 self._manual("pitch", 20, "手动: pitch +20°/s")
             elif key in (2621440, 65364):   # down

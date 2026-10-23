@@ -87,6 +87,17 @@ class JoystickTests(unittest.TestCase):
     def mouse(self, event, x, y, flags=0):
         self.gs.on_mouse(event, x, y, flags, None)
 
+    def test_manual_inputs_are_clamped_per_axis_and_invalid_rates_rejected(self):
+        for axis in ("yaw", "pitch"):
+            for requested, expected in ((100., 20.), (-100., -20.),
+                                        (20., 20.), (-20., -20.), (2.5, 2.5)):
+                with self.subTest(axis=axis, requested=requested):
+                    self.manual.hold(axis, requested)
+                    self.assertEqual(self.manual.axes[axis][0], expected)
+            for invalid in (float("nan"), float("inf"), -float("inf")):
+                with self.assertRaises(ValueError):
+                    self.manual.hold(axis, invalid)
+
     def test_drag_produces_repeated_encoded_manual_then_release_zero(self):
         cx, cy, radius = self.gs._joystick_geometry()[0]
         self.mouse(cv2.EVENT_LBUTTONDOWN, cx, cy)
@@ -96,7 +107,7 @@ class JoystickTests(unittest.TestCase):
         while time.monotonic() < end:
             self.gs._check_joystick()  # 保持静止按住，同样续发。
             time.sleep(0.025)
-        nonzero = [(stamp, packet) for stamp, packet in self.client.sock.packets if packet.get("yaw") == 30.0]
+        nonzero = [(stamp, packet) for stamp, packet in self.client.sock.packets if packet.get("yaw") == 20.0]
         self.assertGreaterEqual(len(nonzero), 4)
         for _, packet in nonzero:
             self.assertEqual(packet["cmd"], "manual")
@@ -124,9 +135,9 @@ class JoystickTests(unittest.TestCase):
     def test_yaw_left_is_negative_and_right_is_positive(self):
         cx, cy, radius = self.gs._joystick_geometry()[0]
         self.mouse(cv2.EVENT_LBUTTONDOWN, cx - radius, cy)
-        self.assertEqual(self.manual.axes["yaw"][0], -30.0)
+        self.assertEqual(self.manual.axes["yaw"][0], -20.0)
         self.mouse(cv2.EVENT_MOUSEMOVE, cx + radius, cy, cv2.EVENT_FLAG_LBUTTON)
-        self.assertEqual(self.manual.axes["yaw"][0], 30.0)
+        self.assertEqual(self.manual.axes["yaw"][0], 20.0)
 
     def test_old_protocol_disables_joystick_keys_and_axis_reset(self):
         self.client.hello = {"aircraft_id": 1, "version": 1}
@@ -150,7 +161,7 @@ class JoystickTests(unittest.TestCase):
         self.client.telemetry["singular"] = True
         cx, cy, radius = self.gs._joystick_geometry()[0]
         self.mouse(cv2.EVENT_LBUTTONDOWN, cx + radius, cy)
-        self.assertEqual(self.manual.axes["yaw"][0], 30.0)
+        self.assertEqual(self.manual.axes["yaw"][0], 20.0)
         self.gs._send_ctrl("reset_axis", axis="yaw")
         self.assertEqual(self.client.sock.packets[-1][1]["axis"], "yaw")
 
@@ -190,7 +201,7 @@ class JoystickTests(unittest.TestCase):
         self.manual.start()
         time.sleep(0.35)
         packets = [p for _, p in self.client.sock.packets]
-        self.assertTrue(any(p["yaw"] == 30.0 for p in packets))
+        self.assertTrue(any(p["yaw"] == 20.0 for p in packets))
         self.assertEqual(packets[-1]["yaw"], 0.0)
 
     def test_control_command_cancels_manual_first(self):
@@ -244,7 +255,7 @@ class JoystickTests(unittest.TestCase):
         packets = [packet for _, packet in self.client.sock.packets]
         self.assertEqual(packets[0]["cmd"], "set_vision_mode")
         self.assertEqual(packets[0]["mode"], "off")
-        self.assertEqual(self.manual.axes["yaw"][0], 30.0)
+        self.assertEqual(self.manual.axes["yaw"][0], 20.0)
 
     def test_auto_lock_uses_single_target_overlay_after_selection(self):
         searching = {"vision": {"mode": "auto_lock", "locked_track_id": None}}
@@ -260,7 +271,7 @@ class JoystickTests(unittest.TestCase):
         self.mouse(cv2.EVENT_LBUTTONDOWN, cx + radius, cy)
         packets = [packet for _, packet in self.client.sock.packets]
         self.assertFalse(any(packet["cmd"] == "set_vision_mode" for packet in packets))
-        self.assertEqual(self.manual.axes["yaw"][0], 30.0)
+        self.assertEqual(self.manual.axes["yaw"][0], 20.0)
 
     def test_shutdown_is_idempotent_and_zeros_before_bye(self):
         self.manual.hold("yaw", 20.0)

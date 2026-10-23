@@ -58,6 +58,7 @@ except Exception as _exc:  # noqa: BLE001 - 供 selftest 在无 GStreamer 时也
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from stamp import decode_stamp_from_bgr  # noqa: E402
 from telemetry_forward import TelemetryForwarder, ForwardInputs, endpoint, save_destination  # noqa: E402
+from packet_rate import PacketRate  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_CONFIG = os.path.join(HERE, "config.ini")
@@ -298,6 +299,7 @@ class UdpClient(threading.Thread):
         self.hello = None                # 收到的 hello（视为已登记）
         self.errors = []
         self.messages = 0                # 收到的 telemetry 计数
+        self._receive_rate = PacketRate()
         self.last_rx_mono = 0.0          # 最近收到服务端消息的单调时刻
         self.last_telemetry_mono = 0.0
         self.pings_sent = 0              # 已发送 ping 次数（兼作重登记探测）
@@ -532,6 +534,7 @@ class UdpClient(threading.Thread):
         if self.sock is None:
             self.on_log(f"[udp] 初始化失败，无法接收: {self.bind_error}")
             return
+        self._receive_rate.reset()
         la = self.local_addr
         try:
             rcvbuf = self.sock.getsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF)
@@ -628,6 +631,8 @@ class UdpClient(threading.Thread):
                 self.telemetry = msg
                 self.last_telemetry_mono = time.monotonic()
                 self.messages += 1
+                if self.public_angles_ready:
+                    self._receive_rate.record(self.last_telemetry_mono)
                 for entry in msg.get("frame_table") or []:
                     if isinstance(entry, (list, tuple)) and len(entry) >= 2:
                         self.frame_t0[entry[0]] = entry[1]
@@ -696,6 +701,14 @@ class UdpClient(threading.Thread):
 
     def stats(self) -> dict:
         with self.lock:
+            rate = self._receive_rate.snapshot()
+            target = (self.hello or {}).get("telemetry_hz")
+            try:
+                target = float(target) if type(target) in (int, float) else None
+            except OverflowError:
+                target = None
+            if target is not None and not 0 < target < float("inf"):
+                target = None
             secs = ((time.monotonic() - self.last_rx_mono)
                     if self.last_rx_mono else None)
             return {
@@ -704,6 +717,10 @@ class UdpClient(threading.Thread):
                 "identity_ready": self.identity_ready,
                 "identity_error": self.identity_error,
                 "messages": self.messages,
+                "telemetry_target_hz": target,
+                "receive_hz": rate["hz"],
+                "receive_rate_warming_up": rate["warming_up"],
+                "rate_window_s": rate["window_s"],
                 "pongs": self.pongs,
                 "pings_sent": self.pings_sent,
                 "seconds_since_rx": secs,
@@ -725,6 +742,7 @@ class UdpClient(threading.Thread):
 
     def stop(self):
         self._stop.set()
+        self._receive_rate.reset(active=False)
 
 
 class ManualController(threading.Thread):
@@ -1342,6 +1360,58 @@ class GroundStation:
         else:
             rect = geometry["toggle"]
             cv2.putText(disp, "STOP" if status["active"] else "SEND", (rect[0]+12, 114), cv2.FONT_HERSHEY_SIMPLEX, .5, (255,255,255), 1)
+        self._draw_rate_panel(disp, status)
+
+    @staticmethod
+    def _rate_panel_lines(receive, forward, width):
+        target = receive.get("telemetry_target_hz")
+        target = "未知" if target is None else f"{target:.1f} Hz"
+        rx = f"{receive.get('receive_hz', 0.0):.1f} Hz"
+        if receive.get("receive_rate_warming_up"):
+            rx = "预热中"
+        tx = f"{forward.get('send_hz', 0.0):.1f} Hz"
+        if not forward["active"]:
+            tx = "0.0 Hz（未发送）"
+        elif forward.get("send_rate_warming_up"):
+            tx = "预热中"
+        first = f"目标 {target}   |   实际接收 {rx}"
+        second = f"艾晟发送 {tx}"
+        if width >= 760:
+            return [f"{first}   |   {second}", "最近 2 秒真实时间 · 艾晟发送为本机成功发送速率"]
+        return [first, f"{second}  ·  最近 2 秒真实时间"]
+
+    def _draw_rate_panel(self, disp, forward):
+        width, height = self.display_size
+        top = height + 224
+        if disp.shape[0] < top + 56:
+            return
+        receive = self.tele.stats()
+        disp[top:top + 56] = 20
+        labels = self._rate_panel_lines(receive, forward, width)
+        if self.font is not None:
+            pil = Image.fromarray(cv2.cvtColor(disp[top:top + 56], cv2.COLOR_BGR2RGB))
+            painter = ImageDraw.Draw(pil)
+            size = 18 if width >= 760 else 14
+            font = self.font.font_variant(size=size)
+            while size > 10 and max(painter.textbbox((0, 0), text, font=font)[2]
+                                    for text in labels) > width - 24:
+                size -= 1
+                font = self.font.font_variant(size=size)
+            for index, text in enumerate(labels):
+                painter.text((12, 3 + index * 25), text, font=font, fill=(245, 245, 245))
+            disp[top:top + 56] = cv2.cvtColor(np.asarray(pil), cv2.COLOR_RGB2BGR)
+        else:
+            target = receive.get("telemetry_target_hz")
+            target = "?" if target is None else f"{target:.1f}"
+            rx = "WARMUP" if receive.get("receive_rate_warming_up") else f"{receive.get('receive_hz', 0.0):.1f} Hz"
+            tx = ("0.0 Hz (OFF)" if not forward["active"] else
+                  "WARMUP" if forward.get("send_rate_warming_up") else f"{forward.get('send_hz', 0.0):.1f} Hz")
+            labels = [f"Target {target} Hz | Receive {rx}", f"Aisheng send {tx} | last 2 real seconds"]
+            for index, text in enumerate(labels):
+                scale = min(.5, (width - 24) / max(1, cv2.getTextSize(
+                    text, cv2.FONT_HERSHEY_SIMPLEX, 1., 1)[0][0]))
+                cv2.putText(disp, text, (12, top + 20 + index * 25),
+                            cv2.FONT_HERSHEY_SIMPLEX, scale, (245, 245, 245), 1, cv2.LINE_AA)
 
     @staticmethod
     def _miss_lines(tele, fresh):
@@ -1520,7 +1590,7 @@ class GroundStation:
                 cv2.putText(disp, text, (12, 28 + i * 26),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.6, c, 2, cv2.LINE_AA)
         # 摇杆区独立于视频，避免遮挡选框；视频尺寸及 ROI 归一化不包含控制区。
-        panel = np.full((224, dw, 3), 28, dtype=np.uint8)
+        panel = np.full((280, dw, 3), 28, dtype=np.uint8)
         disp = np.vstack((disp, panel))
         mode_buttons = self._vision_mode_buttons()
         self.buttons.extend(mode_buttons)

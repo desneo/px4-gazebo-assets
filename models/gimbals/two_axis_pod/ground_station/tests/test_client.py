@@ -2,6 +2,8 @@
 """客户端协议与同机时延计算验证，仅依赖 Python 标准库。"""
 import ast
 import json
+import socket
+import sys
 from pathlib import Path
 import threading
 import time
@@ -9,9 +11,15 @@ from types import SimpleNamespace
 import unittest
 
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from packet_rate import PacketRate
+
+
 SOURCE = Path(__file__).resolve().parents[1] / "ground_station.py"
 tree = ast.parse(SOURCE.read_text(encoding="utf-8"), filename=str(SOURCE))
 namespace = {"threading": threading, "time": time, "json": json,
+             "PacketRate": PacketRate, "socket": socket,
+             "RECV_BUFFER": 65535, "SO_RCVBUF_MIN": 1 << 20,
              "MAX_DATAGRAM": 8192,
              "VISION_MODES": ("off", "detect", "auto_lock", "manual_track")}
 exec(compile(ast.Module(body=[node for node in tree.body
@@ -25,6 +33,7 @@ class ClientTests(unittest.TestCase):
     def setUp(self):
         self.client = UdpClient.__new__(UdpClient)
         self.client.lock = threading.RLock()
+        self.client._receive_rate = PacketRate()
         self.client.target = ("127.0.0.1", 8766)
         self.client.clock_domain = "local-boot"
         self.client.last_rx_mono = 0.

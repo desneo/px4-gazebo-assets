@@ -22,8 +22,6 @@ bash models/gimbals/two_axis_pod/ground_station/run.sh
 
 默认 partition 为 `geographic_two_axis_pod`，运行目录为 `runs/geographic_two_axis_pod/`，UDP 为 `8766`，RTSP 为 `8555`，内部 RTP 自动分配，RTSP 挂载点为 `/two_axis_pod_1`（`--aircraft-id` 可配置）。视频强制使用 NVENC/NVDEC；不可用时网关或地面站明确报错退出。`GZ_PARTITION` 和 `GIMBAL_RUNDIR` 环境变量可覆盖默认值；其余参数传给组件网关。多机可共用 RTSP 8555，必须传入不同 `--aircraft-id` 并隔离控制端口和 Gazebo 话题；地面站配置对应 ID 与控制端口。
 
-额外 UDP JSON 状态副本可在组件 `controller/service/status_udp.json` 中启用，也可传入 `--status-ip 192.168.1.100 --status-port 9000 --status-hz 20`。此输出使用独立 socket 和发送循环，无需接收端登记，不改变原 station 服务，见[网关配置](../../models/gimbals/two_axis_pod/controller/service/README.md#额外-udp-json-状态上报)。
-
 ```bash
 # 完整视觉检查；不要同时运行其他 UDP 控制客户端。
 GZ_PARTITION=geographic_two_axis_pod python3 scenarios/geographic_two_axis_pod/check_target.py

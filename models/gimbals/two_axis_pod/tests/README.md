@@ -13,12 +13,16 @@ python3 models/gimbals/two_axis_pod/tests/test_model.py
 cmake -S models/gimbals/two_axis_pod/controller -B models/gimbals/two_axis_pod/controller/build
 cmake --build models/gimbals/two_axis_pod/controller/build -j4
 ctest --test-dir models/gimbals/two_axis_pod/controller/build --output-on-failure
-python3 -m unittest discover -s models/gimbals/two_axis_pod/ground_station/tests
+.venv-linux/bin/python -m unittest discover -s models/gimbals/two_axis_pod/ground_station/tests
 gz sdf -k models/gimbals/two_axis_pod/model.sdf
 gz sdf -k models/gimbals/two_axis_pod/tests/world.sdf
 ```
 
-网络与地面站测试包含 112 项。其中 `ground_station/tests/test_config.py` 验证带注释 INI 的类型读取和对 JSON 配置的拒绝；`test_status_udp.py` 使用本机 UDP 回环验证额外完整状态输出：配置读取和覆盖、默认关闭、20 Hz 独立发送、原 station 50 Hz 遥测与 ping、字段完整保留、遥测过期暂停、发送异常恢复、关闭额外输出后 station 继续工作；`test_windows.py` 验证 Windows 配置、视频帧处理、D3D11 硬解打开参数以及拒绝软件解码回退。不会向外部 IP 发送测试数据。
+协议与频率配置测试只需标准库；完整地面站测试使用项目 `.venv-linux` 中的 OpenCV 等依赖，不启动 Gazebo；其中 `test_config.py` 验证带注释 INI 的类型读取和对 JSON 配置的拒绝，`test_windows.py` 验证 Windows 配置、视频帧处理、D3D11 硬解打开参数以及拒绝软件解码回退。真实 UDP 测试仅向本机回环地址发送数据。
+
+`test_rates.py` 验证两秒真实时间窗口的接收/发送 Hz、预热、身份过滤、失败发送不计数、停发/断流归零、重启清零及界面 Hz 文案。
+
+`test_telemetry.py` 验证统一 `hz` 配置、每份新姿态只发送一次、暂停/恢复、重复时间戳过滤、频率不一致时停止周期转发及有界队列。CTest 另验证不同仿真实时因子下的真实时间 100 Hz/50 Hz 调度、暂停恢复、新物理样本门禁、物理更新不足告警及非法配置拒绝。
 
 `test_protocol.py` 另验证重复关闭视觉的停止、网关在 off/detect 下限频清理遗留 TRACK，且不影响人工转动和回零。
 

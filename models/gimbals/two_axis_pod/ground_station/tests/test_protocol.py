@@ -7,6 +7,7 @@ import ast
 import contextlib
 import io
 import json
+import sys
 import math
 import socket
 import uuid
@@ -16,6 +17,10 @@ import time
 import types
 import unittest
 from unittest import mock
+
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from packet_rate import PacketRate
 
 
 ROOT = Path(__file__).resolve().parents[5]
@@ -45,7 +50,8 @@ BRIDGE = load_definitions(
      "PASSTHROUGH_CMDS": {"track", "stop", "home", "reset", "reset_axis", "manual", "reset_fault"}})
 CLIENT = load_definitions(
     ROOT / "models/gimbals/two_axis_pod/ground_station/ground_station.py", {"UdpClient"},
-    {"threading": threading, "time": time, "json": json, "MAX_DATAGRAM": 8192,
+    {"threading": threading, "time": time, "json": json, "PacketRate": PacketRate,
+     "socket": socket, "RECV_BUFFER": 65535, "SO_RCVBUF_MIN": 1 << 20, "MAX_DATAGRAM": 8192,
      "VISION_MODES": ("off", "detect", "auto_lock", "manual_track")})
 
 
@@ -413,6 +419,9 @@ class ClientProtocolTests(unittest.TestCase):
     def setUp(self):
         self.client = CLIENT["UdpClient"].__new__(CLIENT["UdpClient"])
         self.client.lock = threading.RLock()
+        self.client._receive_rate = PacketRate()
+        self.client.hello = None
+        self.client.client_timeout = 5.0
         self.client.last_result = None
         self.client.results = []
         self.client._pending = {}

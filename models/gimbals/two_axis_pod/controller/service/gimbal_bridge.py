@@ -14,14 +14,12 @@ gz-transport 侧（与插件对接）：
 
 网络侧（面向地面站，见 models/gimbals/two_axis_pod/docs/control-protocol.md）：
 - UDP ``udp://<host>:8766``：一条数据报 = 一条 UTF-8 JSON；服务端按客户端地址登记并
-  以 ``--telemetry-hz`` 广播 ``telemetry``；指令经 ``seq`` 幂等去重后转插件。
+  按插件产生的新样本逐份广播 ``telemetry``；指令经 ``seq`` 幂等去重后转插件。
 - RTSP ``rtsp://<host>:8555/two_axis_pod_<aircraft_id>``：H.264（复用 ``video.py``）
-- 配置的 IP/端口：独立 UDP socket 主动发送一份相同字段的状态 JSON，无需登记。
 
 线程模型：``video_thread`` 只取最新帧投递；
 ``telemetry_thread`` 负责 UDP 遥测广播；主线程阻塞在 UDP 接收循环；gz-transport
 回调线程只更新共享状态（``command_result`` 按唯一请求 ID 关联 ``seq`` 后转发）。
-可选的 ``status_udp`` 发送线程按独立配置取样，不改变 station 广播循环和会话。
 """
 from __future__ import annotations
 
@@ -44,9 +42,9 @@ from gz.msgs10.image_pb2 import Image  # noqa: E402
 from gz.msgs10.stringmsg_pb2 import StringMsg  # noqa: E402
 
 from gz_source import GzSource  # noqa: E402
+from telemetry_config import DEFAULT_TELEMETRY_CONFIG, load_telemetry_config
 from rtsp_relay import aircraft_mount
 from video import VideoStreamer  # noqa: E402
-from status_udp import DEFAULT_CONFIG, StatusUdpPublisher, load_status_config  # noqa: E402
 from vision import (DetectorConfig, TrackerConfig, VisionEngine,
                     draw_tracks_rgb, nearest_confirmed_track)  # noqa: E402
 
@@ -131,8 +129,12 @@ class GimbalBridge:
 
         self.lock = threading.RLock()
         self._vision_lock = threading.RLock()
+        self._telemetry_ready = threading.Condition(self.lock)
+        self._telemetry_pending = deque(maxlen=1000)
+        self._last_queued_stamp = None
+        self._last_telemetry_warning = -math.inf
         self._latest_tel = None                 # 插件遥测 JSON -> dict
-        self._latest_tel_received = None        # 接收单调时钟时间，供额外上报判断时效
+        self._latest_tel_received = None        # 插件遥测的接收单调时钟时间
         self._frame = None                      # (seq,w,h,sim_stamp,t_arrive,t0,data)
         self._img_counter = 0
         self.frame_registry = deque(maxlen=600)  # (seq24, t0_mono)
@@ -188,7 +190,6 @@ class GimbalBridge:
             f"{args.camera_link}/sensor/{args.camera_sensor}/image")
         self.source.node.subscribe(Image, img_topic, self._on_image)
         print(f"[bridge] 订阅图像 {img_topic}")
-        self.status_publisher = StatusUdpPublisher(args.status_config)
 
     # ---------------- gz-transport 回调（非主线程） ----------------
     def _on_telemetry(self, msg):
@@ -210,9 +211,35 @@ class GimbalBridge:
                 self._last_tracking_stop_at = now
                 self._publish_internal("stop")
 
-    def status_snapshot(self):
-        with self.lock:
-            return self.snapshot(), self._latest_tel_received
+            # 发送节拍由新姿态驱动；旧插件或不同配置不得靠重发补齐频率。
+            hz = tel.get("telemetry_hz")
+            telemetry_clock = tel.get("telemetry_clock")
+            stamp = tel.get("ts_mono")
+            if (isinstance(hz, bool) or not isinstance(hz, (int, float))
+                    or not 0 < hz <= 1000 or not math.isfinite(hz)
+                    or not math.isclose(hz, self.args.telemetry_hz, rel_tol=1e-9)
+                    or telemetry_clock != "steady"):
+                if now - getattr(self, "_last_telemetry_warning", -math.inf) >= 1.0:
+                    self._last_telemetry_warning = now
+                    print(f"[udp] 插件频率 {hz!r}、时钟 {telemetry_clock!r} 与配置 "
+                          f"{self.args.telemetry_hz} Hz/steady 不一致；"
+                          "暂停周期遥测，请核对配置并重启插件和网关", flush=True)
+                return
+            try:
+                valid_stamp = (not isinstance(stamp, bool)
+                               and isinstance(stamp, (int, float))
+                               and math.isfinite(stamp))
+            except OverflowError:
+                valid_stamp = False
+            if not valid_stamp or stamp == self._last_queued_stamp:
+                return
+            self._last_queued_stamp = stamp
+            if len(self._telemetry_pending) == self._telemetry_pending.maxlen:
+                if now - self._last_telemetry_warning >= 1.0:
+                    self._last_telemetry_warning = now
+                    print("[udp] 遥测发送积压，丢弃最旧样本", flush=True)
+            self._telemetry_pending.append(self.snapshot())
+            self._telemetry_ready.notify()
 
     def _on_command_result(self, msg):
         try:
@@ -436,6 +463,8 @@ class GimbalBridge:
         self._video_error = str(message)
         print(f"[video] NVIDIA NVENC 运行失败，网关终止: {message}", flush=True)
         self._running = False
+        with self._telemetry_ready:
+            self._telemetry_ready.notify_all()
         try:
             self.sock.close()
         except OSError:
@@ -582,6 +611,7 @@ class GimbalBridge:
                 "angle_convention": "motion_head_joint",
                 "clock_domain": self.clock_domain,
                 "telemetry_hz": self.args.telemetry_hz,
+                "telemetry_clock": "steady",
                 "video_rtsp_path": self.args.mount,
                 "aircraft_id": getattr(self.args, "aircraft_id", 1),
                 "capabilities": ["vision_mode", "server_video_overlay", "auto_lock", "frame_exact_track"],
@@ -808,7 +838,7 @@ class GimbalBridge:
                     self._reply_and_cache(cl, seq, payload)
 
     # ---------------- 广播循环 ----------------
-    def _broadcast_telemetry(self):
+    def _broadcast_telemetry(self, snap=None):
         now = time.monotonic()
         with self.clients_lock:
             self._expire_requests(now)
@@ -816,7 +846,6 @@ class GimbalBridge:
                 if now - cl.last_seen > self.args.client_timeout:
                     self._retire_client(cl)
             items = list(self.clients.items())
-        snap = self.snapshot()
         if snap is None:
             return
         text = json.dumps(snap)
@@ -824,14 +853,17 @@ class GimbalBridge:
             self._send_json(addr, text)
 
     def telemetry_thread(self):
-        period = 1.0 / max(1, self.args.telemetry_hz)
         while self._running:
-            t0 = time.monotonic()
+            with self._telemetry_ready:
+                self._telemetry_ready.wait_for(
+                    lambda: self._telemetry_pending or not self._running, timeout=0.2)
+                if not self._running:
+                    break
+                snap = self._telemetry_pending.popleft() if self._telemetry_pending else None
             try:
-                self._broadcast_telemetry()
+                self._broadcast_telemetry(snap)
             except Exception as exc:  # noqa: BLE001 - 广播异常不应终止网关
                 print(f"[udp] 遥测广播异常: {exc}", flush=True)
-            time.sleep(max(0.0, period - (time.monotonic() - t0)))
 
     # ---------------- UDP 接收循环 ----------------
     def udp_rx_loop(self):
@@ -854,7 +886,8 @@ class GimbalBridge:
 
     def close(self):
         self._running = False
-        self.status_publisher.close()
+        with self._telemetry_ready:
+            self._telemetry_ready.notify_all()
         try:
             self.sock.close()
         except OSError:
@@ -882,25 +915,20 @@ def main():
     parser.add_argument("--aircraft-id", type=int, default=1, help="非负整数飞机 ID，默认 1；同一 RTSP 服务内必须唯一")
     parser.add_argument("--video-bitrate", type=int, default=8000,
                         help="H.264 码率（kbps）")
-    parser.add_argument("--telemetry-hz", type=int, default=50)
-    parser.add_argument("--status-config", type=Path, default=DEFAULT_CONFIG,
-                        help="额外 UDP JSON 状态上报配置文件（默认 status_udp.json）")
-    parser.add_argument("--status-ip", help="额外状态接收 IP；须同时指定 --status-port")
-    parser.add_argument("--status-port", type=int, help="额外状态接收端口")
-    parser.add_argument("--status-hz", type=float, help="覆盖额外状态发送频率，默认 20 Hz")
+    parser.add_argument("--telemetry-config", type=Path, default=DEFAULT_TELEMETRY_CONFIG,
+                        help="与插件共用的遥测频率 JSON（hz 默认 50）")
     parser.add_argument("--encoder", choices=["nvenc"], default="nvenc",
                         help="视频编码器：仅支持 NVIDIA NVENC；不可用时拒绝启动")
     parser.add_argument("--vision-config", type=Path, default=DEFAULT_VISION_CONFIG,
                         help="目标检测与多目标跟踪配置 JSON")
     args = parser.parse_args()
     try:
+        args.telemetry_hz = load_telemetry_config(args.telemetry_config)
         args.mount = aircraft_mount(args.mount, args.aircraft_id)
         if not 1 <= args.rtsp_port <= 65535:
             raise ValueError("rtsp-port 必须为 1～65535")
         if args.rtp_port is not None and not 1 <= args.rtp_port <= 65535:
             raise ValueError("rtp-port 必须为 1～65535")
-        args.status_config = load_status_config(args.status_config, ip=args.status_ip,
-                                                port=args.status_port, hz=args.status_hz)
         # 启动阶段先验证配置和模型路径；OpenCV/模型前向在首次启用视觉时加载。
         vision_config = load_vision_config(args.vision_config)
         if not vision_config["model_path"].is_file():
@@ -923,7 +951,6 @@ def main():
     bridge = GimbalBridge(args)
     threading.Thread(target=bridge.video_thread, daemon=True).start()
     threading.Thread(target=bridge.telemetry_thread, daemon=True).start()
-    bridge.status_publisher.start(bridge.status_snapshot)
     try:
         bridge.udp_rx_loop()
     except KeyboardInterrupt:

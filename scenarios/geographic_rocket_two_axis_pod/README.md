@@ -12,7 +12,7 @@ PX4 控制真实动力学飞行。默认相对起飞点高度 **80 m**、航段�
 
 吊舱安装面位于机体系 `(0,0,0.289) m`，零安装旋转，各同名轴对齐；机尾z=-0.210 m、最高点z=+0.380 m。yaw 绕机体水平 −X，pitch 绕随动 −Y，CAD 零位朝 +Z；机械范围 yaw±60°、pitch−80°～+30°，运动链为 `Rx(-yaw) Ry(-pitch)`。外轴穿过球心，球心不公转。模型、插件、网关、地面站和跟踪检查均使用协议 v6、`motion_head_joint`。组合固定零关节名义重心 `(-0.000176261396,-0.000000003426,0.044398504845) m` FLU 用于派生 CA/EKF 位置；相机位置和光学外参从基础 SDF 及装配安装面重建。组件完整飞行与本地理场景完整链路均已通过，并分别保存当前源指纹与原始证据。
 
-地面站“发送艾晟报文”提供9字段转换后的UDP JSON；框架角直接使用当前机械角，不再次对俯仰反号，原始脱靶量仍为图像右、下正。网关额外状态上报则保留完整遥测，字段与倍率见[地面站说明](../../models/gimbals/two_axis_pod/ground_station/README.md)。
+地面站“发送艾晟报文”提供9字段转换后的UDP JSON；框架角直接使用当前机械角，不再次对俯仰反号，原始脱靶量仍为图像右、下正。字段与倍率见[地面站说明](../../models/gimbals/two_axis_pod/ground_station/README.md)。
 
 图像跟踪使用组件 CSRT 与载机转动补偿；目标世界坐标不参与持续控制。可达时持续跟踪，限位、速度饱和、视线退化与目标丢失应在地面站明确显示；不能仅以 TRACK 字样判断稳定锁定。
 
@@ -37,7 +37,7 @@ bash scenarios/geographic_rocket_two_axis_pod/stop.sh \
   "$PWD/runs/geographic_rocket_two_axis_pod"
 ```
 
-默认运行目录为 `runs/geographic_rocket_two_axis_pod/`，可用 `--run-dir` 设置。每次启动生成独立 Gazebo 分区、动态资产、PX4 `etc` 与新的 rootfs；不修改相邻 PX4 源码。实际分区保存在运行目录 `gz_partition.txt`。同一个运行目录有活跃进程时拒绝重复启动。PX4/MAVLink 端口不由 Gazebo 分区隔离，端口占用时拒绝启动。场景使用 UDP 8770、共享 RTSP 8555、自动分配的内部 RTP 端口，默认视频路径 `/two_axis_pod_1`；可用 `run.sh --aircraft-id ID` 修改视频与上报 ID，地面站配置相同 ID。此参数不修改 PX4 SYSID 或 MAVLink 端口，本场景仍为单载机飞行入口；额外主动状态 UDP 在本场景配置中关闭。
+默认运行目录为 `runs/geographic_rocket_two_axis_pod/`，可用 `--run-dir` 设置。每次启动生成独立 Gazebo 分区、动态资产、PX4 `etc` 与新的 rootfs；不修改相邻 PX4 源码。实际分区保存在运行目录 `gz_partition.txt`。同一个运行目录有活跃进程时拒绝重复启动。PX4/MAVLink 端口不由 Gazebo 分区隔离，端口占用时拒绝启动。场景使用 UDP 8770、共享 RTSP 8555、自动分配的内部 RTP 端口，默认视频路径 `/two_axis_pod_1`；可用 `run.sh --aircraft-id ID` 修改视频与上报 ID，地面站配置相同 ID。此参数不修改 PX4 SYSID 或 MAVLink 端口，本场景仍为单载机飞行入口。
 
 飞机起飞并达到巡航高度后，在吊舱地面站用两轴摇杆寻找空中棋盘靶标，再在实际视频中拖框选择它。观察来回航段及减速、反向时目标是否保持居中，并检查限制提示。只有一个客户端应操作吊舱；检查脚本自动初始化时，不要同时人工控制。
 

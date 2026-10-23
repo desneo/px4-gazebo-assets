@@ -1,0 +1,128 @@
+{
+  "clock": "steady",
+  "default_hz": 50,
+  "runtime_config": "model://two_axis_pod/controller/service/telemetry.json",
+  "measurement": {
+    "configured_hz": 50.0,
+    "requested_rtf": 0.8,
+    "measured_rtf": 0.8000754813827093,
+    "wall_hz": 50.004717586419325,
+    "sim_hz": 62.49999999999999,
+    "samples": 271,
+    "measurement_samples": 217,
+    "warmup_samples_excluded": 54,
+    "unique_ts": 271,
+    "station_stats": {
+      "connected": true,
+      "registered": true,
+      "identity_ready": true,
+      "identity_error": null,
+      "messages": 271,
+      "telemetry_target_hz": 50.0,
+      "receive_hz": 50.0,
+      "receive_rate_warming_up": false,
+      "rate_window_s": 2.0,
+      "pongs": 6,
+      "pings_sent": 6,
+      "seconds_since_rx": 0.01579147600568831,
+      "pending": 0,
+      "last_result": null,
+      "results": [],
+      "errors": []
+    },
+    "forward_stats": {
+      "active": true,
+      "target": [
+        "127.0.0.1",
+        36736
+      ],
+      "sent": 271,
+      "dropped": 0,
+      "error": "",
+      "send_hz": 50.0,
+      "send_rate_warming_up": false,
+      "rate_window_s": 2.0
+    },
+    "receiver_packets": 271,
+    "clock": "steady",
+    "uses_default_config": true,
+    "paused_client_stats": {
+      "connected": true,
+      "registered": true,
+      "identity_ready": true,
+      "identity_error": null,
+      "messages": 281,
+      "telemetry_target_hz": 50.0,
+      "receive_hz": 0.0,
+      "receive_rate_warming_up": false,
+      "rate_window_s": 2.0,
+      "pongs": 9,
+      "pings_sent": 9,
+      "seconds_since_rx": 0.6131409569643438,
+      "pending": 0,
+      "last_result": null,
+      "results": [],
+      "errors": []
+    },
+    "paused_forward_stats": {
+      "active": true,
+      "target": [
+        "127.0.0.1",
+        36736
+      ],
+      "sent": 281,
+      "dropped": 0,
+      "error": "",
+      "send_hz": 0.0,
+      "send_rate_warming_up": false,
+      "rate_window_s": 2.0
+    },
+    "paused_no_replay": true,
+    "resumed_samples": 120,
+    "resumed_client_stats": {
+      "connected": true,
+      "registered": true,
+      "identity_ready": true,
+      "identity_error": null,
+      "messages": 401,
+      "telemetry_target_hz": 50.0,
+      "receive_hz": 50.0,
+      "receive_rate_warming_up": false,
+      "rate_window_s": 2.0,
+      "pongs": 12,
+      "pings_sent": 12,
+      "seconds_since_rx": 0.0014099580002948642,
+      "pending": 0,
+      "last_result": null,
+      "results": [],
+      "errors": []
+    },
+    "resumed_forward_stats": {
+      "active": true,
+      "target": [
+        "127.0.0.1",
+        36736
+      ],
+      "sent": 401,
+      "dropped": 0,
+      "error": "",
+      "send_hz": 50.0,
+      "send_rate_warming_up": false,
+      "rate_window_s": 2.0
+    }
+  },
+  "source_sha256": {
+    "models/gimbals/two_axis_pod/controller/service/telemetry.json": "d07c0e952a3a0e0dd941f4ef9e73f47e7933e9dc520eec2b308fce9c3c146a62",
+    "models/gimbals/two_axis_pod/controller/service/gimbal_bridge.py": "dc1703df88a4ed759a71b26394472d06dbb2ef4cbe81b104d331d37b7c0f7b2c",
+    "models/gimbals/two_axis_pod/controller/include/two_axis/telemetry.hh": "c565f56c6b45db7d8d67f29b8f8394de85a05eda4a38073364a7b86f6f45aa72",
+    "models/gimbals/two_axis_pod/controller/src/gimbal_controller.cc": "af5c90ef529ff7d0fa73724c2065f2329b1bc5a1ceb506434d347c095a09e239",
+    "models/gimbals/two_axis_pod/ground_station/ground_station.py": "f2d5fd115c985cae0743d855be5b3e88719c84f3eecc644dcf9c73fd489fb747",
+    "models/gimbals/two_axis_pod/ground_station/packet_rate.py": "ba3cd7b56f1256a66aa1c72ab0730dda2d548338733a5217cda1d173385d3389",
+    "models/gimbals/two_axis_pod/ground_station/telemetry_forward.py": "b4bc56c991f39b04557e9e9b4fc85ff80bec17eb61830512c2df8ee8d0994947"
+  },
+  "validation": {
+    "telemetry_tests_passed": 13,
+    "rate_tests_passed": 14,
+    "ctest_passed": 2
+  }
+}

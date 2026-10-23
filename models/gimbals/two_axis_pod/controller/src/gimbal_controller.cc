@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cstdint>
 #include <deque>
+#include <iomanip>
 #include <limits>
 #include <mutex>
 #include <optional>
@@ -31,6 +32,7 @@
 
 #include "two_axis/control.hh"
 #include "two_axis/kinematics.hh"
+#include "two_axis/telemetry.hh"
 #include "gimbal_controller/mini_json.hh"
 
 namespace two_axis
@@ -104,7 +106,7 @@ private:
   bool hasMountSample_{false};
   Mat3 mountWorldRotation_;
   double controlHz_{100.0};
-  double telemetryHz_{50.0};
+  double telemetryHz_{0.0};
 
   gz::sim::Entity modelEntity_{gz::sim::kNullEntity};
   gz::sim::Entity mountEntity_{gz::sim::kNullEntity};
@@ -135,7 +137,7 @@ private:
   // 计时
   double startTime_{-1.0};
   double controlAccum_{0.0};
-  double telemetryAccum_{0.0};
+  TelemetrySchedule telemetrySchedule_;
   bool configured_{false};
   bool jointsInitialized_{false};
   std::array<double, 2> lastCmd_{{0.0, 0.0}};
@@ -174,7 +176,15 @@ void GimbalController::Configure(
   telemetryTopic_ = getStr("telemetry_topic", telemetryTopic_);
   resultTopic_ = getStr("command_result_topic", resultTopic_);
   controlHz_ = std::max(1.0, getDouble("control_rate", controlHz_));
-  telemetryHz_ = std::max(1.0, getDouble("telemetry_rate", telemetryHz_));
+  const auto telemetryConfig = getStr("telemetry_config", kDefaultTelemetryConfig);
+  std::string telemetryError;
+  if (!LoadTelemetryConfig(telemetryConfig, gz::sim::resourcePaths(),
+                           telemetryHz_, telemetryError))
+  {
+    gzerr << "[two_axis] " << telemetryError << "，插件禁用\n";
+    return;
+  }
+  telemetrySchedule_.Configure(telemetryHz_);
 
   mountMode_ = getStr("mount_mode", mountMode_);
   mountDynamic_ = _sdf->HasElement("mount_dynamic") &&
@@ -542,12 +552,17 @@ void GimbalController::OnCommand(const gz::msgs::StringMsg &_msg)
 void GimbalController::PreUpdate(const gz::sim::UpdateInfo &_info,
                                  gz::sim::EntityComponentManager &_ecm)
 {
-  if (!configured_ || _info.paused || this->modelEntity_ == gz::sim::kNullEntity)
+  if (!configured_ || this->modelEntity_ == gz::sim::kNullEntity)
     return;
 
   const double now =
     std::chrono::duration<double>(_info.simTime).count();
   const double dt = std::chrono::duration<double>(_info.dt).count();
+  if (_info.paused)
+  {
+    this->telemetrySchedule_.Update(std::chrono::steady_clock::now(), now, true);
+    return;
+  }
   if (this->startTime_ < 0.0)
     this->startTime_ = now;
 
@@ -687,10 +702,14 @@ void GimbalController::PreUpdate(const gz::sim::UpdateInfo &_info,
   }
 
   // ---- 遥测 ----
-  this->telemetryAccum_ += dt;
-  if (this->telemetryAccum_ >= 1.0 / this->telemetryHz_)
+  const auto telemetryTick = this->telemetrySchedule_.Update(
+    std::chrono::steady_clock::now(), now);
+  if (telemetryTick.warn_rate_limited)
+    gzwarn << "[two_axis] 真实物理更新频率约 " << telemetryTick.physical_step_hz
+           << " Hz，低于遥测配置 " << telemetryHz_
+           << " Hz；仅发布每步最新姿态，无法达到配置频率\n";
+  if (telemetryTick.publish)
   {
-    this->telemetryAccum_ = 0.0;
     Frame f;
     {
       std::lock_guard<std::mutex> imgLock(this->imgMutex_);
@@ -719,6 +738,9 @@ void GimbalController::PublishTelemetry(double _now, const JointSample &_js,
 
   std::ostringstream os;
   os << "{\"type\":\"telemetry\",\"source\":\"gazebo_plugin\""
+     << ",\"telemetry_hz\":"
+     << std::setprecision(std::numeric_limits<double>::max_digits10) << telemetryHz_
+     << ",\"telemetry_clock\":\"steady\""
      << ",\"mount\":{\"mode\":\"" << mountMode_ << "\",\"static\":"
      << (mountDynamic_ ? "false" : "true") << ",\"quat_world\":["
      << Num(qMount[0], 6) << "," << Num(qMount[1], 6) << ","

@@ -1,0 +1,149 @@
+{
+  "date": "2026-10-23",
+  "clock": "steady",
+  "setup": {
+    "receiver": [
+      "192.168.1.100",
+      19551
+    ],
+    "world": "independent temporary Gazebo fixture",
+    "station": "Production receive/forward classes; current user GUI unchanged",
+    "video_enabled": false
+  },
+  "measurement": {
+    "configured_hz": 100.0,
+    "requested_rtf": 0.8,
+    "measured_rtf": 0.8000705963080791,
+    "wall_hz": 100.00882453850993,
+    "sim_hz": 125.00000000000006,
+    "samples": 601,
+    "measurement_samples": 501,
+    "warmup_samples_excluded": 100,
+    "unique_ts": 601,
+    "station_stats": {
+      "connected": true,
+      "registered": true,
+      "identity_ready": true,
+      "identity_error": null,
+      "messages": 601,
+      "telemetry_target_hz": 100.0,
+      "receive_hz": 100.0,
+      "receive_rate_warming_up": false,
+      "rate_window_s": 2.0,
+      "pongs": 6,
+      "pings_sent": 6,
+      "seconds_since_rx": 0.0055868219351395965,
+      "pending": 0,
+      "last_result": null,
+      "results": [],
+      "errors": []
+    },
+    "forward_stats": {
+      "active": true,
+      "target": [
+        "192.168.1.100",
+        19551
+      ],
+      "sent": 601,
+      "dropped": 0,
+      "error": "",
+      "send_hz": 100.0,
+      "send_rate_warming_up": false,
+      "rate_window_s": 2.0
+    },
+    "receiver_packets": 0,
+    "clock": "steady",
+    "paused_client_stats": {
+      "connected": true,
+      "registered": true,
+      "identity_ready": true,
+      "identity_error": null,
+      "messages": 618,
+      "telemetry_target_hz": 100.0,
+      "receive_hz": 0.0,
+      "receive_rate_warming_up": false,
+      "rate_window_s": 2.0,
+      "pongs": 9,
+      "pings_sent": 9,
+      "seconds_since_rx": 0.6131954430602491,
+      "pending": 0,
+      "last_result": null,
+      "results": [],
+      "errors": []
+    },
+    "paused_forward_stats": {
+      "active": true,
+      "target": [
+        "192.168.1.100",
+        19551
+      ],
+      "sent": 618,
+      "dropped": 0,
+      "error": "",
+      "send_hz": 0.0,
+      "send_rate_warming_up": false,
+      "rate_window_s": 2.0
+    },
+    "paused_no_replay": true,
+    "resumed_samples": 239,
+    "resumed_client_stats": {
+      "connected": true,
+      "registered": true,
+      "identity_ready": true,
+      "identity_error": null,
+      "messages": 857,
+      "telemetry_target_hz": 100.0,
+      "receive_hz": 99.5,
+      "receive_rate_warming_up": false,
+      "rate_window_s": 2.0,
+      "pongs": 12,
+      "pings_sent": 12,
+      "seconds_since_rx": 0.0066724130883812904,
+      "pending": 0,
+      "last_result": null,
+      "results": [],
+      "errors": []
+    },
+    "resumed_forward_stats": {
+      "active": true,
+      "target": [
+        "192.168.1.100",
+        19551
+      ],
+      "sent": 857,
+      "dropped": 0,
+      "error": "",
+      "send_hz": 99.5,
+      "send_rate_warming_up": false,
+      "rate_window_s": 2.0
+    },
+    "remote": {
+      "socket_drops": 0,
+      "packets": 858,
+      "payloads_match": true,
+      "initial_hz": 100.00994942994201
+    },
+    "total_sent": 858,
+    "total_received_input": 858
+  },
+  "source_sha256": {
+    "models/gimbals/two_axis_pod/controller/service/telemetry.json": "8af3bbc7621cd8f54f5b5b4f15fdaa0f949d9c826677f98815d0ec679a1ab974",
+    "models/gimbals/two_axis_pod/controller/service/telemetry_config.py": "1d2c70685adc110c98e79d299936065b04378344f5f02978ae0db04f18513eda",
+    "models/gimbals/two_axis_pod/controller/service/gimbal_bridge.py": "fff4f3b4d2b8d9f025f8f01737ff8d7d330689813821464bb66584062405961e",
+    "models/gimbals/two_axis_pod/controller/include/two_axis/telemetry.hh": "c565f56c6b45db7d8d67f29b8f8394de85a05eda4a38073364a7b86f6f45aa72",
+    "models/gimbals/two_axis_pod/controller/src/gimbal_controller.cc": "af5c90ef529ff7d0fa73724c2065f2329b1bc5a1ceb506434d347c095a09e239",
+    "models/gimbals/two_axis_pod/ground_station/ground_station.py": "f2d5fd115c985cae0743d855be5b3e88719c84f3eecc644dcf9c73fd489fb747",
+    "models/gimbals/two_axis_pod/ground_station/telemetry_forward.py": "b4bc56c991f39b04557e9e9b4fc85ff80bec17eb61830512c2df8ee8d0994947",
+    "models/gimbals/two_axis_pod/ground_station/packet_rate.py": "ba3cd7b56f1256a66aa1c72ab0730dda2d548338733a5217cda1d173385d3389"
+  },
+  "validation": {
+    "ctest_passed": 2,
+    "model_tests_passed": 8,
+    "telemetry_tests_passed": 13,
+    "rate_tests_passed": 14,
+    "full_station_suite_cases": 135,
+    "baseline_aisheng_failures": 29,
+    "baseline_failure_records_unchanged": true,
+    "aisheng_conversion_ast_matches_HEAD": true
+  }
+}

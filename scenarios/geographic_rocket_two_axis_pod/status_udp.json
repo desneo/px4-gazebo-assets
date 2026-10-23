@@ -1,7 +1,0 @@
-{
-  "enabled": false,
-  "ip": "127.0.0.1",
-  "port": 9000,
-  "hz": 20,
-  "stale_timeout_s": 1.0
-}

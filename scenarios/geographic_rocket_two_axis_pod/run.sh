@@ -151,7 +151,7 @@ library=controller/'build/lib/libgz-two-axis-pod-controller.so'
 paths=[library,*controller.glob('src/*.cc'),*controller.glob('include/two_axis/*.hh')]
 scene=root/'scenarios/geographic_rocket_two_axis_pod'
 paths.extend(scene/name for name in ('run.sh','flight_patrol.py','patrol_math.py',
-    'prepare_world.py','target_fixture.py','process_state.py','status_udp.json'))
+    'prepare_world.py','target_fixture.py','process_state.py'))
 for path in paths:
     sources[str(path.relative_to(root))]=hashlib.sha256(path.read_bytes()).hexdigest()
 for name,expected in sources.items():
@@ -190,7 +190,7 @@ start_service px4 env PX4_SIM_MODEL=gz_rocket_two_axis_pod PX4_GZ_STANDALONE=1 \
 start_service bridge "$BRIDGE_PYTHON" -u "$PROJ/models/gimbals/two_axis_pod/controller/service/gimbal_bridge.py" \
   --world geographic_rocket_two_axis_pod --gimbal-model rocket_two_axis_pod \
   --topic-prefix /rocket_two_axis_pod --image-topic /rocket_two_axis_pod/image \
-  --udp-port 8770 --rtsp-port 8555 --aircraft-id "$AIRCRAFT_ID" --encoder nvenc --status-config "$HERE/status_udp.json"
+  --udp-port 8770 --rtsp-port 8555 --aircraft-id "$AIRCRAFT_ID" --encoder nvenc
 if "$SHOW_GUI"; then
   start_service gui gz sim -g -v2
   SENSITIVITY="${GZ_VIEW_SENSITIVITY:-$SENSITIVITY}"

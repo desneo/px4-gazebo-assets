@@ -206,7 +206,7 @@ def generate():
                     camera_link='camera_link', camera_sensor='camera', mount_mode='upright',
                     command_topic='/two_axis_pod/command', telemetry_topic='/two_axis_pod/telemetry',
                     command_result_topic='/two_axis_pod/command_result', control_rate=100,
-                    telemetry_rate=50, max_rate_dps=c['max_rate_dps'], max_acc_dps2=c['max_acc_dps2'],
+                    telemetry_config='model://two_axis_pod/controller/service/telemetry.json', max_rate_dps=c['max_rate_dps'], max_acc_dps2=c['max_acc_dps2'],
                     yaw_min_deg=c['yaw_limits_deg'][0], yaw_max_deg=c['yaw_limits_deg'][1],
                     pitch_min_deg=c['pitch_limits_deg'][0], pitch_max_deg=c['pitch_limits_deg'][1])
     for key, value in settings.items():

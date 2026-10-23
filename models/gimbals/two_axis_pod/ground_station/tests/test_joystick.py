@@ -2,6 +2,8 @@
 """离线验证鼠标输入、实际 JSON 编码的手动流及释放保护，无 GUI/网络依赖。"""
 import ast
 import json
+import socket
+import sys
 import math
 from pathlib import Path
 import threading
@@ -10,12 +12,18 @@ from types import SimpleNamespace
 import unittest
 
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from packet_rate import PacketRate
+
+
 SOURCE = Path(__file__).resolve().parents[1] / "ground_station.py"
 tree = ast.parse(SOURCE.read_text(encoding="utf-8"), filename=str(SOURCE))
 cv2 = SimpleNamespace(EVENT_LBUTTONDOWN=1, EVENT_MOUSEMOVE=0,
                       EVENT_LBUTTONUP=4, EVENT_FLAG_LBUTTON=1,
                       destroyAllWindows=lambda: None)
-namespace = {"threading": threading, "time": time, "json": json, "math": math,
+namespace = {"threading": threading, "time": time, "json": json,
+             "PacketRate": PacketRate, "socket": socket,
+             "RECV_BUFFER": 65535, "SO_RCVBUF_MIN": 1 << 20, "math": math,
              "cv2": cv2, "MAX_DATAGRAM": 8192,
              "VISION_MODES": ("off", "detect", "auto_lock", "manual_track"),
              "VISION_MODE_CN": {"off": "关闭视觉", "detect": "目标检测",
@@ -41,6 +49,7 @@ class JoystickTests(unittest.TestCase):
     def setUp(self):
         self.client = UdpClient.__new__(UdpClient)
         self.client.lock = threading.RLock()
+        self.client._receive_rate = PacketRate()
         self.client._seq = 0
         self.client.sock = DatagramSink()
         self.client.target = ("127.0.0.1", 8766)

@@ -289,7 +289,7 @@
       <telemetry_topic>/two_axis_pod/telemetry</telemetry_topic>
       <command_result_topic>/two_axis_pod/command_result</command_result_topic>
       <control_rate>100</control_rate>
-      <telemetry_rate>50</telemetry_rate>
+      <telemetry_config>model://two_axis_pod/controller/service/telemetry.json</telemetry_config>
       <max_rate_dps>100</max_rate_dps>
       <max_acc_dps2>160</max_acc_dps2>
       <yaw_min_deg>-60</yaw_min_deg>

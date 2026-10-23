@@ -8,6 +8,8 @@ import re
 import socket
 import threading
 
+from packet_rate import PacketRate
+
 
 def aisheng_message(message):
     """两轴 v6 遥测 -> 九字段艾晟原始量；目标置信度固定为 80.0。"""
@@ -99,6 +101,7 @@ class TelemetryForwarder:
         self._closed = False
         self.sent = self.dropped = 0
         self.error = ""
+        self._send_rate = PacketRate(active=False)
         self._thread = threading.Thread(target=self._run, name="station-forward", daemon=True)
         self._thread.start()
 
@@ -117,6 +120,7 @@ class TelemetryForwarder:
             self._queue.clear()
             self.sent = self.dropped = 0
             self.error = ""
+            self._send_rate.reset()
 
     def offer(self, raw):
         with self._lock:
@@ -134,11 +138,15 @@ class TelemetryForwarder:
             self._socket = None
             self._queue.clear()
             self.error = ""
+            self._send_rate.reset(active=False)
 
     def snapshot(self):
         with self._lock:
+            rate = self._send_rate.snapshot()
             return dict(active=self._socket is not None, target=self._target,
-                        sent=self.sent, dropped=self.dropped, error=self.error)
+                        sent=self.sent, dropped=self.dropped, error=self.error,
+                        send_hz=rate["hz"], send_rate_warming_up=rate["warming_up"],
+                        rate_window_s=rate["window_s"])
 
     def _run(self):
         while True:
@@ -155,6 +163,7 @@ class TelemetryForwarder:
                     data = json.dumps(payload, separators=(",", ":"), allow_nan=False).encode("utf-8")
                     self._socket.sendto(data, self._target)
                     self.sent += 1
+                    self._send_rate.record()
                     self.error = ""
                 except (ValueError, TypeError, OverflowError) as exc:
                     self.dropped += 1

@@ -33,7 +33,9 @@ export GZ_SIM_SYSTEM_PLUGIN_PATH=models/gimbals/two_axis_pod/controller/build/li
 
 - 命令：`/two_axis_pod/command`，`gz.msgs.StringMsg` JSON。
 - 回执：`/two_axis_pod/command_result`，包含 `type/cmd/ok/message/request_id`，request_id 在请求携带时原样返回。
-- 遥测：`/two_axis_pod/telemetry`，默认 50 Hz；控制默认 100 Hz。
+- 遥测：`/two_axis_pod/telemetry`，与网关共用 `service/telemetry.json` 的 `hz`，默认 50 Hz（单调真实时间）；控制默认 50 Hz（仿真时间）。
+
+插件从 SDF `telemetry_config` 指向的 JSON 读取 `hz`，默认 `model://two_axis_pod/controller/service/telemetry.json`。配置缺失或非法时明确报错并禁用插件；修改后需重启仿真及网关。遥测调度使用 `steady_clock`，不由 `UpdateInfo.dt` 或仿真实时因子决定发送目标。只有新的物理状态可发布，单步最多产生一份新姿态；暂停不发布，恢复和仿真时间重置不补发历史周期。物理更新的真实频率不足配置 `hz` 时限频告警。完整配置与发送行为见[网关说明](service/README.md)。
 
 三个话题可用 SDF 的 `command_topic/telemetry_topic/command_result_topic` 配置。图像默认订阅由世界、模型、link、sensor 名拼接的完整路径，可用 `image_topic` 对应相机显式 topic。
 

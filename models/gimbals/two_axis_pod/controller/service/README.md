@@ -2,7 +2,11 @@
 
 `gimbal_bridge.py` 将 `/two_axis_pod/command`、`telemetry`、`command_result` 三个 Gazebo StringMsg 话题桥接为 UDP 控制与遥测，并提供 RTSP 视频。网关使用单类 YOLO11 ONNX 检测飞机、ByteTrack 风格多目标跟踪和服务端红框/编号叠加；选定目标仍交给 C++ 插件中的 CSRT 与机械控制执行。
 
-默认世界为 `two_axis_pod_demo`，模型为 `two_axis_pod`，图像来自 `camera_link/camera`。默认 UDP 8766、共享 RTSP 8555 `/two_axis_pod_1`；内部 RTP 端口自动分配。使用入口见[启动说明](../../scripts/README.md)。
+默认世界为 `two_axis_pod_demo`，模型为 `two_axis_pod`，图像来自 `camera_link/camera`。默认 UDP 8766、共享 RTSP 8555 `/two_axis_pod_1`；内部 RTP 端口自动分配。插件和已登记地面站的遥测频率共用本目录 `telemetry.json` 的 `hz`，默认 50 Hz。使用入口见[启动说明](../../scripts/README.md)。
+
+`telemetry.json` 内容为 `{"hz": 50}`，`hz` 必须为 (0, 1000] 的有限数值。插件按单调真实时间（`steady_clock`）调度新姿态，在新的物理更新步采样，网关逐份转发新样本，不按独立定时器重复发送旧姿态。暂停仿真或插件断流时，周期遥测停止，UDP ping 和命令回执仍正常处理；显式 `status` 请求仍可读取最新快照。只要物理更新的真实时间频率足够，仿真慢于或快于实时都以配置 `hz` 为目标。每个物理步最多发布一份；物理更新不足时实际频率下降并限频告警，不补发重复样本。网络、线程调度和 UDP 丢包仍可能影响接收端的实测速率。姿态 `ts_mono` 及图像相关时间戳继续使用原来的仿真/帧时间语义，不能用它们计算真实时间发送 Hz。
+
+原生模型与装配继承的插件配置为 `<telemetry_config>model://two_axis_pod/controller/service/telemetry.json</telemetry_config>`，通过 `GZ_SIM_RESOURCE_PATH` 解析基础模型文件。指定其他配置时，插件 SDF 的 `telemetry_config` 与网关 `--telemetry-config /path/to/telemetry.json` 必须指向内容一致的文件。配置在启动时读取，修改后重启 Gazebo 插件和网关。网关校验插件上报的 `telemetry_hz` 与 `telemetry_clock:"steady"`，频率或时基不同、字段缺失时暂停周期转发并记录错误，避免配置不一致时静默产生不同频率。待发队列最多保存 1000 份样本，过载丢弃最旧样本并告警；UDP 不保证送达。
 
 组合模型可用 `--topic-prefix /rocket_two_axis_pod` 对应插件的 command、telemetry、command_result 话题，用 `--image-topic /rocket_two_axis_pod/image` 指定完整图像话题；未指定时保持独立组件默认值。`--world`、`--gimbal-model`、UDP 端口分别配置，RTSP 端口同机共享，内部 RTP 默认自动分配；Gazebo 分区只隔离 Gazebo Transport，不隔离网络端口。
 
@@ -26,7 +30,7 @@
 
 中继使用用户私有的临时目录 `two-axis-rtsp-<UID>/` 保存每端口的 `.sock`、`.lock`、`.log`，本地注册不对网络开放。RTSP 对外监听所配置端口；该端口被其他服务占用时启动失败。正常停止网关立即撤销本路，其他路继续工作；异常退出后 10 秒租约过期清理。所有路退出后中继空闲约 30 秒自动退出，不属于单个网关的进程组。中继重启后存活网关自动尝试重新注册；已有播放器断线时需重新连接。
 
-每路网关的 `hello`、station 遥测和额外 UDP 状态副本包含 `aircraft_id`、`video_rtsp_path`，表示当前网关 ID 与完整视频路径。控制协议版本为 6。地面站核对 `hello.aircraft_id` 与所选 ID，未确认、缺失/非法 ID 或不一致时禁止控制并清除待重传指令；断线后须重新通过 hello 核验。UDP 控制端口、插件话题与图像话题必须分别隔离；飞机 ID 只区分视频路径和上报身份，不自动配置 PX4 SYSID 或 Gazebo 话题。
+每路网关的 `hello` 和 station 遥测包含 `aircraft_id`、`video_rtsp_path`，表示当前网关 ID 与完整视频路径。控制协议版本为 6。地面站核对 `hello.aircraft_id` 与所选 ID，未确认、缺失/非法 ID 或不一致时禁止控制并清除待重传指令；断线后须重新通过 hello 核验。UDP 控制端口、插件话题与图像话题必须分别隔离；飞机 ID 只区分视频路径和上报身份，不自动配置 PX4 SYSID 或 Gazebo 话题。
 
 以下示例假定仿真已分别提供 `/uav_1`、`/uav_2` 插件话题和对应图像话题：
 
@@ -39,38 +43,5 @@ bash models/gimbals/two_axis_pod/ground_station/run.sh --aircraft-id 2 --udp-por
 ```
 
 两路视频共用 8555，分别为 `rtsp://127.0.0.1:8555/two_axis_pod_1` 与 `rtsp://127.0.0.1:8555/two_axis_pod_2`。先运行 `bash models/gimbals/two_axis_pod/scripts/run_bridge.sh --prepare-only` 自动配置环境，再用 `.venv-linux/bin/python models/gimbals/two_axis_pod/controller/service/tests/test_rtsp_multi.py` 测试。该测试需要 GstRtspServer、NVENC 与 NVDEC，验证双进程同端口拉流、颜色隔离、重复路径拒绝、独立停止、租约过期和中继重启恢复。
-
-## 额外 UDP JSON 状态上报
-
-`status_udp.json` 配置向指定 IP/端口主动发送一份状态副本，默认关闭、频率 20 Hz。使用独立 UDP socket 和独立发送线程，不登记为 station 客户端，不改 station 的默认 50 Hz 遥测、会话或控制回执。接收端无需发送 ping、注册或确认，只需监听配置的端口。
-
-修改本目录的 `status_udp.json` 后重新启动网关，例如：
-
-```json
-{
-  "enabled": true,
-  "ip": "192.168.1.100",
-  "port": 9000,
-  "hz": 20,
-  "stale_timeout_s": 1.0
-}
-```
-
-`ip` 接受 IPv4/IPv6 字面地址；`port` 为 1～65535 的整数；`hz` 为 (0, 100] 的有限数值。`stale_timeout_s` 为插件遥测接收时效，须为正的有限秒数。未收到首条插件遥测时不发送；超过时效时暂停额外上报，收到新遥测后自动恢复，避免持续发送旧状态。配置错误会在网关初始化前明确报错。
-
-可指定其他配置文件，或用命令行覆盖目标与频率：
-
-```bash
-bash models/gimbals/two_axis_pod/scripts/run_bridge.sh --encoder nvenc \
-  --status-config /path/to/status_udp.json
-bash models/gimbals/two_axis_pod/scripts/run_bridge.sh --encoder nvenc \
-  --status-ip 192.168.1.100 --status-port 9000 --status-hz 20
-```
-
-`--status-ip` 与 `--status-port` 必须同时指定，指定后启用额外上报；`--status-hz` 可单独覆盖配置频率。配置在启动时读取，修改后需重启网关。地理场景启动器会透传这些参数。
-
-每个 UDP 数据报是一条完整的 UTF-8 JSON，沿用原 station 遥测的所有字段：`type:"telemetry"`、`protocol_version:6`、`angle_convention:"motion_head_joint"`，以及 `attitude_deg`、`joints_deg`、`tracking`、`target`、`limits`、`camera`、`mount`、`frame`、`frame_table`、`video` 等；不增加外层封装，不附带 hello 或指令回执。此网关完整状态输出与地面站“发送艾晟报文”的九字段转换输出分别配置、独立启停。字段定义见[控制与遥测协议](../../docs/control-protocol.md)。额外 socket 的源端口由系统分配，目标端口是此处配置的接收端口，不能据此将接收端当作 station 控制客户端。
-
-独立发送使用非阻塞 UDP，单包上限 8 KiB。发送错误、非法 JSON 数值或超长报文会丢弃当前包并限频记录日志；后续按配置周期继续尝试，不影响 station，不重传积压报文。UDP 不保证到达或顺序。
 
 运行依赖：Python 3、Gazebo Harmonic 的 gz-transport13 / gz-msgs10 Python 绑定、NumPy、带 DNN 的 OpenCV、PyGObject、GStreamer、GstRtspServer、NVIDIA 驱动与 `nvcudah264enc`。`run_bridge.sh` 默认使用仓库根目录 `.venv-linux`，检测到缺失时自动创建并安装依赖；启动前实际加载 ONNX 并确认 NVENC。也可用 `GIMBAL_PYTHON` 指定已配置的等价解释器。`gz_source.py` 只管理节点和仿真时钟映射。

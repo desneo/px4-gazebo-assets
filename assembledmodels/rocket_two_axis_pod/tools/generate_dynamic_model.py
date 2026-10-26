@@ -140,6 +140,12 @@ def build_model(config):
             source_prefix = f'model://{name}/meshes/'
             if uri.text.startswith(source_prefix):
                 uri.text = f'model://{NAME}/meshes/{prefix}_{uri.text[len(source_prefix):]}'
+    gimbal = model.find("plugin[@name='two_axis::GimbalController']")
+    if gimbal is None:
+        raise ValueError('动态装配缺少两轴吊舱控制器')
+    # 固定零关节名义重心与 PX4 位置参考同源，不使用随关节运动变化的瞬时重心。
+    set_text(gimbal, 'los_observer_cg_model',
+             ' '.join(format(value, '.17g') for value in center_of_mass(model)))
     return root
 
 
@@ -156,9 +162,10 @@ def source_fingerprints():
     files += [controller / path for path in (
         'CMakeLists.txt', 'service/telemetry.json',
         'include/two_axis/control.hh', 'include/two_axis/control_schedule.hh',
+        'include/two_axis/inertial_los.hh',
         'include/two_axis/kinematics.hh', 'include/two_axis/telemetry.hh',
         'include/two_axis/truth_tracking.hh', 'src/control.cc',
-        'src/gimbal_controller.cc', 'src/kinematics.cc', 'src/truth_tracking.cc')]
+        'src/gimbal_controller.cc', 'src/inertial_los.cc', 'src/kinematics.cc', 'src/truth_tracking.cc')]
     shared = POD.parent / 'three_axis_pod/controller'
     files += [shared / path for path in (
         'include/gimbal_controller/kinematics.hh',
@@ -310,6 +317,8 @@ def generate(output_dir, *, body_mass_kg=None, airframe_id=None, topic_prefix=No
     hover = hover_configuration(root.find('model'), config['px4_parameters'], gravity)
     reference = px4_reference_configuration(config['source_model'].find('model'), root.find('model'),
                                             config['px4_parameters'])
+    los_reference = dict(kind='nominal_cg', reference_pose=reference['reference_pose'],
+                         body_offset_flu_m=reference['assembly_nominal_cg_flu_m'])
     airframe_text = assembly_airframe(config['airframe_text'], hover['px4_hover_thrust'],
                                       reference['parameters'], config['px4_parameter_overrides'])
     parameters = native.parameter_values(airframe_text)
@@ -317,7 +326,8 @@ def generate(output_dir, *, body_mass_kg=None, airframe_id=None, topic_prefix=No
                     retained_body_length_m=config['retained_body_length_m'],
                     pod_mass_kg=sum(native.number(link.findtext('inertial/mass'))
                                     for link in ET.parse(POD / 'model.sdf').getroot().findall('model/link')),
-                    total_mass_kg=hover['total_mass_kg'], px4_reference=reference)
+                    total_mass_kg=hover['total_mass_kg'], px4_reference=reference,
+                    los_observer_reference=los_reference)
     world_element = world.find('world')
     snapshot = dict(model=model_snapshot(root.find('model')),
                     px4=dict(airframe_id=config['airframe_id'], parameters=parameters),
@@ -363,7 +373,8 @@ def generate(output_dir, *, body_mass_kg=None, airframe_id=None, topic_prefix=No
     manifest.update(model_name=NAME,
                     mass_approximation='完整保留基础机质量、重心和惯量，另加原生吊舱；顶部外形和碰撞截短不扣除机头质量。',
                     image_topic=config['topic_prefix'] + '/image', gravity_m_s2=gravity,
-                    source_sha256=before, px4_reference=reference, **hover)
+                    source_sha256=before, px4_reference=reference,
+                    los_observer_reference=los_reference, **hover)
     (output / 'manifest.json').write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + '\n')
     return manifest
 

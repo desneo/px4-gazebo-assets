@@ -1,6 +1,6 @@
 # 两轴吊舱地面站
 
-地面站显示 RTSP 视频、机械 yaw/pitch 角度和角速度、视觉模式、检测/锁定状态及限位状态。Linux 默认配置保存在同目录 `config.ini`，按 `[network]`、`[bridge]`、`[video]`、`[forward]` 和 `[session]` 分组，每个配置项上方都有用途注释。Station 只接受 INI 配置，不解析旧 JSON 文件。直接执行启动命令；入口自动检查环境，缺少项目虚拟环境或 Python 包时调用 `setup_linux.sh` 安装，然后使用仓库根目录 `.venv-linux` 并读取 `config.ini`：
+地面站显示RTSP视频，并将机械角度、陀螺仪角速度、目标方位/仰角变化率、目标NED角速度向量分成四行显示。机械角度单位为°，其余为°/s。陀螺仪行与`gyro_yaw_rate/gyro_pitch_rate`一致，承载机械关节相对转速；目标LOS角速度行与`yaw_los_rate/pitch_los_rate`一致，表示目标在NED中的方位角/仰角变化率。这四个速率按外发限幅±20°/s显示；新增向量行直接显示`los_omega_n/e/d`真实值，不限幅。两种LOS各自明确无效时分别显示0/0、0/0/0，缺失或畸形数据及姿态未就绪显示`--`。窄窗将四行量值放在发送区下方整行显示，诊断文字在上方缩放避让；右侧发送面板和原有操作位置保持不变。界面同时显示视觉模式、检测/锁定状态及限位状态，沿用已有track状态，不另设LOS无效提示；原始遥测保留两种LOS各自的有效标志和原因。Linux默认配置保存在同目录`config.ini`，按`[network]`、`[bridge]`、`[video]`、`[forward]`和`[session]`分组，每个配置项上方都有用途注释。Station只接受INI配置。入口自动检查环境，缺少项目虚拟环境或Python包时调用`setup_linux.sh`安装，然后使用仓库根目录`.venv-linux`并读取`config.ini`：
 
 ```bash
 bash models/gimbals/two_axis_pod/ground_station/run.sh
@@ -25,9 +25,9 @@ bash models/gimbals/two_axis_pod/ground_station/stop.sh
 
 视觉状态行显示 `vision.state`、目标数、锁定轨迹号、推理耗时、输入/输出帧率和错误。点击模式按钮会可靠发送 `set_vision_mode`，并等待网关遥测确认实际模式。
 
-右上角控制按钮下方提供 IP、端口输入框和“发送艾晟报文/停止发送”。单击输入框后可直接输入，点击时选中全部内容；支持 Ctrl+A、退格、Tab 切换、Enter 完成编辑，Esc 只结束本次编辑。编辑期间不触发回零、停止或方向键等云台快捷键。发送中同样可以单击输入框修改；进入编辑会自动暂停发送并清空待发队列。修改后点击“发送艾晟报文”才启用新地址并保存配置，Enter/Esc 只结束编辑，不自动恢复发送。地址接受 IPv4/IPv7 字面量，端口为 1～65535；无效地址在界面显示原因。
+右上角控制按钮下方提供 IP、端口输入框和“发送艾晟报文/停止发送”。单击输入框后可直接输入，点击时选中全部内容；支持 Ctrl+A、退格、Tab 切换、Enter 完成编辑，Esc 只结束本次编辑。编辑期间不触发回零、停止或方向键等云台快捷键。发送中同样可以单击输入框修改；进入编辑会自动暂停发送并清空待发队列。修改后点击“发送艾晟报文”才启用新地址并保存配置，Enter/Esc 只结束编辑，不自动恢复发送。地址接受 IPv4/IPv6 字面量，端口为 1～65535；无效地址在界面显示原因。
 
-点击“发送艾晟报文”后，地面站将新收到、已确认飞机身份且符合协议 v7 的遥测转换为 UTF-8 JSON，发送到指定接收端。每个数据报仅包含以下 11 个字段，不附带 `type`、`frame_table` 或其他原始状态字段。`track_status` 为 JSON 整数，其余为 JSON 数值；JSON 本身不承载二进制 `uint8/float32` 类型。
+点击“发送艾晟报文”后，地面站将新收到、已确认飞机身份且符合协议 v8 的遥测转换为 UTF-8 JSON，发送到指定接收端。每个数据报仅包含以下 16 个字段，不附带 `type`、`frame_table` 或其他原始状态字段。`track_status` 为 JSON 整数，其余为 JSON 数值；JSON 本身不承载二进制 `uint8/float32` 类型。
 
 | 字段 | 来源及发送值 |
 | --- | --- |
@@ -38,12 +38,23 @@ bash models/gimbals/two_axis_pod/ground_station/stop.sh
 | `yaw_misalignment` | 有效跟踪时 `target.miss.offset_deg[0]`，画面向右正；否则 `0.0` |
 | `tracking_confidence` | 有效跟踪时 `25.5`，否则 `0.0`，只表示有效性占位，不是真实跟踪置信度 |
 | `target_confidence` | 固定发送 `0.8`，不缩放，不随跟踪状态变化，也不代表实时检测评分 |
-| `pitch_los_rate` | `attitude_deg.pitch.vel`，单位 °/s，限幅 −20～+20 |
-| `yaw_los_rate` | `attitude_deg.yaw.vel`，镜头左负、右正，不再次反号，单位 °/s，限幅 −20～+20 |
-| `tracking_gateW` | 有效跟踪时为最终显式跟踪框 `target.box_px` 的实际像素宽度；无效时为 `0.0` |
-| `tracking_gateH` | 有效跟踪时为最终显式跟踪框 `target.box_px` 的实际像素高度；无效时为 `0.0` |
+| `gyro_pitch_rate` | `attitude_deg.pitch.vel`，机械内轴相对转速，单位 °/s，限幅 −20～+20 |
+| `gyro_yaw_rate` | `attitude_deg.yaw.vel`，机械外轴相对转速，镜头左负、右正，单位 °/s，限幅 −20～+20 |
+| `pitch_los_rate` | 有效时为 `target_los.pitch_rate_dps`，目标 NED 惯性视线仰角变化率，向上正、向下负，单位 °/s，限幅 −20～+20；明确无效时发送 `0.0` |
+| `yaw_los_rate` | 有效时为 `target_los.yaw_rate_dps`，目标 NED 惯性视线方位角变化率，向右正、向左负（正北转向正东为正），单位 °/s，限幅 −20～+20；明确无效时发送 `0.0` |
+| `los_omega_n` | `target_los.omega_ned_dps[0]`，目标惯性视线角速度向量的北分量，单位 °/s，不限幅；`omega_valid=false`时发送`0.0` |
+| `los_omega_e` | `target_los.omega_ned_dps[1]`，目标惯性视线角速度向量的东分量，单位 °/s，不限幅；`omega_valid=false`时发送`0.0` |
+| `los_omega_d` | `target_los.omega_ned_dps[2]`，目标惯性视线角速度向量的地分量，单位 °/s，不限幅；`omega_valid=false`时发送`0.0` |
+| `tracking_gate_w` | 有效跟踪时为最终显式跟踪框 `target.box_px` 的实际像素宽度；无效时为 `0.0` |
+| `tracking_gate_h` | 有效跟踪时为最终显式跟踪框 `target.box_px` 的实际像素高度；无效时为 `0.0` |
 
-角度和脱靶量直接使用度，角速度直接使用度/秒，不需倍率还原；目标丢失时姿态角和速度仍发送当前测量值。`pitch_los_rate/yaw_los_rate` 在有限值和 float32 范围校验后对称限幅到 −20～+20°/s；超限测量仍保留在原始遥测中，不修改输入数据。两字段按接收端字段名承载机械轴角速度，不是独立估计的真实目标视线角速度。关闭视觉、仅检测、自动搜索/交接、未选框、初始化、丢失或视觉错误时，`track_status/tracking_confidence` 为 `0/0.0`，`tracking_gateW/tracking_gateH` 为 `0.0/0.0`，不能沿用插件残留的跟踪值。单目标后端不输出连续置信度，不能把上述占位值或 YOLO 检测置信度解释为单目标跟踪可信程度。
+角度和脱靶量直接使用度，角速度直接使用度/秒，不需倍率还原；目标丢失时机械姿态角与 `gyro_*` 仍发送当前测量值。`gyro_*` 承载机械关节相对转速，字段名称不代表新增真实陀螺仪测量。`pitch_los_rate/yaw_los_rate` 则来自无人机名义重心到目标的相对位置和相对速度，不取机械速度或镜头光轴转速，也不随无人机原地转动而变化。
+
+`gyro_*`及`pitch_los_rate/yaw_los_rate`四个速率字段在有限值和float32范围校验后对称限幅到−20～+20°/s；超限测量仍保留在原始遥测中，不修改输入数据。`target_los` 必须明确给出 `frame=NED`、`observer_reference=aircraft_nominal_cg`、布尔 `valid` 和原因 `reason`；有效时还需目标实体名称与两个有限速率，无效时两个原始速率必须为 `null`。`valid=false` 时外部 LOS 发送 `0.0/0.0`，`gyro_*` 与其余字段继续发送，不额外增加外部有效标志；不能将此零值当作目标视线稳定；计算有效性应读取原始遥测 `target_los.valid/reason`，不能仅由 `TRACK` 推断。缺少对象、坐标标记错误或畸形字段时整份转换拒绝并显示错误。
+
+`los_omega_n/e/d`表示角速度向量在固定NED坐标系中的分量，由目标相对名义重心的位置`r`和相对速度`v_r`直接计算`omega=(r×v_r)/||r||²`，再由rad/s转换为°/s。三分量不从经过限幅的方位/仰角导数重建，也不施加±20°/s报文限幅。`target_los.omega_valid`为独立布尔值，`omega_reason`为原因字符串；有效时`omega_ned_dps`必须为按N/E/D排列的三个有限且在float32范围内的数值，无效时向量必须明确为`null`，外部三个分量发送`0.0/0.0/0.0`。例如正上方/正下方视线的方位角导数无定义，但向量仍可有效，此时两角导数字段为0/0，三向量分量继续发送真实值。缺少新增契约字段同样拒绝转换，不能把缺字段当作有效零值。
+
+`track_status` 继续表示原有视觉跟踪有效性，不由 LOS 有效性替代。关闭视觉、仅检测、自动搜索/交接、未选框、初始化、丢失或视觉错误时，`track_status/tracking_confidence` 为 `0/0.0`，`tracking_gate_w/tracking_gate_h` 为 `0.0/0.0`，不能沿用插件残留的跟踪值。单目标后端不输出连续置信度，不能把上述占位值或 YOLO 检测置信度解释为单目标跟踪可信程度。
 
 发送频率跟随新收到的遥测包，网关目标默认 50 Hz（真实时间）。独立发送线程不阻塞视频或摇杆，停止/关闭窗口后不再发送，无新遥测包时不重发旧状态。发送计数是本机已交给 UDP socket 的数量，不代表对端已收到。最后一次有效 IP/端口保存在 INI `[forward]`，默认 `127.0.0.1:9000`；不保存发送开关，每次启动默认不发送。
 
@@ -51,9 +62,9 @@ bash models/gimbals/two_axis_pod/ground_station/stop.sh
 
 底部只有一个 yaw/pitch 虚拟摇杆：左负 yaw、右正 yaw，上正 pitch、下负 pitch。方向键同号，yaw 以从吊舱后方沿镜头视线观察为准：镜头左转为负、右转为正；向右拖动时镜头向画面右侧转，静止背景向左移动。摇杆和方向键每轴最大为 20°/s，手动流还会再次对称限幅；松开鼠标、失去焦点或停止输入后速度归零。控制区不参与视频选框坐标换算。底座圆环水平、底座向下；yaw 为绕安装 `+X` 的水平外轴，范围 ±60°，pitch 为绕随动 `−Y` 的内轴，范围 −80°～+30°。两轴 CAD 原始零位沿安装 +Z 朝天，两轴均能改变视线方向；yaw=0 时负 pitch 朝安装 +X 前方转动，−80° 时光轴高于前方水平面 10°，+30° 朝后上方。零位图像上方沿安装 −X、图像右方沿安装 −Y。
 
-`H` 回 CAD 原始零位，`R` 停止跟踪并回零，`S` 停止跟踪，`M` 清除故障，`Esc` 退出。底部提供 yaw 和 pitch 单轴复位按钮。可靠命令保留 seq 重传和回执；手动流持续发送。hello 与新鲜有效机械角度遥测均确认协议版本 7 和 `motion_head_joint_right_positive` 后，才启用非零手动速度、回零、单轴复位、选框跟踪与自动锁定。身份确认后可先停止、发双轴零速、关闭视觉或只检测。没有滚转控制或滚转遥测；不同机械定义的插件、网关和地面站不得混用。
+`H` 回 CAD 原始零位，`R` 停止跟踪并回零，`S` 停止跟踪，`M` 清除故障，`Esc` 退出。底部提供 yaw 和 pitch 单轴复位按钮。可靠命令保留 seq 重传和回执；手动流持续发送。hello 与新鲜有效机械角度遥测均确认协议版本 8 和 `motion_head_joint_right_positive` 后，才启用非零手动速度、回零、单轴复位、选框跟踪与自动锁定。身份确认后可先停止、发双轴零速、关闭视觉或只检测。没有滚转控制或滚转遥测；不同机械定义或遥测版本的插件、网关和地面站不得混用。
 
-插件未就绪或协议不兼容时，网关 `hello.version/angle_convention` 为 `null`、`plugin_compatible=false`，地面站保持运动禁用。网关在插件兼容状态变化及每次 `ping` 保活时重发当前 `hello`，丢失单次握手可在后续保活恢复；地面站须同时收到匹配的 hello 和新鲜 v7 姿态后才恢复控制。Linux 与 Windows 共用同一套协议及方向校验。
+插件未就绪或协议不兼容时，网关 `hello.version/angle_convention` 为 `null`、`plugin_compatible=false`，地面站保持运动禁用。网关在插件兼容状态变化及每次 `ping` 保活时重发当前 `hello`，丢失单次握手可在后续保活恢复；地面站须同时收到匹配的 hello 和新鲜 v8 姿态后才恢复控制。Linux 与 Windows 共用同一套协议及方向校验。
 
 自动锁定或手动框选期间使用虚拟摇杆、方向键、复位、回零、停止或单轴复位时，客户端先可靠发送 `set_vision_mode(mode=off)`，再发送人工控制命令，避免跟踪控制和人工控制竞争。目标检测模式允许继续人工操纵，且不会关闭检测。
 

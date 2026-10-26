@@ -18,7 +18,7 @@ yaw 采用镜头视线左负右正，外轴正方向与 CAD 原始关节正方�
 
 ## 机械角与光学系
 
-`yaw ∈ [-60°,60°]`，`pitch ∈ [-80°,30°]`，采用协议 7 的 `motion_head_joint_right_positive` 定义。这是仿真采用的 CAD 已检查范围，不是实物机械止挡的测量值。`yaw/pitch` 是外轴、内轴机械角，不是飞行器 Euler 航向/俯仰角。
+`yaw ∈ [-60°,60°]`，`pitch ∈ [-80°,30°]`，采用协议 8 的 `motion_head_joint_right_positive` 定义。这是仿真采用的 CAD 已检查范围，不是实物机械止挡的测量值。`yaw/pitch` 是外轴、内轴机械角，不是飞行器 Euler 航向/俯仰角。
 
 关节链与镜头单位视线为：
 

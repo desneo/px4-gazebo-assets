@@ -1,0 +1,111 @@
+{
+  "passed": true,
+  "instance": 8,
+  "port": 19008,
+  "scope": "隔离PX4最小接收实例，真实Gazebo物理验收生成的生产16字段UDP进入实际uORB；未连接载机",
+  "px4_binary_sha256": "3bc8311c6569a36dd2ab5b784b0cc377fa2c79a5545e1ff0b6d0ac4dbb25d4cf",
+  "cases": [
+    {
+      "label": "raw_above20",
+      "packet": {
+        "track_status": 0,
+        "pitch_angle": -8.821,
+        "yaw_angle": -8.819,
+        "pitch_misalignment": 0.0,
+        "yaw_misalignment": 0.0,
+        "tracking_confidence": 0.0,
+        "target_confidence": 0.8,
+        "gyro_pitch_rate": -20.0,
+        "gyro_yaw_rate": -20.0,
+        "pitch_los_rate": -20.0,
+        "yaw_los_rate": 20.0,
+        "los_omega_n": 35.095906176,
+        "los_omega_e": 0.0,
+        "los_omega_d": 10.528771853,
+        "tracking_gateW": 0.0,
+        "tracking_gateH": 0.0
+      },
+      "uorb": {
+        "timestamp": 0.0,
+        "los_omega_n": 35.09591,
+        "los_omega_e": 0.0,
+        "los_omega_d": 10.52877,
+        "yaw_los_rate": 20.0,
+        "pitch_los_rate": -20.0
+      },
+      "passed": true
+    },
+    {
+      "label": "vertical_vector",
+      "packet": {
+        "track_status": 0,
+        "pitch_angle": -2.828,
+        "yaw_angle": -2.815,
+        "pitch_misalignment": 0.0,
+        "yaw_misalignment": 0.0,
+        "tracking_confidence": 0.0,
+        "target_confidence": 0.8,
+        "gyro_pitch_rate": -20.0,
+        "gyro_yaw_rate": -20.0,
+        "pitch_los_rate": 0.0,
+        "yaw_los_rate": 0.0,
+        "los_omega_n": 0.0,
+        "los_omega_e": 0.0,
+        "los_omega_d": 0.0,
+        "tracking_gateW": 0.0,
+        "tracking_gateH": 0.0
+      },
+      "uorb": {
+        "timestamp": 0.0,
+        "los_omega_n": 0.0,
+        "los_omega_e": 0.0,
+        "los_omega_d": 0.0,
+        "yaw_los_rate": 0.0,
+        "pitch_los_rate": 0.0
+      },
+      "passed": true
+    },
+    {
+      "label": "legacy13",
+      "packet": {
+        "track_status": 0,
+        "pitch_angle": -8.821,
+        "yaw_angle": -8.819,
+        "pitch_misalignment": 0.0,
+        "yaw_misalignment": 0.0,
+        "tracking_confidence": 0.0,
+        "target_confidence": 0.8,
+        "gyro_pitch_rate": -20.0,
+        "gyro_yaw_rate": -20.0,
+        "pitch_los_rate": -20.0,
+        "yaw_los_rate": 20.0,
+        "tracking_gateW": 0.0,
+        "tracking_gateH": 0.0
+      },
+      "uorb": {
+        "timestamp": 0.0,
+        "los_omega_n": null,
+        "los_omega_e": null,
+        "los_omega_d": null,
+        "yaw_los_rate": 20.0,
+        "pitch_los_rate": -20.0
+      },
+      "passed": true
+    }
+  ],
+  "limitations": [
+    "最小接收实例未接入仿真时钟，uORB timestamp为0；按逐包字段变化及实际发布结果核对，未声称实时频率或整机飞行验收。",
+    "旧13字段缺少向量时uORB内部为NaN，摘要JSON记录为null；原始listener文本保留nan。"
+  ],
+  "physical_report": "inertial_target_los.json",
+  "physical_report_sha256": "13c1c2bd0b4922e504d07909cc2697e094bc611d5c7ad6a47f820e818705e8d5",
+  "source_sha256": {
+    "PX4-Autopilot/src/modules/simulation/dyt_udp_bridge/DytUdpBridge.cpp": "0126693a691fc6141e89af85363d6f3eac798bb2d72d770f5c1f04b4af663af2",
+    "PX4-Autopilot/src/modules/simulation/dyt_udp_bridge/test_json_parser.py": "0703d26f9e45956f721229844e68c1cfc338e947bb0357e8ee719193c303a1fe",
+    "PX4-Autopilot/msg/DytAishengTelemetry.msg": "68ad6889df2b4681f3f98dc5bcd18d391baa813ea541ff76344eac68293d014c",
+    "px4-gazebo-assets/models/gimbals/two_axis_pod/ground_station/ground_station.py": "4ae413ada542e63995c0e2dcc32e822ef0087aabdb3ef05d7a3487b790941644",
+    "px4-gazebo-assets/models/gimbals/two_axis_pod/ground_station/telemetry_forward.py": "2879a7564fa851b026d04da7dc0ea9fa6fb743b62231524f639fcc0a259b88e7"
+  },
+  "evidence_sha256": "5d9fcabb4b3fc195e2e005b36aac0d9d6c55d0c412ed6bef67b5a1bd7e473289",
+  "evidence_file": "los_vector_uorb_samples.json.gz"
+}

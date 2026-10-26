@@ -144,7 +144,9 @@ def main():
                         forward.offer(json.dumps(moving))
                         packet = json.loads(receiver.recv(8192))
                         assert packet['yaw_angle'] == moving['attitude_deg']['yaw']['pos']
-                        assert 0 < packet['yaw_los_rate']*sign <= 20
+                        assert 0 < packet['gyro_yaw_rate']*sign <= 20
+                        assert packet['yaw_los_rate'] == packet['pitch_los_rate'] == 0.0
+                        assert moving['target_los']['valid'] is False
                         send('stop'); time.sleep(.25)
                         stopped = wait(lambda t: t['mode'] == 'IDLE' and abs(t['joints_deg']['yaw']['vel']) < .1)
                         time.sleep(.1)
@@ -171,11 +173,11 @@ def main():
                 try:
                     time.sleep(3.)
                     assert server.poll() is None, '旧轴向测试服务器意外退出'
-                    assert not snapshot(), '旧轴向模型不应输出 v7 遥测'
+                    assert not snapshot(), '旧轴向模型不应输出 v8 遥测'
                 finally:
                     stop_server(server)
             assert '轴向不符合' in (args.output/'old_axis.log').read_text()
-        report = dict(result='passed', protocol_version=7, angle_convention='motion_head_joint_right_positive',
+        report = dict(result='passed', protocol_version=8, angle_convention='motion_head_joint_right_positive',
                       checks=rows, old_axis_rejected=True, scope='独立物理世界，无渲染、无PX4、无整机飞行')
         files = ['parameters.json', 'model.sdf', 'tools/generate_model.py', 'controller/src/kinematics.cc',
                  'controller/src/gimbal_controller.cc', 'ground_station/ground_station.py', 'ground_station/telemetry_forward.py',

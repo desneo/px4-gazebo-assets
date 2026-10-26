@@ -213,7 +213,7 @@ def validate_binding(directory, flight):
         validate_identity(payload, report['aircraft_id'], report['expected_path'])
         require(payload.get('angle_convention') == 'motion_head_joint_right_positive', 'RTSP绑定记录角度协议不一致')
         version = payload.get('version') if row['kind'] == 'hello' else payload.get('protocol_version')
-        require(version == 7, 'RTSP绑定记录必须使用协议v7')
+        require(version == 8, 'RTSP绑定记录必须使用协议v8')
         if payload.get('clock_domain'):
             domains.add(payload['clock_domain'])
         tables.update(int(item[0]) & 0xffffff for item in payload.get('frame_table', []))
@@ -239,6 +239,7 @@ def validate_binding(directory, flight):
 
 def validate_world(run, tracking):
     from prepare_world import absolute_resources, set_text
+    from target_fixture import TARGET_NAME
     world = ET.parse(run / 'world.sdf').find('world')
     model_path = run / 'models/rocket_two_axis_pod/model.sdf'
     expected = ET.parse(model_path).find('model')
@@ -249,6 +250,7 @@ def validate_world(run, tracking):
     gimbal = expected.find(".//plugin[@name='two_axis::GimbalController']")
     if gimbal is not None:
         set_text(gimbal, 'tracking_backend', 'csrt')
+        set_text(gimbal, 'los_target_name', TARGET_NAME)
     for item in (actual, expected):
         pose = item.find('pose')
         if pose is not None:

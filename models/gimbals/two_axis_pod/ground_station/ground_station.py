@@ -408,8 +408,8 @@ class UdpClient(threading.Thread):
             hello = self.hello or {}
             tele = self.telemetry or {}
             fresh = time.monotonic() - getattr(self, "last_telemetry_mono", 0.0) <= self.client_timeout
-            return bool(self.identity_ready and fresh and type(hello.get("version")) is int and hello.get("version") == 7
-                        and type(tele.get("protocol_version")) is int and tele.get("protocol_version") == 7
+            return bool(self.identity_ready and fresh and type(hello.get("version")) is int and hello.get("version") == 8
+                        and type(tele.get("protocol_version")) is int and tele.get("protocol_version") == 8
                         and hello.get("angle_convention") == "motion_head_joint_right_positive"
                         and tele.get("angle_convention") == "motion_head_joint_right_positive"
                         and self._valid_attitude(tele.get("attitude_deg")))
@@ -1310,7 +1310,7 @@ class GroundStation:
             return
         try:
             if not self.tele.public_angles_ready:
-                raise ValueError("请等待两轴协议 7 的有效姿态")
+                raise ValueError("请等待两轴协议 8 的有效姿态")
             ip, port = endpoint(self.forward_inputs.values["ip"], self.forward_inputs.values["port"])
             if (ip, port) == self.tele.target:
                 raise ValueError("接收端不能是吊舱网关控制端口")
@@ -1433,6 +1433,41 @@ class GroundStation:
         return [f"脱靶量 px: X {pixel[0]:+.1f}  Y {pixel[1]:+.1f}",
                 f"脱靶量 °:  X {angle[0]:+.3f}  Y {angle[1]:+.3f}（右/下为正）"]
 
+    @staticmethod
+    def _attitude_panel_lines(tele, ready):
+        """机械角、机械gyro、目标角导数和NED向量分行显示，值与外发一致。"""
+        from telemetry_forward import target_los_rates, target_los_omega
+
+        if not ready:
+            return ["机械角度(°): 待确认",
+                    "陀螺仪角速度(°/s): yaw --  pitch --",
+                    "目标LOS角速度(°/s): yaw --  pitch --",
+                    "LOS向量NED(°/s): N --  E --  D --"]
+        attitude = tele["attitude_deg"]
+        angles = {axis: attitude[axis]["pos"] for axis in ("yaw", "pitch")}
+        def rate(value):
+            if type(value) not in (int, float) or not math.isfinite(value):
+                return "--"
+            return f"{max(-20., min(20., round(value, 6))):+.2f}"
+
+        gyro = {axis: rate(attitude[axis]["vel"]) for axis in ("yaw", "pitch")}
+        try:
+            los = target_los_rates(tele)
+            pitch, yaw = los if los is not None else (0., 0.)
+            los_pitch, los_yaw = rate(pitch), rate(yaw)
+        except ValueError:
+            los_pitch = los_yaw = "--"
+        try:
+            omega = target_los_omega(tele)
+            vector = omega if omega is not None else (0., 0., 0.)
+            vector_text = "  ".join(f"{axis} {value:+.2f}" for axis, value in zip("NED", vector))
+        except ValueError:
+            vector_text = "N --  E --  D --"
+        return [f"机械角度(°): yaw {angles['yaw']:+.2f}  pitch {angles['pitch']:+.2f}",
+                f"陀螺仪角速度(°/s): yaw {gyro['yaw']}  pitch {gyro['pitch']}",
+                f"目标LOS角速度(°/s): yaw {los_yaw}  pitch {los_pitch}",
+                f"LOS向量NED(°/s): {vector_text}"]
+
     def draw(self, frame, tele):
         w, h = self.frame_size
         disp = frame
@@ -1494,18 +1529,11 @@ class GroundStation:
             s = tele.get("stability") or {}
             ready = (self.tele.public_angles_ready and tele.get("angle_convention") == "motion_head_joint_right_positive"
                      and UdpClient._valid_attitude(tele.get("attitude_deg")))
-            j = tele.get("attitude_deg") or {}
-            def angle_line(axis):
-                if not ready:
-                    return f"{axis}: 机械姿态待确认"
-                value = j[axis]
-                velocity = f"{value['vel']:+7.2f}°/s" if value['vel'] is not None else "不可用（奇异点）"
-                return f"{axis:5s} {value['pos']:+7.2f}°  角速度 {velocity}"
             limits = tele.get("limits") or {}
             lines = [
                 f"状态: {STATE_CN.get(t.get('state'), t.get('state'))}   稳定性: {STABILITY_CN.get(s.get('state'), s.get('state'))}   模式: {tele.get('mode')}",
                 f"目标中心误差: {s.get('center_err_deg', 0):.2f}°    机械输出: {tele.get('cmd_dps') or {}}",
-                angle_line("yaw"), angle_line("pitch"),
+                *self._attitude_panel_lines(tele, ready),
             ]
             colors = [(0, 255, 255)] * len(lines)
             colors[0] = (0, 255, 255)
@@ -1575,14 +1603,44 @@ class GroundStation:
         lines.insert(0, st["identity_error"] or f"飞机 {self.tele.aircraft_id} 身份已确认")
         colors.insert(0, (0, 0, 255) if st["identity_error"] else (0, 255, 0))
 
+        # 窄窗的四行姿态量占用发送面板下方整行，诊断文字留在上方。
+        # 宽窗逐行避让右侧控件；操作控件与视频选框坐标保持不变。
+        entries = list(zip(lines, colors))
+        if dw < 760:
+            quantities, diagnostics = [], []
+            for entry in entries:
+                (quantities if entry[0].startswith(("机械角度(", "陀螺仪角速度(",
+                                                   "目标LOS角速度(", "LOS向量NED("))
+                 else diagnostics).append(entry)
+            diagnostic_step = min(22, max(8, 152 // max(1, len(diagnostics))))
+            quantity_step = min(30, max(12, (dh - 176) // max(1, len(quantities))))
+            text_rows = [(text, c, 8 + i * diagnostic_step, diagnostic_step)
+                         for i, (text, c) in enumerate(diagnostics)]
+            text_rows += [(text, c, 168 + i * quantity_step, quantity_step)
+                          for i, (text, c) in enumerate(quantities)]
+        else:
+            line_step = min(30, max(10, (dh - 16) // max(1, len(entries))))
+            text_rows = [(text, c, 8 + i * line_step, line_step)
+                         for i, (text, c) in enumerate(entries)]
         if self.font is not None:
-            top = min(dh, 8 + 30 * (len(lines) + 1) + 10)
-            top = max(top, 60)
+            top = dh
             crop = disp[0:top, :]
             pil = Image.fromarray(cv2.cvtColor(crop, cv2.COLOR_BGR2RGB))
             draw = ImageDraw.Draw(pil)
-            for i, (text, c) in enumerate(zip(lines, colors)):
-                draw.text((12, 8 + i * 30), text, font=self.font,
+            for text, c, y, line_step in text_rows:
+                right = dw - 12
+                if y < 48 and y + line_step > 10:
+                    right = min(right, min(rect[0] for _, rect, _, _ in self.buttons) - 10)
+                if y < 160 and y + line_step > 64 and hasattr(self, "forward_inputs"):
+                    right = min(right, self._forward_geometry()["ip"][0] - 10)
+                size = min(24, max(8, line_step - 4))
+                font = self.font.font_variant(size=size)
+                while size > 8 and draw.textbbox((0, 0), text, font=font)[2] > right - 12:
+                    size -= 1
+                    font = self.font.font_variant(size=size)
+                while text and draw.textbbox((0, 0), text, font=font)[2] > right - 12:
+                    text = text[:-2] + "…" if len(text) > 2 else ""
+                draw.text((12, y), text, font=font,
                           fill=(c[2], c[1], c[0]))
             for label, rect, cmd, extra in self.buttons:
                 bbox = draw.textbbox((0, 0), label, font=self.font)
@@ -1592,9 +1650,9 @@ class GroundStation:
                           label, font=self.font, fill=(255, 255, 255))
             disp[0:top, :] = cv2.cvtColor(np.array(pil), cv2.COLOR_RGB2BGR)
         else:
-            for i, (text, c) in enumerate(zip(lines, colors)):
-                cv2.putText(disp, text, (12, 28 + i * 26),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.6, c, 2, cv2.LINE_AA)
+            for text, c, y, line_step in text_rows:
+                cv2.putText(disp, text, (12, y + line_step),
+                            cv2.FONT_HERSHEY_SIMPLEX, min(.6, line_step / 40), c, 1, cv2.LINE_AA)
         # 摇杆区独立于视频，避免遮挡选框；视频尺寸及 ROI 归一化不包含控制区。
         panel = np.full((280, dw, 3), 28, dtype=np.uint8)
         disp = np.vstack((disp, panel))
@@ -1926,7 +1984,7 @@ def run_selftest(cfg: dict, args) -> int:
         print(f"[selftest] 失败：{st['identity_error']}")
         rc = 8
     elif not client.public_angles_ready:
-        print("[selftest] 失败：hello 与新鲜机械姿态必须同时符合协议 7 / motion_head_joint_right_positive")
+        print("[selftest] 失败：hello 与新鲜机械姿态必须同时符合协议 8 / motion_head_joint_right_positive")
         rc = 9
     if last is None or n_tel == 0:
         print("[selftest] 失败：未收到任何遥测")

@@ -361,8 +361,8 @@ class Session:
                 poses = list(self.poses)
             if t is None or not poses or self.matched(t) is None:
                 continue
-            if t.get('protocol_version') != 7 or t.get('angle_convention') != 'motion_head_joint_right_positive':
-                raise AssertionError('需要两轴 v7 motion_head_joint_right_positive 遥测')
+            if t.get('protocol_version') != 8 or t.get('angle_convention') != 'motion_head_joint_right_positive':
+                raise AssertionError('需要两轴 v8 motion_head_joint_right_positive 遥测')
             if t.get('mount', {}).get('static') is not False:
                 raise AssertionError('动态载机姿态补偿未开启')
             if not stable_cruise(poses, self.args.altitude, self.args.cruise_speed):

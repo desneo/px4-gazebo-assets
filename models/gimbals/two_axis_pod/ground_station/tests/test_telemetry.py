@@ -131,7 +131,7 @@ class TelemetryForwardingTests(unittest.TestCase):
         return thread
 
     def produce(self, stamp, hz=None, **extra):
-        payload = {"protocol_version": 7, "angle_convention": "motion_head_joint_right_positive", "mode": "IDLE", "ts_mono": stamp,
+        payload = {"protocol_version": 8, "angle_convention": "motion_head_joint_right_positive", "mode": "IDLE", "ts_mono": stamp,
                    "telemetry_hz": self.bridge.args.telemetry_hz if hz is None else hz,
                    "telemetry_clock": "steady",
                    "yaw": stamp, "pitch": -stamp if isinstance(stamp, (int, float)) else 0,
@@ -184,6 +184,25 @@ class TelemetryForwardingTests(unittest.TestCase):
         self.wait_for_count(5)
         self.assertEqual([sample["ts_mono"] for sample in self.telemetry()],
                          [20., 20.01, 20.02, 0., .01])
+
+    def test_target_los_is_forwarded_per_sample_without_clipping_or_joint_substitution(self):
+        expected = []
+        for index, rates in enumerate(((45.5, -67.25), (0., 0.), (None, None))):
+            pitch, yaw = rates
+            los = {"valid": pitch is not None, "frame": "NED",
+                   "observer_reference": "aircraft_nominal_cg", "target_name": "aircraft_1",
+                   "pitch_rate_dps": pitch, "yaw_rate_dps": yaw,
+                   "reason": "" if pitch is not None else "vertical_singularity"}
+            expected.append(los)
+            self.produce(float(index), target_los=los,
+                         attitude_deg={axis: {"pos": 0., "vel": 17., "acc": 0.}
+                                       for axis in ("pitch", "yaw")})
+        self.bridge._latest_tel = {"target_los": {"valid": True, "pitch_rate_dps": 999.}}
+        self.start_sender()
+        self.wait_for_count(3)
+        samples = self.telemetry()
+        self.assertEqual([sample["target_los"] for sample in samples], expected)
+        self.assertTrue(all(sample["attitude_deg"]["yaw"]["vel"] == 17. for sample in samples))
 
     def test_repeated_stamp_and_invalid_timestamps_do_not_make_new_samples(self):
         self.produce(1., yaw=10.)
@@ -238,10 +257,12 @@ class TelemetryForwardingTests(unittest.TestCase):
                          list(range(17, 1017)))
         self.assertEqual(len(self.bridge._telemetry_pending), 0)
 
-    def test_old_plugin_never_claims_v7_or_sends_old_attitude(self):
+    def test_old_plugin_never_claims_v8_or_sends_old_attitude(self):
         for version, convention in ((6, "motion_head_joint"),
                                     (6, "motion_head_joint_right_positive"),
-                                    (7, "motion_head_joint"), (True, "motion_head_joint_right_positive")):
+                                    (7, "motion_head_joint"),
+                                    (7, "motion_head_joint_right_positive"),
+                                    (8, "motion_head_joint"), (True, "motion_head_joint_right_positive")):
             with self.subTest(version=version, convention=convention):
                 self.produce(1., protocol_version=version, angle_convention=convention)
                 self.bridge._send_hello(self.client.addr)
@@ -254,7 +275,7 @@ class TelemetryForwardingTests(unittest.TestCase):
 
     def test_plugin_upgrade_and_downgrade_refresh_registered_clients(self):
         self.produce(1.)
-        self.assertEqual(self.sent[-1][1]["version"], 7)
+        self.assertEqual(self.sent[-1][1]["version"], 8)
         self.assertEqual(len(self.bridge._telemetry_pending), 1)
         old_snapshot = self.bridge._telemetry_pending[0]
         self.produce(2., protocol_version=6, angle_convention="motion_head_joint")
@@ -263,7 +284,7 @@ class TelemetryForwardingTests(unittest.TestCase):
         self.bridge._broadcast_telemetry(old_snapshot)
         self.assertEqual(self.telemetry(), [])
         self.produce(3.)
-        self.assertEqual(self.sent[-1][1]["version"], 7)
+        self.assertEqual(self.sent[-1][1]["version"], 8)
         self.assertTrue(self.sent[-1][1]["plugin_compatible"])
         self.start_sender()
         self.wait_for_count(1)
@@ -284,7 +305,7 @@ class TelemetryForwardingTests(unittest.TestCase):
         def send(addr, payload):
             nonlocal drop_upgrade
             value = json.loads(payload) if isinstance(payload, str) else payload
-            if value.get("type") == "hello" and value.get("version") == 7 and drop_upgrade:
+            if value.get("type") == "hello" and value.get("version") == 8 and drop_upgrade:
                 drop_upgrade = False  # 刻意丢失首次升级通知，模拟 UDP 单包丢失。
                 return True
             server.sendto(json.dumps(value).encode(), addr)
@@ -309,13 +330,13 @@ class TelemetryForwardingTests(unittest.TestCase):
 
         ping()
         self.assertIsNone(station.hello["version"])
-        pose(1.)  # 唯一升级 hello 丢失，v7 姿态自身不能代替 hello 授权。
+        pose(1.)  # 唯一升级 hello 丢失，v8 姿态自身不能代替 hello 授权。
         self.assertFalse(drop_upgrade)
         self.bridge._broadcast_telemetry(self.bridge._telemetry_pending.popleft())
         receive_station()
         self.assertFalse(station.public_angles_ready)
-        ping()  # 已登记客户端仍能在下次保活取得当前 v7 hello。
-        self.assertEqual(station.hello["version"], 7)
+        ping()  # 已登记客户端仍能在下次保活取得当前 v8 hello。
+        self.assertEqual(station.hello["version"], 8)
         self.assertTrue(station.public_angles_ready)
         self.assertGreater(station.send_manual(yaw=10.), 0)
         data, addr = server.recvfrom(65535)
@@ -347,7 +368,7 @@ class TelemetryForwardingTests(unittest.TestCase):
             with self.subTest(cmd=cmd, extra=extra):
                 self.bridge._handle_command(self.client, dict(cmd=cmd, seq=seq, **extra))
                 self.assertFalse(self.sent[-1][1]["ok"])
-                self.assertIn("插件尚未确认协议 7", self.sent[-1][1]["message"])
+                self.assertIn("插件尚未确认协议 8", self.sent[-1][1]["message"])
         self.bridge._cmd_pub.publish.assert_not_called()
         self.assertFalse(self.bridge._publish_internal("track", box=[0, 0, .2, .2]))
         self.bridge._handle_command(self.client, {"cmd": "manual", "seq": 20, "yaw": 0, "pitch": 0})

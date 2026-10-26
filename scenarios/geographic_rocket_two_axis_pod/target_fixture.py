@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""场景专用的静止空中视觉靶标；真值只用于验收，不提供跟踪控制。"""
+"""场景专用的静止空中视觉靶标；真值用于验收与惯性 LOS 遥测，不提供跟踪控制。"""
 
 import math
 import xml.etree.ElementTree as ET

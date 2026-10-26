@@ -108,10 +108,10 @@ def main():
         assert len(received) > 80, "没有收到足够的艾晟报文"
         assert all(raw in expected for _, raw, _ in received), "艾晟报文必须与原始遥测转换逐项匹配"
         packets = [msg for _, _, msg in received]
-        assert all(len(msg) == 11 and msg.get('target_confidence') == 0.8
+        assert all(len(msg) == 16 and msg.get('target_confidence') == 0.8
                    and type(msg['target_confidence']) is float
-                   and type(msg['tracking_gateW']) is float
-                   and type(msg['tracking_gateH']) is float for msg in packets)
+                   and type(msg['tracking_gate_w']) is float
+                   and type(msg['tracking_gate_h']) is float for msg in packets)
         assert any(msg['track_status'] == 1 and msg['pitch_angle'] < 0 for msg in packets)
         assert any(msg['track_status'] == 0 and msg['tracking_confidence'] == 0
                    and msg['pitch_misalignment'] == msg['yaw_misalignment'] == 0 for msg in packets)
@@ -123,10 +123,10 @@ def main():
             bx, by, bw, bh = target["box_px"]
             forwarded = aisheng_message(message)
             if forwarded["track_status"]:
-                assert forwarded["tracking_gateW"] == bw
-                assert forwarded["tracking_gateH"] == bh
+                assert forwarded["tracking_gate_w"] == bw
+                assert forwarded["tracking_gate_h"] == bh
             else:
-                assert forwarded["tracking_gateW"] == forwarded["tracking_gateH"] == 0.0
+                assert forwarded["tracking_gate_w"] == forwarded["tracking_gate_h"] == 0.0
             dx, dy = miss["offset_px"]
             assert abs(dx - (bx + bw / 2 - 960)) <= .11
             assert abs(dy - (by + bh / 2 - 540)) <= .11

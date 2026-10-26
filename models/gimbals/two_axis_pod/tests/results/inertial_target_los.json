@@ -1,0 +1,612 @@
+{
+  "passed": true,
+  "protocol_version": 8,
+  "frame": "NED",
+  "sign_convention": "yaw_right_positive_pitch_up_positive",
+  "observer_reference": "aircraft_nominal_cg",
+  "observer_cg_model_m": [
+    0.3,
+    -0.2,
+    0.15
+  ],
+  "observer_cg_definition": "SDF零关节各link惯性位姿的质量加权合成；固连模型坐标",
+  "source_sha256": {
+    "models/gimbals/two_axis_pod/tests/check_inertial_los.py": "0c4dff7d90942741a71727f1a874f9cde148f37c8ffb33b1873f71e83294ba0c",
+    "models/gimbals/two_axis_pod/model.sdf": "0966f3ef8bae06254cc78fa84cb7da529d472f5001a11725bc3799c5a1a0aae2",
+    "models/gimbals/two_axis_pod/ground_station/telemetry_forward.py": "2879a7564fa851b026d04da7dc0ea9fa6fb743b62231524f639fcc0a259b88e7",
+    "models/gimbals/two_axis_pod/ground_station/packet_rate.py": "ba3cd7b56f1256a66aa1c72ab0730dda2d548338733a5217cda1d173385d3389",
+    "models/gimbals/two_axis_pod/controller/CMakeLists.txt": "8f9a900732d505414e21c270c53ccfbf1c623b1d05bc32f6de7ca01c2740b9ca",
+    "models/gimbals/two_axis_pod/controller/src/gimbal_controller.cc": "fd2f331b84a1ad49d09059b823d2a254fda7df84a6a356bdeb2e9459bf4ed6dc",
+    "models/gimbals/two_axis_pod/controller/src/inertial_los.cc": "617770e598c72a55bb4f8d6ce095232e8e01cbed5e0700e061129b7ff1e68d5c",
+    "models/gimbals/two_axis_pod/controller/src/control.cc": "d9309f8703e343cd9d7cca0ffa9b07c00a55ea13d73ec6f5825d060fc65dc0d0",
+    "models/gimbals/two_axis_pod/controller/src/truth_tracking.cc": "615b2b43160bef988b7910233d35d06e16161e84dec32326d156421c03a2a456",
+    "models/gimbals/two_axis_pod/controller/src/kinematics.cc": "b602c2f1973a5cf72726f9b3f71d683132c8198c0c207318ae997d57b06348bb",
+    "models/gimbals/two_axis_pod/controller/service/telemetry.json": "d07c0e952a3a0e0dd941f4ef9e73f47e7933e9dc520eec2b308fce9c3c146a62",
+    "models/gimbals/two_axis_pod/controller/include/two_axis/inertial_los.hh": "7b79305c7f75bd3699844bea8de01f4deaa0b9db927899ed856b65217c1b2c99",
+    "models/gimbals/two_axis_pod/controller/include/two_axis/control.hh": "bf106eeac7dba14b2724be76ea6a8271b9c62609330ce6aeaa5972b0f6ed206b",
+    "models/gimbals/two_axis_pod/controller/include/two_axis/truth_tracking.hh": "6978b0301d9afec53460cd0a672ae4be80a1717fc97f1d86593c795395e90b33",
+    "models/gimbals/two_axis_pod/controller/include/two_axis/kinematics.hh": "bef438cfc51b0dfe25996d25b777ec63bcb30a987bc6f94d164cde046deb73da",
+    "models/gimbals/two_axis_pod/controller/include/two_axis/telemetry.hh": "c565f56c6b45db7d8d67f29b8f8394de85a05eda4a38073364a7b86f6f45aa72",
+    "models/gimbals/two_axis_pod/controller/include/two_axis/control_schedule.hh": "c4157d52f85bf75d6efe5311f5ed5bf0860501de3def6779ddab03b51eb31a06"
+  },
+  "controller_library_sha256": "a9ca3769a234acb9818b73f777b32b392f23e856de0d1fa59ffd446a74cce8fc",
+  "cases": [
+    {
+      "label": "static",
+      "samples": 29,
+      "mean_reported_dps": [
+        0.0,
+        0.0
+      ],
+      "max_position_error_m": 0.0,
+      "max_rate_error_dps": 0.0,
+      "max_vector_error_dps": 0.0,
+      "peak_raw_rate_dps": 0,
+      "representative": {
+        "stamp": 1.28,
+        "reported_dps": [
+          0,
+          0
+        ],
+        "truth_dps": [
+          0.0,
+          0.0
+        ],
+        "omega_ned_dps": [
+          0,
+          0,
+          0
+        ],
+        "omega_truth_dps": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "packet": {
+          "track_status": 0,
+          "pitch_angle": -5.968,
+          "yaw_angle": -8.643,
+          "pitch_misalignment": 0.0,
+          "yaw_misalignment": 0.0,
+          "tracking_confidence": 0.0,
+          "target_confidence": 0.8,
+          "gyro_pitch_rate": -4.66,
+          "gyro_yaw_rate": -20.0,
+          "pitch_los_rate": 0.0,
+          "yaw_los_rate": 0.0,
+          "los_omega_n": 0.0,
+          "los_omega_e": 0.0,
+          "los_omega_d": 0.0,
+          "tracking_gateW": 0.0,
+          "tracking_gateH": 0.0
+        },
+        "mechanical_dps": [
+          -20,
+          -4.66
+        ]
+      }
+    },
+    {
+      "label": "yaw_right",
+      "samples": 29,
+      "mean_reported_dps": [
+        15.367880681896551,
+        -2.266761722689655
+      ],
+      "max_position_error_m": 6.661338147750939e-16,
+      "max_rate_error_dps": 6.08648262208078e-05,
+      "max_vector_error_dps": 2.5538799470758988e-05,
+      "peak_raw_rate_dps": 16.479432703,
+      "representative": {
+        "stamp": 4.812,
+        "reported_dps": [
+          15.37649684,
+          -2.275069356
+        ],
+        "truth_dps": [
+          15.376470963099528,
+          -2.2750439616772504
+        ],
+        "omega_ned_dps": [
+          5.153491039,
+          0,
+          1.546047312
+        ],
+        "omega_truth_dps": [
+          5.153472845657023,
+          1.9350589447242328e-05,
+          1.54604470984411
+        ],
+        "packet": {
+          "track_status": 0,
+          "pitch_angle": -7.458,
+          "yaw_angle": -9.07,
+          "pitch_misalignment": 0.0,
+          "yaw_misalignment": 0.0,
+          "tracking_confidence": 0.0,
+          "target_confidence": 0.8,
+          "gyro_pitch_rate": -9.378,
+          "gyro_yaw_rate": -20.0,
+          "pitch_los_rate": -2.275069,
+          "yaw_los_rate": 15.376497,
+          "los_omega_n": 5.153491039,
+          "los_omega_e": 0.0,
+          "los_omega_d": 1.546047312,
+          "tracking_gateW": 0.0,
+          "tracking_gateH": 0.0
+        },
+        "mechanical_dps": [
+          -20,
+          -9.378
+        ]
+      }
+    },
+    {
+      "label": "yaw_left",
+      "samples": 30,
+      "mean_reported_dps": [
+        -18.4430355364,
+        0.9269516727666667
+      ],
+      "max_position_error_m": 1.7208456881689926e-15,
+      "max_rate_error_dps": 0.00017354774969291498,
+      "max_vector_error_dps": 4.8339201120128905e-05,
+      "peak_raw_rate_dps": 18.9647777,
+      "representative": {
+        "stamp": 8.3,
+        "reported_dps": [
+          -18.516308752,
+          0.915454627
+        ],
+        "truth_dps": [
+          -18.516159302324297,
+          0.9154402957888401
+        ],
+        "omega_ned_dps": [
+          -5.242880131,
+          0,
+          -1.572864039
+        ],
+        "omega_truth_dps": [
+          -5.242836601639075,
+          -6.835703060037446e-06,
+          -1.572851344151125
+        ],
+        "packet": {
+          "track_status": 0,
+          "pitch_angle": -4.647,
+          "yaw_angle": -8.428,
+          "pitch_misalignment": 0.0,
+          "yaw_misalignment": 0.0,
+          "tracking_confidence": 0.0,
+          "target_confidence": 0.8,
+          "gyro_pitch_rate": -0.648,
+          "gyro_yaw_rate": -20.0,
+          "pitch_los_rate": 0.915455,
+          "yaw_los_rate": -18.516309,
+          "los_omega_n": -5.242880131,
+          "los_omega_e": 0.0,
+          "los_omega_d": -1.572864039,
+          "tracking_gateW": 0.0,
+          "tracking_gateH": 0.0
+        },
+        "mechanical_dps": [
+          -20,
+          -0.648
+        ]
+      }
+    },
+    {
+      "label": "pitch_up",
+      "samples": 29,
+      "mean_reported_dps": [
+        0.0,
+        1.5172009691724138
+      ],
+      "max_position_error_m": 8.171241461241152e-14,
+      "max_rate_error_dps": 3.166144098010193e-06,
+      "max_vector_error_dps": 3.003632512044163e-06,
+      "peak_raw_rate_dps": 1.593342887,
+      "representative": {
+        "stamp": 11.788,
+        "reported_dps": [
+          0,
+          1.516253523
+        ],
+        "truth_dps": [
+          0.0,
+          1.5162564091765989
+        ],
+        "omega_ned_dps": [
+          -0.479481464,
+          1.438444393,
+          0
+        ],
+        "omega_truth_dps": [
+          -0.4794823769826284,
+          1.438447130947885,
+          0.0
+        ],
+        "packet": {
+          "track_status": 0,
+          "pitch_angle": -5.919,
+          "yaw_angle": -8.827,
+          "pitch_misalignment": 0.0,
+          "yaw_misalignment": 0.0,
+          "tracking_confidence": 0.0,
+          "target_confidence": 0.8,
+          "gyro_pitch_rate": -3.636,
+          "gyro_yaw_rate": -20.0,
+          "pitch_los_rate": 1.516254,
+          "yaw_los_rate": 0.0,
+          "los_omega_n": -0.479481464,
+          "los_omega_e": 1.438444393,
+          "los_omega_d": 0.0,
+          "tracking_gateW": 0.0,
+          "tracking_gateH": 0.0
+        },
+        "mechanical_dps": [
+          -20,
+          -3.636
+        ]
+      }
+    },
+    {
+      "label": "pitch_down",
+      "samples": 30,
+      "mean_reported_dps": [
+        0.0,
+        -1.7944146685
+      ],
+      "max_position_error_m": 8.171241461241152e-14,
+      "max_rate_error_dps": 4.367276899008843e-06,
+      "max_vector_error_dps": 4.143488313124166e-06,
+      "peak_raw_rate_dps": 1.89525213,
+      "representative": {
+        "stamp": 15.276,
+        "reported_dps": [
+          0,
+          -1.796419957
+        ],
+        "truth_dps": [
+          0.0,
+          -1.7964239140846994
+        ],
+        "omega_ned_dps": [
+          0.56807787,
+          -1.70423361,
+          0
+        ],
+        "omega_truth_dps": [
+          0.5680791211702285,
+          -1.7042373635106853,
+          0.0
+        ],
+        "packet": {
+          "track_status": 0,
+          "pitch_angle": -6.186,
+          "yaw_angle": -8.587,
+          "pitch_misalignment": 0.0,
+          "yaw_misalignment": 0.0,
+          "tracking_confidence": 0.0,
+          "target_confidence": 0.8,
+          "gyro_pitch_rate": -5.597,
+          "gyro_yaw_rate": -20.0,
+          "pitch_los_rate": -1.79642,
+          "yaw_los_rate": 0.0,
+          "los_omega_n": 0.56807787,
+          "los_omega_e": -1.70423361,
+          "los_omega_d": 0.0,
+          "tracking_gateW": 0.0,
+          "tracking_gateH": 0.0
+        },
+        "mechanical_dps": [
+          -20,
+          -5.597
+        ]
+      }
+    },
+    {
+      "label": "radial",
+      "samples": 30,
+      "mean_reported_dps": [
+        0.0,
+        0.0
+      ],
+      "max_position_error_m": 1.7053025658242404e-13,
+      "max_rate_error_dps": 7.951386703659667e-13,
+      "max_vector_error_dps": 8.175844431712152e-13,
+      "peak_raw_rate_dps": 0,
+      "representative": {
+        "stamp": 18.864,
+        "reported_dps": [
+          0,
+          0
+        ],
+        "truth_dps": [
+          -4.969616689787293e-13,
+          -3.9756933518298336e-13
+        ],
+        "omega_ned_dps": [
+          0,
+          0,
+          0
+        ],
+        "omega_truth_dps": [
+          -9.812537928851936e-15,
+          -4.2234572164866414e-13,
+          -4.517833354352205e-14
+        ],
+        "packet": {
+          "track_status": 0,
+          "pitch_angle": -6.079,
+          "yaw_angle": -9.147,
+          "pitch_misalignment": 0.0,
+          "yaw_misalignment": 0.0,
+          "tracking_confidence": 0.0,
+          "target_confidence": 0.8,
+          "gyro_pitch_rate": -4.316,
+          "gyro_yaw_rate": -20.0,
+          "pitch_los_rate": 0.0,
+          "yaw_los_rate": 0.0,
+          "los_omega_n": 0.0,
+          "los_omega_e": 0.0,
+          "los_omega_d": 0.0,
+          "tracking_gateW": 0.0,
+          "tracking_gateH": 0.0
+        },
+        "mechanical_dps": [
+          -20,
+          -4.316
+        ]
+      }
+    },
+    {
+      "label": "observer_east",
+      "samples": 29,
+      "mean_reported_dps": [
+        -18.450661968724138,
+        0.9239852226551725
+      ],
+      "max_position_error_m": 4.6984638402136625e-12,
+      "max_rate_error_dps": 0.00017307028493007692,
+      "max_vector_error_dps": 4.8244290393739675e-05,
+      "peak_raw_rate_dps": 18.956210964,
+      "representative": {
+        "stamp": 22.372,
+        "reported_dps": [
+          -18.499218492,
+          0.928719054
+        ],
+        "truth_dps": [
+          -18.499069925746074,
+          0.9287045392947144
+        ],
+        "omega_ned_dps": [
+          -5.242468727,
+          0,
+          -1.572740618
+        ],
+        "omega_truth_dps": [
+          -5.24242537515263,
+          -6.944191375590769e-06,
+          -1.5727279875332956
+        ],
+        "packet": {
+          "track_status": 0,
+          "pitch_angle": -4.761,
+          "yaw_angle": -8.507,
+          "pitch_misalignment": 0.0,
+          "yaw_misalignment": 0.0,
+          "tracking_confidence": 0.0,
+          "target_confidence": 0.8,
+          "gyro_pitch_rate": 0.069,
+          "gyro_yaw_rate": -20.0,
+          "pitch_los_rate": 0.928719,
+          "yaw_los_rate": -18.499218,
+          "los_omega_n": -5.242468727,
+          "los_omega_e": 0.0,
+          "los_omega_d": -1.572740618,
+          "tracking_gateW": 0.0,
+          "tracking_gateH": 0.0
+        },
+        "mechanical_dps": [
+          -20,
+          0.069
+        ]
+      }
+    },
+    {
+      "label": "observer_rotation_cg",
+      "samples": 30,
+      "mean_reported_dps": [
+        -0.23906033923333334,
+        0.7491312374333333
+      ],
+      "max_position_error_m": 4.259885333368629e-09,
+      "max_rate_error_dps": 0.0021684639392969968,
+      "max_vector_error_dps": 0.000582286385054892,
+      "peak_raw_rate_dps": 0.755516092,
+      "representative": {
+        "stamp": 25.92,
+        "reported_dps": [
+          -0.231371515,
+          0.751193079
+        ],
+        "truth_dps": [
+          -0.22923675969776275,
+          0.7512398417722006
+        ],
+        "omega_ned_dps": [
+          -0.296966147,
+          0.693091721,
+          -0.020243576
+        ],
+        "omega_truth_dps": [
+          -0.2964078180518509,
+          0.6933247331357604,
+          -0.020056798405512298
+        ],
+        "packet": {
+          "track_status": 0,
+          "pitch_angle": -7.761,
+          "yaw_angle": -8.667,
+          "pitch_misalignment": 0.0,
+          "yaw_misalignment": 0.0,
+          "tracking_confidence": 0.0,
+          "target_confidence": 0.8,
+          "gyro_pitch_rate": -12.846,
+          "gyro_yaw_rate": -20.0,
+          "pitch_los_rate": 0.751193,
+          "yaw_los_rate": -0.231372,
+          "los_omega_n": -0.296966147,
+          "los_omega_e": 0.693091721,
+          "los_omega_d": -0.020243576,
+          "tracking_gateW": 0.0,
+          "tracking_gateH": 0.0
+        },
+        "mechanical_dps": [
+          -20,
+          -12.846
+        ]
+      }
+    },
+    {
+      "label": "los_above_mechanical_limit",
+      "samples": 29,
+      "mean_reported_dps": [
+        49.812775325620684,
+        -28.263701859689654
+      ],
+      "max_position_error_m": 2.220446049250313e-14,
+      "max_rate_error_dps": 0.02314960805649946,
+      "max_vector_error_dps": 0.01250385585518643,
+      "peak_raw_rate_dps": 92.921718654,
+      "representative": {
+        "stamp": 29.368,
+        "reported_dps": [
+          44.932133767,
+          -29.487242695
+        ],
+        "truth_dps": [
+          44.94675775328459,
+          -29.483778268443658
+        ],
+        "omega_ned_dps": [
+          35.095906176,
+          0,
+          10.528771853
+        ],
+        "omega_truth_dps": [
+          35.09635455960157,
+          0.0070831901899044425,
+          10.53219863468074
+        ],
+        "packet": {
+          "track_status": 0,
+          "pitch_angle": -8.821,
+          "yaw_angle": -8.819,
+          "pitch_misalignment": 0.0,
+          "yaw_misalignment": 0.0,
+          "tracking_confidence": 0.0,
+          "target_confidence": 0.8,
+          "gyro_pitch_rate": -20.0,
+          "gyro_yaw_rate": -20.0,
+          "pitch_los_rate": -20.0,
+          "yaw_los_rate": 20.0,
+          "los_omega_n": 35.095906176,
+          "los_omega_e": 0.0,
+          "los_omega_d": 10.528771853,
+          "tracking_gateW": 0.0,
+          "tracking_gateH": 0.0
+        },
+        "mechanical_dps": [
+          -20,
+          -20
+        ]
+      }
+    },
+    {
+      "label": "vertical_vector",
+      "passed": true,
+      "omega_valid": true,
+      "angle_rates_valid": false,
+      "packet": {
+        "track_status": 0,
+        "pitch_angle": -2.828,
+        "yaw_angle": -2.815,
+        "pitch_misalignment": 0.0,
+        "yaw_misalignment": 0.0,
+        "tracking_confidence": 0.0,
+        "target_confidence": 0.8,
+        "gyro_pitch_rate": -20.0,
+        "gyro_yaw_rate": -20.0,
+        "pitch_los_rate": 0.0,
+        "yaw_los_rate": 0.0,
+        "los_omega_n": 0.0,
+        "los_omega_e": 0.0,
+        "los_omega_d": 0.0,
+        "tracking_gateW": 0.0,
+        "tracking_gateH": 0.0
+      }
+    },
+    {
+      "label": "pause_resume",
+      "paused_no_new_telemetry": true,
+      "resume_no_rate_spike": true,
+      "passed": true
+    },
+    {
+      "label": "delete_target",
+      "reason": "target_missing",
+      "passed": true
+    },
+    {
+      "label": "unbound_gyro_continues",
+      "packet": {
+        "track_status": 0,
+        "pitch_angle": -5.881,
+        "yaw_angle": -8.51,
+        "pitch_misalignment": 0.0,
+        "yaw_misalignment": 0.0,
+        "tracking_confidence": 0.0,
+        "target_confidence": 0.8,
+        "gyro_pitch_rate": 0.0,
+        "gyro_yaw_rate": 10.08,
+        "pitch_los_rate": 0.0,
+        "yaw_los_rate": 0.0,
+        "los_omega_n": 0.0,
+        "los_omega_e": 0.0,
+        "los_omega_d": 0.0,
+        "tracking_gateW": 0.0,
+        "tracking_gateH": 0.0
+      },
+      "passed": true
+    },
+    {
+      "label": "csrt_correct_binding",
+      "passed": true
+    },
+    {
+      "label": "csrt_wrong_selection",
+      "reason": "target_selection_mismatch",
+      "control_mode": "TRACK",
+      "tracking_state": "TRACK",
+      "passed": true
+    },
+    {
+      "label": "no_aircraft_cg",
+      "reason": "observer_cg_unconfigured",
+      "passed": true
+    }
+  ],
+  "raw_rows": 4164,
+  "scope": "隔离简化载机与原生吊舱物理；SIM_TRUTH/CSRT绑定；生产艾晟UDP回环",
+  "limitations": [
+    "无PX4整机飞行、无光学渲染与视频链验收",
+    "目标/载机运动由Gazebo VelocityControl驱动",
+    "未覆盖真实网络丢包或不同主机时钟",
+    "时间回退由纯算法单测覆盖，本物理验收覆盖暂停恢复"
+  ],
+  "evidence_sha256": "0fdbe7a6243ad9b5804853c7a016c6c83a4bab6bcfa8c6149626aa4a94876a8c"
+}

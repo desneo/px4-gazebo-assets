@@ -124,6 +124,8 @@ def check_output(output, manifest):
                 dynamic.set_text(expected, 'image_topic', manifest['image_topic'])
                 for key in ('command', 'telemetry', 'command_result'):
                     dynamic.set_text(expected, key + '_topic', manifest['topic_prefix'] + '/' + key)
+                dynamic.set_text(expected, 'los_observer_cg_model', ' '.join(
+                    format(value, '.17g') for value in manifest['px4_reference']['assembly_nominal_cg_flu_m']))
             assert canonical(model.find(f"plugin[@name='{original.get('name')}']")) == canonical(expected)
     # 同时校验对外机械角约定，不能只依赖源资产相等而漏掉轴方向回归。
     for name, axis in (('yaw_joint', '1 0 0'), ('pitch_joint', '0 -1 0')):
@@ -192,6 +194,11 @@ def check_output(output, manifest):
     assert set(reference) == {'reference_pose', 'base_cg_flu_m', 'assembly_nominal_cg_flu_m',
                               'offset_translation_frd_m', 'source_parameters', 'parameters'}
     assert reference['reference_pose'] == 'zero_joint_positions'
+    los_reference = dict(kind='nominal_cg', reference_pose='zero_joint_positions',
+                         body_offset_flu_m=reference['assembly_nominal_cg_flu_m'])
+    assert manifest['los_observer_reference'] == parameters['assembly']['los_observer_reference'] == los_reference
+    assert [float(value) for value in model.findtext(
+        "plugin[@name='two_axis::GimbalController']/los_observer_cg_model").split()] == reference['assembly_nominal_cg_flu_m']
     np.testing.assert_allclose(reference['base_cg_flu_m'], source_center, rtol=0, atol=1e-12)
     np.testing.assert_allclose(reference['assembly_nominal_cg_flu_m'], expected_center, rtol=0, atol=1e-12)
     np.testing.assert_allclose(reference['offset_translation_frd_m'], translation, rtol=0, atol=1e-12)

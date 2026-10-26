@@ -8,9 +8,11 @@
 
 原生模型与装配继承的插件配置为 `<telemetry_config>model://two_axis_pod/controller/service/telemetry.json</telemetry_config>`，通过 `GZ_SIM_RESOURCE_PATH` 解析基础模型文件。指定其他配置时，插件 SDF 的 `telemetry_config` 与网关 `--telemetry-config /path/to/telemetry.json` 必须指向内容一致的文件。配置在启动时读取，修改后重启 Gazebo 插件和网关。网关校验插件上报的 `telemetry_hz` 与 `telemetry_clock:"steady"`，频率或时基不同、字段缺失时暂停周期转发并记录错误，避免配置不一致时静默产生不同频率。待发队列最多保存 1000 份样本，过载丢弃最旧样本并告警；UDP 不保证送达。
 
+插件 `target_los` 遥测在同一物理样本内给出无人机名义重心到当前绑定目标的 NED 惯性视线仰角/方位角变化率（`pitch_rate_dps/yaw_rate_dps`，单位 °/s），以及 `valid`、`reason`、`target_name`、`frame=NED`、`observer_reference=aircraft_nominal_cg`。网关逐样本原样转发，不重算、不限幅、不替换为机械关节速度。地面站将机械速度映射至艾晟 `gyro_pitch_rate/gyro_yaw_rate`，将惯性视线速度映射至 `pitch_los_rate/yaw_los_rate`；四字段仅在外部报文中限幅 ±20°/s。内部 LOS 明确无效时速率为 `null`，外部 LOS 发送 `0.0/0.0`，其余字段继续发送；内部保留 `valid/reason`，界面沿用已有 track 状态，不另设 LOS 无效提示。完整字段定义见[控制与遥测协议](../../docs/control-protocol.md)。
+
 组合模型可用 `--topic-prefix /rocket_two_axis_pod` 对应插件的 command、telemetry、command_result 话题，用 `--image-topic /rocket_two_axis_pod/image` 指定完整图像话题；未指定时保持独立组件默认值。`--world`、`--gimbal-model`、UDP 端口分别配置，RTSP 端口同机共享，内部 RTP 默认自动分配；Gazebo 分区只隔离 Gazebo Transport，不隔离网络端口。
 
-首次有效请求收到 `hello`；插件已确认协议时为 `version=7`、`angle_convention=motion_head_joint_right_positive`、`plugin_compatible=true`。未收到插件遥测或插件版本/角度标记不匹配时，前两字段为 `null`、`plugin_compatible=false`，禁止非零手动、回零、复位和跟踪等运动请求，仍允许停止、双轴零速、关闭视觉和仅检测。网关不广播旧插件姿态；兼容状态变化时向已登记客户端重发 `hello`，每次 `ping` 还会在 `pong` 前补发当前 `hello`，使丢失握手的客户端在后续保活中恢复；失配时清除姿态队列。插件的真实时间频率校验仍由既有频率检查独立执行。
+首次有效请求收到 `hello`；插件已确认协议时为 `version=8`、`angle_convention=motion_head_joint_right_positive`、`plugin_compatible=true`。未收到插件遥测或插件版本/角度标记不匹配时，前两字段为 `null`、`plugin_compatible=false`，禁止非零手动、回零、复位和跟踪等运动请求，仍允许停止、双轴零速、关闭视觉和仅检测。网关不广播旧插件姿态；兼容状态变化时向已登记客户端重发 `hello`，每次 `ping` 还会在 `pong` 前补发当前 `hello`，使丢失握手的客户端在后续保活中恢复；失配时清除姿态队列。插件的真实时间频率校验仍由既有频率检查独立执行。
 
 `manual` 只接受 yaw、pitch 机械角速度，单位 °/s；任何 roll 字段均拒绝。yaw 为绕安装 +X 的外轴，范围 ±60°；以从吊舱后方沿镜头视线观察为准，镜头左转为负、右转为正，静止背景向相反方向移动。pitch 为绕随动 −Y 的内轴，范围 −80°～+30°。CAD 原始零位沿安装 +Z；yaw=0 时 pitch 负值向安装 +X 前方转动。运动链为 `Rx(yaw) Ry(-pitch)`；外轴穿过球心，球心不随外轴公转。模型、插件、网关及客户端须使用同一机械定义。非零人工速度在网关层统一退出 `auto_lock/manual_track`，因此随仓库地面站与第三方 station 行为一致。`reset_axis` 仅接受 yaw 或 pitch。当前机械限位内无视线奇异点，零位两轴均能改变视线；即使出现视线退化标志也不禁止机械控制。完整会话、重传、回执、命令参数、视频叠加和第三方 station 接入流程见[控制与遥测协议](../../docs/control-protocol.md)。
 
@@ -32,7 +34,7 @@
 
 中继使用用户私有的临时目录 `two-axis-rtsp-<UID>/` 保存每端口的 `.sock`、`.lock`、`.log`，本地注册不对网络开放。RTSP 对外监听所配置端口；该端口被其他服务占用时启动失败。正常停止网关立即撤销本路，其他路继续工作；异常退出后 10 秒租约过期清理。所有路退出后中继空闲约 30 秒自动退出，不属于单个网关的进程组。中继重启后存活网关自动尝试重新注册；已有播放器断线时需重新连接。
 
-每路网关的 `hello` 和 station 遥测包含 `aircraft_id`、`video_rtsp_path`，表示当前网关 ID 与完整视频路径。控制协议版本为 7。地面站核对 `hello.aircraft_id` 与所选 ID，未确认、缺失/非法 ID 或不一致时禁止控制并清除待重传指令；断线后须重新通过 hello 核验。UDP 控制端口、插件话题与图像话题必须分别隔离；飞机 ID 只区分视频路径和上报身份，不自动配置 PX4 SYSID 或 Gazebo 话题。
+每路网关的 `hello` 和 station 遥测包含 `aircraft_id`、`video_rtsp_path`，表示当前网关 ID 与完整视频路径。控制协议版本为 8。地面站核对 `hello.aircraft_id` 与所选 ID，未确认、缺失/非法 ID 或不一致时禁止控制并清除待重传指令；断线后须重新通过 hello 核验。UDP 控制端口、插件话题与图像话题必须分别隔离；飞机 ID 只区分视频路径和上报身份，不自动配置 PX4 SYSID 或 Gazebo 话题。
 
 以下示例假定仿真已分别提供 `/uav_1`、`/uav_2` 插件话题和对应图像话题：
 

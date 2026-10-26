@@ -56,8 +56,8 @@ class JoystickTests(unittest.TestCase):
         self.client.on_log = lambda message: None
         self.client._stop = threading.Event()
         self.client._pending = {}
-        self.client.hello = {"aircraft_id": 1, "version": 7, "angle_convention": "motion_head_joint_right_positive"}
-        self.client.telemetry = {"protocol_version": 7, "angle_convention": "motion_head_joint_right_positive", "attitude_deg": {axis: {"pos": 0., "vel": 0., "acc": 0.} for axis in ("yaw", "pitch")}}
+        self.client.hello = {"aircraft_id": 1, "version": 8, "angle_convention": "motion_head_joint_right_positive"}
+        self.client.telemetry = {"protocol_version": 8, "angle_convention": "motion_head_joint_right_positive", "attitude_deg": {axis: {"pos": 0., "vel": 0., "acc": 0.} for axis in ("yaw", "pitch")}}
         self.client.last_rx_mono = self.client.last_telemetry_mono = time.monotonic()
         self.client.client_timeout = 5.0
         self.manual = ManualController(self.client)

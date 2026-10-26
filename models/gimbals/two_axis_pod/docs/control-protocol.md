@@ -6,7 +6,7 @@
 
 - 一个客户端会话由源 IP 和源 UDP 端口共同标识。客户端必须使用同一个已绑定 socket 发送指令并接收 `hello`、遥测和回执；不能每条命令换一个临时源端口。
 - 第一个语法与命令名均有效的数据报登记会话。网关先发送 `hello`，随后处理该数据报；UDP 不保证接收顺序，客户端必须按 `type` 和 `seq` 分流，不能假设 `hello` 一定先于本次命令的响应到达。
-- `hello.version` 必须为 `7`，`hello.angle_convention` 必须为 `motion_head_joint_right_positive`，`hello.aircraft_id` 必须与预期载机一致。未确认飞机身份时只允许 `ping/status/bye`。身份确认后，停止、双轴零速、关闭视觉和只检测可用；非零手动速度、回零、单轴复位、选框跟踪和自动锁定还须由 hello 与新鲜有效机械角度遥测共同确认版本及角度约定。
+- `hello.version` 必须为 `8`，`hello.angle_convention` 必须为 `motion_head_joint_right_positive`，`hello.aircraft_id` 必须与预期载机一致。未确认飞机身份时只允许 `ping/status/bye`。身份确认后，停止、双轴零速、关闭视觉和只检测可用；非零手动速度、回零、单轴复位、选框跟踪和自动锁定还须由 hello 与新鲜有效机械角度遥测共同确认版本及角度约定。
 - 未收到兼容插件姿态或收到旧协议姿态时，hello 的 `plugin_compatible=false`，`version` 与 `angle_convention` 为 `null`，不转发姿态并拒绝运动请求；兼容状态改变后重新发送 hello；后续 ping 保活也补发当前 hello，使丢失的就绪通知可以恢复。插件、网关、地面站均需配套更新。
 - 已登记客户端逐份接收插件新姿态。频率统一读取 `controller/service/telemetry.json` 中的 `hz`，默认 50 Hz（单调真实时间）；暂停或断流时不重发旧姿态，物理更新不足配置频率时实际速率下降并告警。任意有效命令均刷新会话；空闲客户端应以不超过 2 秒的周期发送 `ping`。默认连续 5 秒没有有效命令即注销，恢复时必须重新收到并核验 `hello`。
 - UDP 不保证到达、顺序或唯一性。可靠命令在超时后重发时必须逐字义保持同一 JSON 内容和同一 `seq`；收到对应结果后才分配下一项操作。连续手动速度流则为每个采样分配新的递增 `seq`，不重发旧速度。
@@ -17,15 +17,15 @@
 
 1. 创建并绑定 UDP socket，保持其源端口不变。
 2. 发送 `status` 或 `ping`，接收并核验 `hello`。
-3. 等待一条新鲜 `telemetry`，再次核验 `protocol_version=7`、`angle_convention=motion_head_joint_right_positive` 和 `aircraft_id`。
+3. 等待一条新鲜 `telemetry`，再次核验 `protocol_version=8`、`angle_convention=motion_head_joint_right_positive` 和 `aircraft_id`。
 4. 使用单调递增 `seq` 下发控制，并按下文的响应类型确认结果。
 5. 空闲时持续 `ping`；退出前发送 `manual(0,0)` 停车，再发送 `bye`。
 
 ## 角度
 
-遥测标识 `protocol_version=7`、`angle_convention=motion_head_joint_right_positive`。yaw/pitch 为机械角，单位度；速度为度/秒，加速度为度/秒²。`attitude_deg` 与 `joints_deg` 均为两轴机械诊断对象，不是 PX4 FRD Euler 姿态，也不是视线方位角/仰角。底座圆环水平、底座向下时，安装系为 +X 前、+Y 左、+Z 上。yaw 是绕安装 +X 的水平外轴，范围 ±60°；pitch 是绕随动 −Y 的内轴，范围 −80°～+30°。两轴均为 CAD 原始 0° 时光轴沿安装 +Z 朝天；yaw=0 时，pitch 负值向 +X 前方转动，−80° 时光轴高于前方水平面 10°，+30° 时朝后上方。
+遥测标识 `protocol_version=8`、`angle_convention=motion_head_joint_right_positive`。yaw/pitch 为机械角，单位度；速度为度/秒，加速度为度/秒²。`attitude_deg` 与 `joints_deg` 均为两轴机械诊断对象，不是 PX4 FRD Euler 姿态，也不是视线方位角/仰角。底座圆环水平、底座向下时，安装系为 +X 前、+Y 左、+Z 上。yaw 是绕安装 +X 的水平外轴，范围 ±60°；pitch 是绕随动 −Y 的内轴，范围 −80°～+30°。两轴均为 CAD 原始 0° 时光轴沿安装 +Z 朝天；yaw=0 时，pitch 负值向 +X 前方转动，−80° 时光轴高于前方水平面 10°，+30° 时朝后上方。
 
-运动链为 `Rx(yaw) Ry(-pitch)`，镜头单位方向为 `[-sin(pitch), -sin(yaw)cos(pitch), cos(yaw)cos(pitch)]`。外轴穿过球心，球心不随外轴公转。零位图像上方沿安装 −X、图像右方沿安装 −Y；yaw 以镜头视线向右转动为正、向左转动为负；静止背景移动方向与镜头视线相反。pitch 仍沿原机械定义。位置、速度、加速度和指令使用同一机械方向，不能只对显示值或艾晟输出反号。模型插件、网关和 Linux/Windows 控制端必须配套使用协议 7 与 `motion_head_joint_right_positive`；旧机械约定不兼容。
+运动链为 `Rx(yaw) Ry(-pitch)`，镜头单位方向为 `[-sin(pitch), -sin(yaw)cos(pitch), cos(yaw)cos(pitch)]`。外轴穿过球心，球心不随外轴公转。零位图像上方沿安装 −X、图像右方沿安装 −Y；yaw 以镜头视线向右转动为正、向左转动为负；静止背景移动方向与镜头视线相反。pitch 仍沿原机械定义。位置、速度、加速度和指令使用同一机械方向，不能只对显示值或艾晟输出反号。模型插件、网关和 Linux/Windows 控制端必须配套使用协议 8 与 `motion_head_joint_right_positive`；旧机械约定不兼容。
 
 不支持 roll，`manual` 中出现 roll 字段（即使为 0）和 `reset_axis` 指定 roll 均拒绝。客户端必须验证协议与角度约定，不能把本组件当作三轴组件发送角速度。
 
@@ -72,7 +72,7 @@
 典型响应如下；`message` 为空表示没有补充信息，失败时包含可直接显示的中文原因：
 
 ```json
-{"type":"hello","proto":"gimbal-udp","version":7,"angle_convention":"motion_head_joint_right_positive","plugin_compatible":true,"aircraft_id":1,"video_rtsp_path":"/two_axis_pod_1","capabilities":["vision_mode","server_video_overlay","auto_lock","frame_exact_track"]}
+{"type":"hello","proto":"gimbal-udp","version":8,"angle_convention":"motion_head_joint_right_positive","plugin_compatible":true,"aircraft_id":1,"video_rtsp_path":"/two_axis_pod_1","capabilities":["vision_mode","server_video_overlay","auto_lock","frame_exact_track"]}
 {"type":"pong","seq":10,"t":123.456}
 {"type":"command_result","cmd":"set_vision_mode","seq":11,"ok":true,"message":""}
 {"type":"command_result","cmd":"track","seq":12,"ok":false,"message":"无效选框或视频"}
@@ -147,6 +147,39 @@ close socket
 
 CAD 零位两轴均能改变视线方向。数学上 pitch 接近 ±90° 时光轴与外轴平行，外轴转动只改变画面方向，视觉伺服以阻尼最小二乘处理退化；当前 pitch −80°～+30° 限位不包含该位置。底座水平时，当前可达光轴最低约高于水平面 5°，这与机械 yaw/pitch 的数值范围不同。视频断流时停止追踪速度，持续丢失后需重新选框。
 
+### 目标惯性视线角速度
+
+`target_los` 使用目标模型原点（当前真值跟踪使用的目标参考点）相对无人机**零关节固定名义重心**的视线，不使用镜头光心、关节转速、控制指令或机体 Euler 角速度替代。`frame=NED`，N 北、E 东、D 地；Gazebo 世界位置结合世界球坐标 heading 旋转到 ENU 后转换为 `(N,E,D)=(Y,X,-Z)`。未配置球坐标时，世界轴按标准 ENU 处理。
+
+令 `r=(N,E,D)=p_target-p_cg`，`v=dr/dt`，`h=hypot(N,E)`，方位角 `psi=atan2(E,N)`，仰角 `theta=atan2(-D,h)`：
+
+```text
+yaw_rate   = (N*vE - E*vN) / h²
+pitch_rate = (D*(N*vN + E*vE)/h - h*vD) / (h² + D²)
+```
+
+上式为 rad/s，遥测转换为 °/s。方位角向东/绕下轴向右增加，仰角向上增加；这是角度导数，不是三维视线角速度向量的两个分量。计算使用同一 PostUpdate 物理状态的双方位置和仿真时间差分，不差分包裹到 ±180° 的角度。50 Hz 配置是单调真实时间的发送目标，不是物理角速度的时间分母。
+
+SDF `los_observer_cg_model` 为三项有限米制模型坐标，装配生成器从零关节质量/惯性数据派生，与 PX4 名义重心参考一致。世界观察点为 `p_model + R_world_model * cg_model`，关节转动不重新定义该固定偏移。缺失或非法配置只让 LOS 无效，不禁用既有控制；独立吊舱不是无人机，不自动把吊舱重心或光心当作无人机名义重心。
+
+`sim_truth` 使用当前绑定的目标实体。`csrt` 需配置 `los_target_name`，并在选框初始化时用同帧真值投影验证该模型原点的投影位于选框内；未匹配时 CSRT 仍可跟踪，但 LOS 无效，不猜测实体，也不因同名实体重建而自动换绑。采样独立于图像更新频率；非 TRACK 时 LOS 无效。
+
+对象包含 `omega_valid`、`omega_reason`、`omega_ned_dps`（按N/E/D排列的三维向量），以及 `valid`、`frame`、`observer_reference=aircraft_nominal_cg`、`target_name`、`reason`、`sim_stamp`、`yaw_rate_dps`、`pitch_rate_dps`、`relative_position_ned_m`、`relative_velocity_ned_mps`。`sim_stamp` 为 LOS 采样仿真时刻；现有 PreUpdate 遥测携带最近 PostUpdate 结果，与关节采样可相差一个物理步，LOS 双方位置始终来自同一状态。
+
+内部真实 LOS 不受机械 ±20°/s 限制；限幅只在艾晟输出边界执行。未绑定、首样本、目标删除、时间回退/暂停/缺采样、非有限数据、位置跳变、零距离或近竖直视线等情况使 `valid=false`，两个内部速率为 `null`，不沿用旧有效值。竖直附近的方位角数学上不可定义；界面跟踪状态不改变此有效性。
+
+三维向量直接由原始相对位置和相对速度计算：
+
+```text
+omega_N = (E*vD - D*vE) / |r|²
+omega_E = (D*vN - N*vD) / |r|²
+omega_D = (N*vE - E*vN) / |r|²
+```
+
+转换为°/s后写入`omega_ned_dps=[N,E,D]`，不使用限幅后的方位/仰角导数重建。该向量垂直于视线，是不含绕视线自转的角速度；N/E/D分量不是机械roll/pitch/yaw。向量不受±20°/s限制。
+
+`omega_valid/omega_reason`独立判定三维向量，向量无效时`omega_ned_dps=null`；首样本、未绑定、时间异常等保护同时影响两类结果，但竖直视线可以保持向量有效，而`valid=false`、方位/仰角导数为null。非有限向量仍拒绝。v8将此作为新增字段扩展，升级接收端须同步识别这些字段；机械控制与原有字段定义保持一致。
+
 ### 跟踪脱靶量
 
 像素坐标采用原始相机图像：左上角为原点，X 向右为正，Y 向下为正。`center_px=[cx,cy]` 为后端目标中心的绝对像素坐标：`sim_truth` 使用绑定实体的真实投影中心，`csrt` 使用跟踪框中心；`sim_truth` 的 5 px 扩框和画面边界裁剪不改变该中心。`offset_px=[cx-W/2,cy-H/2]` 为相对画面中心的有符号脱靶量。界面缩放不改变这些数值。
@@ -169,11 +202,11 @@ CAD 零位两轴均能改变视线方向。数学上 pitch 接近 ±90° 时光�
 
 Gazebo 专用话题为 `/two_axis_pod/command`、`/two_axis_pod/telemetry` 和 `/two_axis_pod/command_result`，消息均为 `gz.msgs.StringMsg` 中的 JSON。插件遥测与网关 hello 顶层 `telemetry_hz` 表示配置目标，`telemetry_clock:"steady"` 表示以单调真实时间计时；网关须确认插件频率及时基一致才进行周期转发。`ts_mono` 仍是插件采样的仿真时间，实际 Hz 须用接收或发送端单调时钟计算。插件执行结果携带 `cmd`、`ok`、`message` 与网关生成的 `request_id`。
 
-组合模型可以在插件 SDF 中配置上述话题、`image_topic`、`tracking_backend` 及重复的 `sim_truth_target_name`。网关的 `--topic-prefix` 与 `--image-topic` 必须对应装配配置；未指定时沿用独立组件的话题。`sim_truth` 使用与图像帧同步的目标和相机世界坐标；`csrt` 的平移、目标运动与模型误差由图像反馈修正。动态补偿不提供第三轴画面水平稳定。
+组合模型可以在插件 SDF 中配置上述话题、`image_topic`、`tracking_backend` 及重复的 `sim_truth_target_name`，并按载机与目标配置 `los_observer_cg_model`、`los_target_name`。网关的 `--topic-prefix` 与 `--image-topic` 必须对应装配配置；未指定时沿用独立组件的话题。`sim_truth` 使用与图像帧同步的目标和相机世界坐标；`csrt` 的平移、目标运动与模型误差由图像反馈修正。动态补偿不提供第三轴画面水平稳定。
 
 ## 地面站艾晟报文
 
-Linux/Windows 地面站右上角提供独立的 IP、端口输入框和“发送艾晟报文/停止发送”按钮。此功能在地面站本机执行。每份来自已配置网关、已确认飞机身份的协议 7 `telemetry` 转换为一个 UTF-8 JSON 数据报；仅包含下表十一个字段，不包含飞机 ID、帧表、时间戳、type 或外层封装。`hello`、`pong`、回执和指令不发送。
+Linux/Windows 地面站右上角提供独立的 IP、端口输入框和“发送艾晟报文/停止发送”按钮。此功能在地面站本机执行。每份来自已配置网关、已确认飞机身份的协议 8 `telemetry` 转换为一个 UTF-8 JSON 数据报；仅包含下表十六个字段，不包含飞机 ID、帧表、时间戳、type 或外层封装。`hello`、`pong`、回执和指令不发送。
 
 | 字段 | 类型 | 发送数值与来源 |
 |---|---|---|
@@ -184,17 +217,22 @@ Linux/Windows 地面站右上角提供独立的 IP、端口输入框和“发送
 | `yaw_misalignment` | float32 数值 | 有效时 `target.miss.offset_deg[0]`，向右为正；无效为 0 |
 | `tracking_confidence` | float32 数值 | 有效时 25.5，无效时 0.0，仅表示有效性，不是真实概率或连续质量分 |
 | `target_confidence` | float32 数值 | 固定 0.8，不缩放，不随跟踪有效/丢失状态变化，不取自模型评分 |
-| `pitch_los_rate` | float32 数值 | `clamp(attitude_deg.pitch.vel, −20, +20)`，单位 °/s |
-| `yaw_los_rate` | float32 数值 | `clamp(attitude_deg.yaw.vel, −20, +20)`，单位 °/s |
-| `tracking_gateW` | float32 数值 | 有效跟踪时为最终 `target.box_px[2]`，单位 px；无效时为 0.0 |
-| `tracking_gateH` | float32 数值 | 有效跟踪时为最终 `target.box_px[3]`，单位 px；无效时为 0.0 |
+| `gyro_pitch_rate` | float32 数值 | `clamp(attitude_deg.pitch.vel, −20, +20)`，机械内轴相对转速，单位 °/s |
+| `gyro_yaw_rate` | float32 数值 | `clamp(attitude_deg.yaw.vel, −20, +20)`，机械外轴相对转速，左负右正，单位 °/s |
+| `pitch_los_rate` | float32 数值 | 有效时 `clamp(target_los.pitch_rate_dps, −20, +20)`，目标惯性视线仰角变化率，向上正；无效时 0.0 |
+| `yaw_los_rate` | float32 数值 | 有效时 `clamp(target_los.yaw_rate_dps, −20, +20)`，目标惯性视线方位角变化率，向右正；无效时 0.0 |
+| `los_omega_n` | float32 数值 | `omega_valid=true`时取`omega_ned_dps[0]`，固定NED的北轴角速度，°/s、不限幅；无效时0.0 |
+| `los_omega_e` | float32 数值 | 东轴角速度，取`omega_ned_dps[1]`，°/s、不限幅；无效时0.0 |
+| `los_omega_d` | float32 数值 | 地轴角速度，取`omega_ned_dps[2]`，°/s、不限幅；无效时0.0 |
+| `tracking_gate_w` | float32 数值 | 有效跟踪时为最终 `target.box_px[2]`，单位 px；无效时为 0.0 |
+| `tracking_gate_h` | float32 数值 | 有效跟踪时为最终 `target.box_px[3]`，单位 px；无效时为 0.0 |
 
-JSON 中发送数值而非二进制结构体，不进行 int16 量化；角度、脱靶角直接使用度，角速度直接使用度/秒，不进行倍率换算。丢失或未跟踪时仍发送当前机械角及机械角速度，脱靶角、`tracking_confidence`、`tracking_gateW` 和 `tracking_gateH` 置零，`target_confidence` 始终为 0.8。有效跟踪时门宽高取最终显式框经画面边界裁剪后的实际像素尺寸。`*_los_rate` 在有限值和 float32 范围校验后对称限幅到 −20～+20°/s，原始测量遥测不裁剪。两字段按接收约定承载现有机械轴角速度（度/秒），不是线速度，也不是独立估计的世界系目标视线角速度。非有限值、缺少有效机械角、有效跟踪却缺少有效像素框或角脱靶量、数值超出 float32 范围或协议不符时丢弃该包并显示转换错误，不发送 NaN/Infinity 或旧测量替代值。
+JSON 中发送数值而非二进制结构体，不进行 int16 量化；角度、脱靶角直接使用度，角速度直接使用度/秒，不进行倍率换算。丢失或未跟踪时仍发送当前机械角及机械角速度，脱靶角、`tracking_confidence`、`tracking_gate_w` 和 `tracking_gate_h` 置零，`target_confidence` 始终为 0.8。有效跟踪时门宽高取最终显式框经画面边界裁剪后的实际像素尺寸。`gyro_*_rate` 承载原机械关节相对转速，按接收端字段命名映射，不是真实陀螺仪的绝对角速度测量。`*_los_rate` 承载目标相对无人机固定名义重心的 NED 方位角/仰角变化率，不是镜头光轴角速度。原有四个速率字段均在有限值和float32范围校验后对称限幅到−20～+20°/s；三维`los_omega_n/e/d`仅校验有限值及float32范围，不裁剪，向量无效时发送0/0/0；内部原始测量不裁剪。明确 `target_los.valid=false` 且两个内部速率为 `null` 时，外部两个 LOS 字段发送 0.0，机械 gyro 及其它字段继续发送；0/0 也可能是真实零变化，外部报文不另加有效标记，内部遥测保留独立有效标记。`track_status` 仍表示原跟踪有效性，不代替 LOS 数学有效性。缺少整个 `target_los`、坐标参考不符或对象畸形属于转换错误，不默认伪造为无效零值。非有限值、缺少有效机械角、有效跟踪却缺少有效像素框或角脱靶量、数值超出 float32 范围或协议不符时丢弃该包并显示转换错误，不发送 NaN/Infinity 或旧测量替代值。
 
-例如 pitch −56.37°、yaw 12.34°、垂直/水平脱靶 +0.5°/−0.25°、俯仰/偏航角速度 −1.23°/s、+2.34°/s：
+例如 pitch −56.37°、yaw 12.34°、垂直/水平脱靶 +0.5°/−0.25°、机械俯仰/偏航角速度 −1.23°/s、+2.34°/s，目标仰角/方位角变化率+0.6°/s、−0.4°/s，目标位于正北水平面时三维向量为(0,+0.6,−0.4)°/s：
 
 ```json
-{"track_status":1,"pitch_angle":-56.37,"yaw_angle":12.34,"pitch_misalignment":0.5,"yaw_misalignment":-0.25,"tracking_confidence":25.5,"target_confidence":0.8,"pitch_los_rate":-1.23,"yaw_los_rate":2.34,"tracking_gateW":50.0,"tracking_gateH":40.0}
+{"track_status":1,"pitch_angle":-56.37,"yaw_angle":12.34,"pitch_misalignment":0.5,"yaw_misalignment":-0.25,"tracking_confidence":25.5,"target_confidence":0.8,"gyro_pitch_rate":-1.23,"gyro_yaw_rate":2.34,"pitch_los_rate":0.6,"yaw_los_rate":-0.4,"los_omega_n":0.0,"los_omega_e":0.6,"los_omega_d":-0.4,"tracking_gate_w":50.0,"tracking_gate_h":40.0}
 ```
 
 关闭视觉、仅检测、自动搜索/交接、未选框、初始化、临时/最终丢失和视觉错误均发送 `track_status=0`、`tracking_confidence=0.0`。即使插件暂时残留 TRACK 标志，也不能绕过视觉模式判定。网关在 off/detect 下发现插件仍处于 TRACK 时，每 0.25 秒最多发布一次停止，直到插件遥测实际退出 TRACK；不伪造插件停车状态，不干扰 MANUAL/HOME。显式再次关闭视觉仍会发布停止指令。

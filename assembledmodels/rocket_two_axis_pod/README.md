@@ -1,6 +1,6 @@
 # 火箭穿越机与顶部两轴吊舱
 
-总长590 mm的火箭机与顶部两轴吊舱组合，吊舱替换机头顶部91 mm，各同名轴对齐。当前动态组合采用协议 v7、yaw 左负右正及每轴 ±20°/s 限速；真值与 CA/EKF 均参考固定零关节名义重心。当前整机飞行、悬停稳定性和机载CSRT跟踪已通过，飞行归档只证明其对应运行快照与源指纹。组合静态外形仍待人工确认；入库 `model.sdf`为静态造型评审模型。
+总长590 mm的火箭机与顶部两轴吊舱组合，吊舱替换机头顶部91 mm，各同名轴对齐。当前动态组合采用协议 v8、yaw 左负右正及每轴 ±20°/s 限速；真值与 CA/EKF 均参考固定零关节名义重心。离线装配检查覆盖固定名义重心继承；现有整机飞行、悬停稳定性及机载CSRT归档仅证明各自运行快照与源指纹，未验收 v8 目标惯性 LOS 遥测。组合静态外形仍待人工确认；入库 `model.sdf`为静态造型评审模型。
 
 ## 外形与装配
 
@@ -18,7 +18,7 @@
 
 动态装配显式设置 `mount_dynamic=true`。基础吊舱在 `mount_link` 启用Gazebo速度检查，优先将实际世界角速度转换到当前安装局部系供TRACK前馈；仅速度数据不可用时使用35 Hz低通和跳变拒绝的姿态差分。默认100 Hz控制在4 ms物理步下保留周期余相，按8/12 ms交替运行，不因周期取整降为约83.3 Hz；每个物理状态至多运行一次。IDLE保持停车，不承担主动稳像。
 
-零位沿用 CAD 原始 0°，镜头朝机头 +Z，运动链为 `Rx(yaw) Ry(-pitch)`，方向为 `(-sin(pitch),-sin(yaw)cos(pitch),cos(yaw)cos(pitch))`。pitch=0° 时 yaw 改变视线方向，球心不会绕底环中心公转。安装水平时光轴中心最低约高于水平面 5°；pitch=−80°、yaw=±60° 时水平视线角仅约±8.7°。机体倾转后安装轴随机体变化；模型、插件、网关和地面站均使用协议 v7、`motion_head_joint_right_positive`。静态生成器读取基础 SDF 的 link home pose、关节轴和枢轴，不对新 CAD 另套偏航公式。相机球心局部为 `(15,0,56) mm`，组合坐标为 `(15,0,345) mm`；视频相机沿球头 +Z 偏移 23.7 mm，零位图像右向 −Y、图像上向 −X，极端姿态下如实显示罩壳遮挡。
+零位沿用 CAD 原始 0°，镜头朝机头 +Z，运动链为 `Rx(yaw) Ry(-pitch)`，方向为 `(-sin(pitch),-sin(yaw)cos(pitch),cos(yaw)cos(pitch))`。pitch=0° 时 yaw 改变视线方向，球心不会绕底环中心公转。安装水平时光轴中心最低约高于水平面 5°；pitch=−80°、yaw=±60° 时水平视线角仅约±8.7°。机体倾转后安装轴随机体变化；模型、插件、网关和地面站均使用协议 v8、`motion_head_joint_right_positive`。静态生成器读取基础 SDF 的 link home pose、关节轴和枢轴，不对新 CAD 另套偏航公式。相机球心局部为 `(15,0,56) mm`，组合坐标为 `(15,0,345) mm`；视频相机沿球头 +Z 偏移 23.7 mm，零位图像右向 −Y、图像上向 −X，极端姿态下如实显示罩壳遮挡。
 
 ## 造型预览
 
@@ -83,7 +83,7 @@ python3 assembledmodels/rocket_two_axis_pod/tools/check_dynamic_model.py
 
 装配参数 `dynamic.body_mass_kg=null` 表示完整继承原生机身质量；该参数和 `--body-mass-kg` 只能省略或与原生值相同，不支持独立覆盖质量。`dynamic.airframe_id`、`dynamic.topic_prefix` 配置运行接口。运行副本中的 `parameters.json` 保存实际各link质量、惯性与姿态、插件、PX4参数、测试设置和世界关键配置。`manifest.json`还保存安装位置、质量方法、悬停计算和源资产SHA-256。
 
-`manifest.px4_reference`与运行快照的 `assembly.px4_reference` 保存同一参考点说明：`reference_pose=zero_joint_positions`、`base_cg_flu_m`、`assembly_nominal_cg_flu_m`、`offset_translation_frd_m`，以及18个原位置参数 `source_parameters` 和派生结果 `parameters`。这些字段用于核对生成机体文件的坐标来源。生成器仅读取基础组件、复制当前原生网格；地理场景入口见[场景说明](../../scenarios/geographic_rocket_two_axis_pod/README.md)。
+`manifest.px4_reference`与运行快照的 `assembly.px4_reference` 保存同一参考点说明：`reference_pose=zero_joint_positions`、`base_cg_flu_m`、`assembly_nominal_cg_flu_m`、`offset_translation_frd_m`，以及18个原位置参数 `source_parameters` 和派生结果 `parameters`。这些字段用于核对生成机体文件的坐标来源。生成器另将同一 `assembly_nominal_cg_flu_m` 以完整精度写入吊舱插件的 `los_observer_cg_model`，并在 `manifest.los_observer_reference` 与运行快照 `assembly.los_observer_reference` 保存 `kind=nominal_cg`、`reference_pose=zero_joint_positions` 及 `body_offset_flu_m`。该点固定于模型坐标系，不随吊舱关节姿态重新求瞬时重心。生成器仅读取基础组件、复制当前原生网格；地理场景入口见[场景说明](../../scenarios/geographic_rocket_two_axis_pod/README.md)。
 
 ## 完整飞行自验证
 
@@ -107,7 +107,7 @@ PX4_INSTANCE=1 \
 
 此入口验证组件世界中的飞行。该世界包含惯性导航等物理传感器系统，没有加载图像渲染的 `Sensors` 系统，因此 `camera.quat_world` 只验收实际光学姿态，不代表视频帧、地面站或目标跟踪通过。完整地理场景的飞行与视频跟踪需要独立证据。
 
-配套地面站可发送仅含11个转换字段的艾晟UDP JSON，框架角直接采用上述机械角，朝前俯仰值为负，并包含最终像素跟踪框宽高 `tracking_gateW/H`；网关独立状态输出仍为完整原始遥测。发送、倍率及字段定义见[地面站说明](../../models/gimbals/two_axis_pod/ground_station/README.md)。
+配套地面站可发送16字段艾晟UDP JSON：`gyro_yaw_rate/gyro_pitch_rate` 承载机械关节相对转速，`yaw_los_rate/pitch_los_rate` 承载目标相对无人机固定名义重心的 NED 方位角／仰角变化率，右正、上正，单位 °/s，报文限幅 ±20°/s。LOS 有效性及原因保留在原始遥测；无有效目标、缺少名义重心或视线退化时，外发 LOS 两项为0，机械转速继续发送。框架角保持机械角定义，并包含最终跟踪框像素宽高 `tracking_gate_w/H`。`sim_truth` 使用当前绑定目标；CSRT 场景需要显式 `los_target_name` 关联真实实体，目标真值不用于持续图像控制。字段定义见[地面站说明](../../models/gimbals/two_axis_pod/ground_station/README.md)。
 
 ## 多机接入
 
@@ -119,10 +119,12 @@ PX4_INSTANCE=1 \
 
 当前静态装配为24个visual、无碰撞体，包络z=-0.210～+0.380 m，安装面z=0.289 m、肩部起点z=0.277 m。组合离线单测和动态检查覆盖原生继承、名义重心、CA/EKF平移及真值测量声明，并同步机械姿态 `(yaw,pitch)=(0,0)/(0,-80)/(45,-45)/(0,30)/(-60,-80)/(60,-80)` 的镜头方向与两轴运动学。实际通过数量以本次运行结果为准。
 
-组合完整飞行归档：悬停30 s最大漂移0.050719 m，200 km/h巡航连续30.000 s、300 km/h冲刺连续10.016 s，落地停机确认；悬停角速度、5～35 Hz频谱、控制分配、电机触底和实际镜头LOS全部通过。归档包含固定名义重心声明、运行快照、49项当前源指纹及原始采样，已由正式报告工具核验，见[验证结果](docs/validation.md)。当前地理场景补充运行另通过一次往返、70仿真秒机载CSRT跟踪及降落，完整RTSP身份/帧号绑定仍按[地理场景说明](../../scenarios/geographic_rocket_two_axis_pod/docs/validation.md)单独验收。组合静态外形供人工评审；最高稳定速度对照仍需单独验证。
+组合完整飞行归档：悬停30 s最大漂移0.050719 m，200 km/h巡航连续30.000 s、300 km/h冲刺连续10.016 s，落地停机确认；悬停角速度、5～35 Hz频谱、控制分配、电机触底和实际镜头LOS全部通过。归档包含固定名义重心声明、运行快照、49项归档源指纹及原始采样，已由正式报告工具核验，见[验证结果](docs/validation.md)。当前地理场景补充运行另通过一次往返、70仿真秒机载CSRT跟踪及降落，完整RTSP身份/帧号绑定仍按[地理场景说明](../../scenarios/geographic_rocket_two_axis_pod/docs/validation.md)单独验收。组合静态外形供人工评审；最高稳定速度对照仍需单独验证。
 
 - [整体三视图与斜视图](docs/model_views.png)、[头部尺寸与轴向](docs/head_detail.png)、[四组机械姿态对比](docs/mechanical_poses.png)：由实际 SDF 视觉几何生成的离线评审图，不是 Gazebo 截图。
 
 以上图像是静态评审资料，不替代人工确认或动态证据。所附组件完整飞行的摘要、曲线和原始记录见[验证结果](docs/validation.md)；[地理场景验收](../../scenarios/geographic_rocket_two_axis_pod/docs/validation.md)属于独立范围，不能据组件飞行归档推断视频/跟踪已经通过。
 
-动态装配从基础吊舱继承两关节 ±20°/s 物理速度上限和控制器限速，无上层覆盖；该继承检查、整机飞行和70仿真秒快速机载CSRT目标跟踪均已通过。
+动态装配从基础吊舱继承两关节 ±20°/s 物理速度上限和控制器限速，无上层覆盖。机械限速与目标惯性 LOS 报文限幅分别生效；已有整机飞行及70仿真秒CSRT结果按其归档配置解释，不构成 v8 目标惯性 LOS 的整机验收。
+
+三维目标视线角速度通过`los_omega_n/e/d`输出，单位°/s，对应固定NED三轴，按`(r×v)/|r|²`计算，不含绕视线自转且不施加±20°/s限幅。原有方位角/仰角变化率与机械gyro字段保留现有限幅。内部`omega_valid/omega_reason`独立于两角度导数的`valid/reason`：竖直视线时方位角退化，向量仍可有效；未绑定等无效情况发送向量0/0/0。界面沿用track状态。

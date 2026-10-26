@@ -8,7 +8,7 @@ find_package(gz-msgs10 REQUIRED)
 find_package(gz-plugin2 REQUIRED)
 find_package(OpenCV REQUIRED COMPONENTS core imgproc video tracking)
 set(SHARED_CONTROLLER ${CMAKE_CURRENT_SOURCE_DIR}/../../three_axis_pod/controller)
-set(CONTROL_SOURCES src/control.cc src/kinematics.cc src/truth_tracking.cc
+set(CONTROL_SOURCES src/control.cc src/kinematics.cc src/truth_tracking.cc src/inertial_los.cc
   ${SHARED_CONTROLLER}/src/kinematics.cc ${SHARED_CONTROLLER}/src/tracker.cc
   ${SHARED_CONTROLLER}/src/mini_json.cc)
 add_library(gz-two-axis-pod-controller SHARED src/gimbal_controller.cc ${CONTROL_SOURCES})
@@ -29,4 +29,8 @@ if(BUILD_TESTING)
  add_executable(two-axis-control-schedule-test tests/control_schedule_test.cc)
  target_include_directories(two-axis-control-schedule-test PRIVATE include)
  add_test(NAME two-axis-control-schedule COMMAND two-axis-control-schedule-test)
+ add_executable(two-axis-target-los-test tests/inertial_los_test.cc src/inertial_los.cc
+   ${SHARED_CONTROLLER}/src/kinematics.cc)
+ target_include_directories(two-axis-target-los-test PRIVATE include ${SHARED_CONTROLLER}/include)
+ add_test(NAME two-axis-target-los COMMAND two-axis-target-los-test)
 endif()

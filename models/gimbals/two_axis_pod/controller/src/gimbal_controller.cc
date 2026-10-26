@@ -38,6 +38,7 @@
 #include "two_axis/control_schedule.hh"
 #include "two_axis/kinematics.hh"
 #include "two_axis/telemetry.hh"
+#include "two_axis/inertial_los.hh"
 #include "two_axis/truth_tracking.hh"
 #include "gimbal_controller/mini_json.hh"
 
@@ -117,6 +118,8 @@ private:
   void PublishTelemetry(double _now, const JointSample &_js,
                         const std::array<double, 2> &_accel, int _width,
                         int _height, const Frame &_frame);
+  void UpdateTargetLos(double _now,
+                       const gz::sim::EntityComponentManager &_ecm);
 
   // SDF 配置
   ControlConfig cfg_;
@@ -135,6 +138,13 @@ private:
   double telemetryHz_{0.0};
   TrackingBackend trackingBackend_{TrackingBackend::SIM_TRUTH};
   std::vector<std::string> truthTargetNames_;
+  std::optional<Vec3> losObserverCgModel_;
+  std::string losTargetName_;
+  gz::sim::Entity losBoundEntity_{gz::sim::kNullEntity};
+  std::string losBindingReason_{"target_unbound"};
+  TargetLosEstimator targetLosEstimator_;
+  TargetLosSample targetLos_;
+  std::string targetLosName_;
   double cameraHfov_{0}, cameraNear_{0}, cameraFar_{0};
 
   gz::sim::Entity modelEntity_{gz::sim::kNullEntity};
@@ -210,6 +220,21 @@ void GimbalController::Configure(
   mountLinkName_ = getStr("mount_link", mountLinkName_);
   linkName_ = getStr("camera_link", linkName_);
   sensorName_ = getStr("camera_sensor", sensorName_);
+  losTargetName_ = getStr("los_target_name", "");
+  if (_sdf->HasElement("los_observer_cg_model"))
+  {
+    const std::string text = _sdf->Get<std::string>("los_observer_cg_model");
+    std::istringstream input(text);
+    Vec3 offset;
+    if ((input >> offset.x >> offset.y >> offset.z) &&
+        (input >> std::ws).eof() && std::isfinite(offset.x) &&
+        std::isfinite(offset.y) && std::isfinite(offset.z))
+      losObserverCgModel_ = offset;
+    else
+      gzerr << "[two_axis] los_observer_cg_model必须为模型坐标中三个有限数值，目标LOS无效\n";
+  }
+  if (!losObserverCgModel_)
+    targetLos_ = targetLosEstimator_.Reset("observer_cg_unconfigured");
   commandTopic_ = getStr("command_topic", commandTopic_);
   telemetryTopic_ = getStr("telemetry_topic", telemetryTopic_);
   resultTopic_ = getStr("command_result_topic", resultTopic_);
@@ -441,17 +466,29 @@ void GimbalController::PostUpdate(
   const gz::sim::UpdateInfo &_info,
   const gz::sim::EntityComponentManager &_ecm)
 {
-  if (!configured_ || trackingBackend_ != TrackingBackend::SIM_TRUTH ||
-      _info.paused || sensorEntity_ == gz::sim::kNullEntity ||
-      worldEntity_ == gz::sim::kNullEntity)
+  if (!configured_)
+    return;
+  if (_info.paused)
+  {
+    std::lock_guard<std::mutex> lock(ctrlMutex_);
+    targetLos_ = targetLosEstimator_.Reset("time_paused");
+    return;
+  }
+  // 独立于图像后端，同一物理状态同时采样目标及载机固定名义重心。
+  UpdateTargetLos(std::chrono::duration<double>(_info.simTime).count(), _ecm);
+  if (sensorEntity_ == gz::sim::kNullEntity || worldEntity_ == gz::sim::kNullEntity)
     return;
 
   TruthSnapshot snapshot;
   snapshot.simStamp = std::chrono::duration<double>(_info.simTime).count();
   snapshot.cameraPose = gz::sim::worldPose(sensorEntity_, _ecm);
   const gz::sim::World world(worldEntity_);
-  for (const auto &name : truthTargetNames_)
+  const std::vector<std::string> names = trackingBackend_ == TrackingBackend::SIM_TRUTH ?
+    truthTargetNames_ : std::vector<std::string>{losTargetName_};
+  for (const auto &name : names)
   {
+    if (name.empty())
+      continue;
     const auto entity = world.ModelByName(_ecm, name);
     if (entity == gz::sim::kNullEntity || entity == modelEntity_ ||
         !_ecm.HasEntity(entity))
@@ -461,11 +498,87 @@ void GimbalController::PostUpdate(
   }
 
   std::lock_guard<std::mutex> lock(truthMutex_);
+  if (!truthHistory_.empty() && snapshot.simStamp <= truthHistory_.back().simStamp)
+    truthHistory_.clear();
   truthHistory_.push_back(std::move(snapshot));
   while (!truthHistory_.empty() &&
          truthHistory_.front().simStamp <
            truthHistory_.back().simStamp - 0.75)
     truthHistory_.pop_front();
+}
+
+void GimbalController::UpdateTargetLos(
+  double _now, const gz::sim::EntityComponentManager &_ecm)
+{
+  std::lock_guard<std::mutex> lock(ctrlMutex_);
+  auto invalidate = [&](const std::string &reason)
+  {
+    targetLos_ = targetLosEstimator_.Reset(reason);
+  };
+  targetLosName_ = trackingBackend_ == TrackingBackend::SIM_TRUTH ?
+    boundTruthName_ : losTargetName_;
+  if (!losObserverCgModel_)
+  {
+    invalidate("observer_cg_unconfigured");
+    return;
+  }
+  if (control_.mode() != Mode::TRACK)
+  {
+    invalidate("target_unbound");
+    return;
+  }
+  if (worldEntity_ == gz::sim::kNullEntity || !_ecm.HasEntity(modelEntity_))
+  {
+    invalidate("observer_missing");
+    return;
+  }
+  const gz::sim::World world(worldEntity_);
+  const auto target = trackingBackend_ == TrackingBackend::SIM_TRUTH ?
+    boundTruthEntity_ : losBoundEntity_;
+  if (targetLosName_.empty())
+  {
+    invalidate(trackingBackend_ == TrackingBackend::SIM_TRUTH ?
+      "target_unbound" : "target_unconfigured");
+    return;
+  }
+  if (trackingBackend_ == TrackingBackend::CSRT && target == gz::sim::kNullEntity)
+  {
+    invalidate(losBindingReason_);
+    return;
+  }
+  if (target == gz::sim::kNullEntity || !_ecm.HasEntity(target) ||
+      target == modelEntity_)
+  {
+    invalidate("target_missing");
+    return;
+  }
+  const auto modelPose = gz::sim::worldPose(modelEntity_, _ecm);
+  const auto &q = modelPose.Rot();
+  const double quaternionNorm = q.W() * q.W() + q.X() * q.X() +
+    q.Y() * q.Y() + q.Z() * q.Z();
+  if (!modelPose.IsFinite() || !std::isfinite(quaternionNorm) ||
+      std::abs(quaternionNorm - 1.0) > 1e-3)
+  {
+    invalidate("nonfinite_sample");
+    return;
+  }
+  const Mat3 rotation = MatMul(Rz(q.Yaw()), MatMul(Ry(q.Pitch()), Rx(q.Roll())));
+  const auto &p = modelPose.Pos();
+  const auto cg = NominalCgWorld({p.X(), p.Y(), p.Z()}, rotation,
+                                 *losObserverCgModel_);
+  const auto targetPosition = gz::sim::worldPose(target, _ecm).Pos();
+  const auto spherical = world.SphericalCoordinates(_ecm);
+  auto ned = [&](const gz::math::Vector3d &position)
+  {
+    // LOCAL2包含世界heading；位置向量仅旋转，不引入地球半径平移。
+    const auto enu = spherical ? spherical->VelocityTransform(position,
+      gz::math::SphericalCoordinates::LOCAL2,
+      gz::math::SphericalCoordinates::GLOBAL) : position;
+    return Vec3{enu.Y(), enu.X(), -enu.Z()};
+  };
+  targetLos_ = targetLosEstimator_.Update(_now,
+    std::to_string(target) + ":" + targetLosName_,
+    ned({cg.x, cg.y, cg.z}), ned(targetPosition));
 }
 
 void GimbalController::PublishResult(const std::string &_cmd, bool _ok,
@@ -619,6 +732,8 @@ void GimbalController::OnCommand(const gz::msgs::StringMsg &_msg)
         boundTruthName_ = target.name;
         truthInitialBox_ = selection;
         truthInitialDepth_ = target.depth;
+        targetLos_ = targetLosEstimator_.Reset("target_changed");
+        targetLosName_ = boundTruthName_;
       }
     }
     else
@@ -630,6 +745,27 @@ void GimbalController::OnCommand(const gz::msgs::StringMsg &_msg)
       {
         boundTruthEntity_ = gz::sim::kNullEntity;
         boundTruthName_.clear();
+        losBoundEntity_ = gz::sim::kNullEntity;
+        losBindingReason_ = losTargetName_.empty() ? "target_unconfigured" :
+          !selectedFrame->truthSynchronized ? "target_unsynchronized" :
+          "target_selection_mismatch";
+        if (!losTargetName_.empty() && selectedFrame->truthSynchronized)
+        {
+          const Box selection{box[0] * selectedFrame->bgr.cols,
+                              box[1] * selectedFrame->bgr.rows,
+                              box[2] * selectedFrame->bgr.cols,
+                              box[3] * selectedFrame->bgr.rows};
+          const auto selected = SelectTruthTarget(selectedFrame->truthTargets,
+            selection, selectedFrame->bgr.cols, selectedFrame->bgr.rows);
+          if (selected && selectedFrame->truthTargets[*selected].name == losTargetName_)
+          {
+            losBoundEntity_ = static_cast<gz::sim::Entity>(
+              selectedFrame->truthTargets[*selected].entity);
+            losBindingReason_ = "ok";
+          }
+        }
+        targetLos_ = targetLosEstimator_.Reset("target_changed");
+        targetLosName_ = losTargetName_;
       }
     }
     const auto &[ok, message] = result;
@@ -738,6 +874,8 @@ void GimbalController::PreUpdate(const gz::sim::UpdateInfo &_info,
   {
     this->controlSchedule_.Update(now, true);
     this->telemetrySchedule_.Update(std::chrono::steady_clock::now(), now, true);
+    std::lock_guard<std::mutex> lock(this->ctrlMutex_);
+    this->targetLos_ = this->targetLosEstimator_.Reset("time_paused");
     return;
   }
   if (this->startTime_ < 0.0)
@@ -835,7 +973,7 @@ void GimbalController::PreUpdate(const gz::sim::UpdateInfo &_info,
 
     bool truthSynchronized = false;
     std::vector<TruthProjection> truthTargets;
-    if (!bgr.empty() && trackingBackend_ == TrackingBackend::SIM_TRUTH)
+    if (!bgr.empty())
     {
       std::optional<TruthSnapshot> snapshot;
       {
@@ -922,6 +1060,8 @@ void GimbalController::PreUpdate(const gz::sim::UpdateInfo &_info,
       boundTruthEntity_ = gz::sim::kNullEntity;
       boundTruthName_.clear();
       truthInitialDepth_ = 0;
+      losBoundEntity_ = gz::sim::kNullEntity;
+      losBindingReason_ = "target_unbound";
     }
   }
 
@@ -980,6 +1120,14 @@ void GimbalController::PublishTelemetry(double _now, const JointSample &_js,
   using json::Num;
   std::lock_guard<std::mutex> lock(this->ctrlMutex_);
   GimbalControl &c = this->control_;
+  if (!losObserverCgModel_)
+    targetLos_ = targetLosEstimator_.Reset("observer_cg_unconfigured");
+  else if (c.mode() != Mode::TRACK)
+    targetLos_ = targetLosEstimator_.Reset("target_unbound");
+  else if (targetLos_.sim_stamp && *targetLos_.sim_stamp > _now)
+    targetLos_ = targetLosEstimator_.Reset("time_reset");
+  else if (targetLos_.sim_stamp && _now - *targetLos_.sim_stamp > 0.5)
+    targetLos_ = targetLosEstimator_.Reset("time_gap");
 
   const Mat3 rCam = OpticalRotation(_js.yaw, _js.pitch, cfg_.sensor_rotation);
   const auto qBody = QuatFromR(rCam), qWorld = QuatFromR(MatMul(mountWorldRotation_, rCam)), qMount = QuatFromR(mountWorldRotation_);
@@ -1070,8 +1218,45 @@ void GimbalController::PublishTelemetry(double _now, const JointSample &_js,
     os << ",\"center_px\":null,\"offset_px\":null,\"offset_deg\":null,\"frame_seq\":null";
   os << "}}";
 
-  os << ",\"protocol_version\":7,\"angle_convention\":\"motion_head_joint_right_positive\",\"singular\":" << (singular ? "true" : "false")
+  os << ",\"protocol_version\":8,\"angle_convention\":\"motion_head_joint_right_positive\",\"singular\":" << (singular ? "true" : "false")
      << ",\"los_mount\":[" << Num(los.x, 6) << "," << Num(los.y, 6) << "," << Num(los.z, 6) << "]";
+  os << ",\"target_los\":{\"valid\":" << (targetLos_.valid ? "true" : "false")
+     << ",\"frame\":\"NED\",\"observer_reference\":\"aircraft_nominal_cg\",\"target_name\":";
+  if (targetLosName_.empty())
+    os << "null";
+  else
+    os << "\"" << json::Escape(targetLosName_) << "\"";
+  auto numberOrNull = [&](const std::optional<double> &value)
+  {
+    if (value && std::isfinite(*value))
+      os << Num(*value, 9);
+    else
+      os << "null";
+  };
+  auto vectorOrNull = [&](const std::optional<Vec3> &value)
+  {
+    if (value && std::isfinite(value->x) && std::isfinite(value->y) &&
+        std::isfinite(value->z))
+      os << "[" << Num(value->x, 9) << "," << Num(value->y, 9)
+         << "," << Num(value->z, 9) << "]";
+    else
+      os << "null";
+  };
+  os << ",\"sim_stamp\":";
+  numberOrNull(targetLos_.sim_stamp);
+  os << ",\"yaw_rate_dps\":";
+  numberOrNull(targetLos_.yaw_rate_dps);
+  os << ",\"pitch_rate_dps\":";
+  numberOrNull(targetLos_.pitch_rate_dps);
+  os << ",\"omega_valid\":" << (targetLos_.omega_valid ? "true" : "false")
+     << ",\"omega_reason\":\"" << json::Escape(targetLos_.omega_reason)
+     << "\",\"omega_ned_dps\":";
+  vectorOrNull(targetLos_.omega_ned_dps);
+  os << ",\"relative_position_ned_m\":";
+  vectorOrNull(targetLos_.relative_position_ned_m);
+  os << ",\"relative_velocity_ned_mps\":";
+  vectorOrNull(targetLos_.relative_velocity_ned_mps);
+  os << ",\"reason\":\"" << json::Escape(targetLos_.reason) << "\"}";
   const double positions[2] = {_js.yaw, _js.pitch}, velocities[2] = {_js.yaw_vel, _js.pitch_vel};
   const char *names[2] = {"yaw", "pitch"};
   for (const char *field :

@@ -11,13 +11,72 @@ import threading
 from packet_rate import PacketRate
 
 
+def target_los_rates(message):
+    """返回有效 NED 惯性视线速率（原始 °/s）；明确无效时返回 None。"""
+    los = message.get("target_los") if isinstance(message, dict) else None
+    if not isinstance(los, dict):
+        raise ValueError("缺少目标惯性视线角速度")
+    if (los.get("frame") != "NED"
+            or los.get("observer_reference") != "aircraft_nominal_cg"):
+        raise ValueError("目标惯性视线坐标系或观测参考点不匹配")
+    if type(los.get("valid")) is not bool or not isinstance(los.get("reason"), str):
+        raise ValueError("目标惯性视线有效标志或原因字段非法")
+    if not los["valid"]:
+        if ("pitch_rate_dps" not in los or "yaw_rate_dps" not in los
+                or los["pitch_rate_dps"] is not None or los["yaw_rate_dps"] is not None):
+            raise ValueError("无效目标惯性视线速率必须明确为 null")
+        return None
+    if not isinstance(los.get("target_name"), str) or not los["target_name"]:
+        raise ValueError("目标惯性视线缺少目标实体名称")
+    values = tuple(los.get(f"{axis}_rate_dps") for axis in ("pitch", "yaw"))
+    try:
+        finite = all(type(value) in (int, float) and math.isfinite(value) for value in values)
+    except OverflowError:
+        finite = False
+    if not finite:
+        raise ValueError("目标惯性视线角速度不是有限数值")
+    return values
+
+
+def target_los_omega(message):
+    """读取独立NED视线角速度向量，°/s；不受方位/仰角奇异或机械限速影响。"""
+    los = message.get("target_los") if isinstance(message, dict) else None
+    if not isinstance(los, dict):
+        raise ValueError("缺少目标惯性视线角速度")
+    if (los.get("frame") != "NED"
+            or los.get("observer_reference") != "aircraft_nominal_cg"):
+        raise ValueError("目标惯性视线坐标系或观测参考点不匹配")
+    if type(los.get("omega_valid")) is not bool or not isinstance(los.get("omega_reason"), str):
+        raise ValueError("目标视线角速度向量有效标志或原因字段非法")
+    if "omega_ned_dps" not in los:
+        raise ValueError("缺少目标视线NED角速度向量")
+    values = los["omega_ned_dps"]
+    if not los["omega_valid"]:
+        if values is not None:
+            raise ValueError("无效目标视线角速度向量必须明确为 null")
+        return None
+    if not isinstance(los.get("target_name"), str) or not los["target_name"]:
+        raise ValueError("目标视线角速度向量缺少目标实体名称")
+    if not isinstance(values, (list, tuple)) or len(values) != 3:
+        raise ValueError("目标视线角速度向量必须有N/E/D三个分量")
+    try:
+        finite = all(type(value) in (int, float) and math.isfinite(value) for value in values)
+    except OverflowError:
+        finite = False
+    if not finite:
+        raise ValueError("目标视线角速度向量不是有限数值")
+    if any(abs(value) > 3.4028234663852886e38 for value in values):
+        raise ValueError("目标视线角速度向量超出 float32 范围")
+    return tuple(float(value) for value in values)
+
+
 def aisheng_message(message):
-    """两轴 v7 遥测 -> 十一字段艾晟原始量；跟踪门宽高使用像素。"""
+    """两轴 v8 遥测 -> 艾晟原始量；机械 gyro 与目标惯性 LOS 分开。"""
     if (not isinstance(message, dict) or message.get("type") != "telemetry"
             or type(message.get("protocol_version")) is not int
-            or message["protocol_version"] != 7
+            or message["protocol_version"] != 8
             or message.get("angle_convention") != "motion_head_joint_right_positive"):
-        raise ValueError("艾晟转换需要两轴协议 7 遥测")
+        raise ValueError("艾晟转换需要两轴协议 8 遥测")
 
     def scaled(value):
         if type(value) not in (int, float) or not math.isfinite(value):
@@ -36,6 +95,10 @@ def aisheng_message(message):
     if not isinstance(attitude, dict) or any(not isinstance(attitude.get(axis), dict)
                                              for axis in ("pitch", "yaw")):
         raise ValueError("缺少两轴机械姿态")
+    los_rates = target_los_rates(message)
+    los_pitch_rate, los_yaw_rate = los_rates if los_rates is not None else (0.0, 0.0)
+    omega = target_los_omega(message)
+    omega_n, omega_e, omega_d = omega if omega is not None else (0.0, 0.0, 0.0)
     target = message.get("target") or {}
     tracking = message.get("tracking") or {}
     vision = message.get("vision") or {}
@@ -67,10 +130,15 @@ def aisheng_message(message):
         "yaw_misalignment": scaled(offsets[0]) if valid else 0.0,
         "tracking_confidence": 25.5 if valid else 0.0,
         "target_confidence": 0.80,
-        "pitch_los_rate": limited_rate(attitude["pitch"].get("vel")),
-        "yaw_los_rate": limited_rate(attitude["yaw"].get("vel")),
-        "tracking_gateW": gate_width,
-        "tracking_gateH": gate_height,
+        "gyro_pitch_rate": limited_rate(attitude["pitch"].get("vel")),
+        "gyro_yaw_rate": limited_rate(attitude["yaw"].get("vel")),
+        "pitch_los_rate": limited_rate(los_pitch_rate),
+        "yaw_los_rate": limited_rate(los_yaw_rate),
+        "los_omega_n": omega_n,
+        "los_omega_e": omega_e,
+        "los_omega_d": omega_d,
+        "tracking_gate_w": gate_width,
+        "tracking_gate_h": gate_height,
     }
 
 

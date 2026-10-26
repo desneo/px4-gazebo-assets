@@ -201,7 +201,7 @@ class GimbalBridge:
         if not isinstance(tel, dict):
             return
         compatible = (type(tel.get("protocol_version")) is int
-                      and tel["protocol_version"] == 7
+                      and tel["protocol_version"] == 8
                       and tel.get("angle_convention") == "motion_head_joint_right_positive")
         with self.lock:
             changed = compatible != self._plugin_protocol_compatible
@@ -588,7 +588,7 @@ class GimbalBridge:
         self._send_json(addr, {
             "type": "hello",
             "proto": "gimbal-udp",
-            "version": 7 if compatible else None,
+            "version": 8 if compatible else None,
             "angle_convention": "motion_head_joint_right_positive" if compatible else None,
             "plugin_compatible": compatible,
             "clock_domain": self.clock_domain,
@@ -711,7 +711,7 @@ class GimbalBridge:
         if not self._plugin_protocol_compatible and not safe_request:
             self._reply_and_cache(cl, seq, {"type": "command_result", "cmd": cmd,
                                             "ok": False,
-                                            "message": "插件尚未确认协议 7 / motion_head_joint_right_positive，禁止运动"})
+                                            "message": "插件尚未确认协议 8 / motion_head_joint_right_positive，禁止运动"})
             return
 
         if seq is not None and cmd in PASSTHROUGH_CMDS | LOCAL_CMDS:

@@ -2,15 +2,33 @@
 """靶标初始化复用场景源姿态，避免改变飞机检测外观。"""
 import math
 import re
+from pathlib import Path
+import tempfile
 from types import SimpleNamespace
 import unittest
 from unittest.mock import Mock, patch
+import xml.etree.ElementTree as ET
 
 import check_target as check
+import prepare_world
 from prepare_world import target_model
 
 
 class TargetInitializationTest(unittest.TestCase):
+    def test_csrt_fixture_has_target_identity_but_no_aircraft_cg(self):
+        with tempfile.TemporaryDirectory(prefix='fixed-pod-world-') as directory:
+            source = Path(directory) / 'source.sdf'
+            source.write_text('<sdf version="1.9"><world name="fixture"/></sdf>')
+            output = Path(directory) / 'prepared.sdf'
+            with patch.object(prepare_world, 'SOURCE', source):
+                prepare_world.prepare(output)
+            world = ET.parse(output).find('world')
+            plugin = world.find("model[@name='two_axis_pod']/plugin[@name='two_axis::GimbalController']")
+            self.assertEqual(plugin.findtext('tracking_backend'), 'csrt')
+            self.assertEqual(plugin.findtext('los_target_name'), target_model().get('name'))
+            self.assertIsNotNone(world.find(f"model[@name='{plugin.findtext('los_target_name')}']"))
+            self.assertIsNone(plugin.find('los_observer_cg_model'))
+
     def test_source_pose_and_prepare_reset_are_consistent(self):
         pose=tuple(map(float,target_model().findtext('pose').split()))
         self.assertEqual(check.INITIAL_POSE,pose)

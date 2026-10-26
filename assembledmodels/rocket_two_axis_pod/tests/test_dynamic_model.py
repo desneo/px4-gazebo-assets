@@ -90,6 +90,15 @@ class DynamicNativeTests(unittest.TestCase):
         reference = manifest['px4_reference']
         self.assertEqual(reference, snapshot['assembly']['px4_reference'])
         self.assertEqual(reference['reference_pose'], 'zero_joint_positions')
+        los_reference = dict(kind='nominal_cg', reference_pose='zero_joint_positions',
+                             body_offset_flu_m=reference['assembly_nominal_cg_flu_m'])
+        self.assertEqual(manifest['los_observer_reference'], los_reference)
+        self.assertEqual(snapshot['assembly']['los_observer_reference'], los_reference)
+        observer = list(map(float, actual.findtext(
+            "plugin[@name='two_axis::GimbalController']/los_observer_cg_model").split()))
+        self.assertEqual(observer, reference['assembly_nominal_cg_flu_m'])
+        for actual_value, expected_value in zip(observer, expected_cg):
+            self.assertAlmostEqual(actual_value, expected_value, places=12)
         prefixes = [f'CA_ROTOR{index}_P' for index in range(4)] + ['EKF2_IMU_POS_', 'EKF2_GPS_POS_']
         signs = (1, -1, -1)
         reference_keys = {prefix + axis for prefix in prefixes for axis in 'XYZ'}

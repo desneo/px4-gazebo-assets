@@ -43,6 +43,21 @@ export GZ_SIM_SYSTEM_PLUGIN_PATH=models/gimbals/two_axis_pod/controller/build/li
 
 命令支持 track（归一化 `box:[x,y,w,h]`）、manual（`yaw/pitch` 机械速度）、stop、home、reset、reset_axis（axis 为 yaw/pitch）、reset_fault、ping。任何 manual 的 roll 字段均拒绝，包括零值。
 
-遥测 `protocol_version:7`、`angle_convention:"motion_head_joint_right_positive"`；`attitude_deg`、`joints_deg` 只有 yaw/pitch 的 pos/vel/acc，`cmd_dps` 只有 yaw/pitch。`limits` 包含 yaw/pitch/saturated，`los_mount` 是安装系单位视线，顶层 `singular` 表示视线退化。`tracking.backend` 报告 `sim_truth` 或 `csrt`；真值绑定期间 `target.entity_id/entity_name` 报告固定实体，CSRT 或未绑定时为 `null`。`camera` 包含相机传感器相对安装系/世界的四元数与欧拉姿态及帧序号，不将机械轴角误称为世界偏航/俯仰。模型、插件、网关及地面站须共同使用协议 v7 和同一机械角约定。网络接口见 [网关说明](service/README.md)。
+遥测 `protocol_version:8`、`angle_convention:"motion_head_joint_right_positive"`；`attitude_deg`、`joints_deg` 只有 yaw/pitch 的 pos/vel/acc，`cmd_dps` 只有 yaw/pitch。`limits` 包含 yaw/pitch/saturated，`los_mount` 是安装系单位视线，顶层 `singular` 表示视线退化。`tracking.backend` 报告 `sim_truth` 或 `csrt`；真值绑定期间 `target.entity_id/entity_name` 报告固定实体，CSRT 或未绑定时为 `null`。`camera` 包含相机传感器相对安装系/世界的四元数与欧拉姿态及帧序号，不将机械轴角误称为世界偏航/俯仰。模型、插件、网关及地面站须共同使用协议 v8 和同一机械角约定。网络接口见 [网关说明](service/README.md)。
 
-测试覆盖旋转链、有限差分 Jacobian、退化、Gazebo世界角速度坐标变换、动态安装姿态差分低通/跳变拒绝与独立积分后的世界视线漂移、4/3 ms及大步长控制余相、暂停/时间回退、手动超时、双轴限位、单轴回零、真值投影/选框/同步保护、真值框四边各扩展 5 px、边界裁剪及框外可见性保持、CSRT 跟踪及断帧丢失保护。
+测试覆盖目标相对固定名义重心的NED三维LOS角速度向量、各分量方向、一般姿态叉乘等价性、与LOS正交、径向零值、大坐标归一化、不限幅及竖直独立有效性，以及NED方位/仰角导数、径向与双方相对运动、方位跨±180°、上下符号、垂直奇异、固定重心刚体旋转、首样本/暂停/回退/目标切换/瞬移保护，以及旋转链、有限差分 Jacobian、退化、Gazebo世界角速度坐标变换、动态安装姿态差分低通/跳变拒绝与独立积分后的世界视线漂移、4/3 ms及大步长控制余相、暂停/时间回退、手动超时、双轴限位、单轴回零、真值投影/选框/同步保护、真值框四边各扩展 5 px、边界裁剪及框外可见性保持、CSRT 跟踪及断帧丢失保护。
+
+
+## 目标惯性视线角速度
+
+`target_los` 与 `los_mount` 含义独立：前者使用目标位置和载机固定名义重心位置，后者仅表示镜头光轴。SDF `los_observer_cg_model` 指定零关节名义重心在插件所附模型坐标中的固定三维偏移（m）；动态装配由当前各link质量和零关节惯性位姿派生。插件将该固定偏移随模型姿态旋转，不能以移动关节的瞬时组合重心或相机光心替代。缺失或非法偏移仅让目标LOS无效，原有控制继续可用。
+
+`PostUpdate` 在同一Gazebo物理状态采样观察点和目标世界位置，并用相同仿真时间差分得到相对速度。带球坐标配置的world通过Gazebo `LOCAL2→GLOBAL` 向量变换应用heading后转换ENU→NED；未配置球坐标的局部world采用标准ENU。目标相对位置 `(N,E,D)` 的方位角为 `atan2(E,N)`，仰角为 `atan2(-D,hypot(N,E))`；输出是两角的解析导数，单位°/s，北向东右转为正、抬升为正，不是角速度向量的两个分量。内部结果不作±20°/s限幅，外部艾晟映射负责报文限幅；机械转速始终仍由 `joints_deg.*.vel` 提供。
+
+`sim_truth` 只使用当前跟踪绑定的固定实体ID。`csrt` 需显式SDF `los_target_name`，并在选框初始化时用同帧同步真值投影核对该实体中心位于框内，之后固定同一实体ID；不匹配仅让LOS无效，不能改变CSRT纹理跟踪控制，也不能按名字自动替换删除的实体。未TRACK、未配置目标、未匹配身份均不猜测目标。实体空间位置是目标顶层模型原点，不表示目标视觉框中心或额外目标重心。
+
+`target_los` 包含 `valid`、`frame:"NED"`、`observer_reference:"aircraft_nominal_cg"`、`target_name`、`sim_stamp`、`yaw_rate_dps/pitch_rate_dps`、`relative_position_ned_m/relative_velocity_ned_mps`、`reason`，以及协议v8的三维向量扩展 `omega_ned_dps`、`omega_valid`、`omega_reason`。`valid/reason` 仅表示方位角和仰角两个导数的有效性；`omega_valid/omega_reason` 独立表示三维向量有效性。其 `sim_stamp` 指双方位置采样的仿真时刻；在现有PreUpdate遥测中携带最新PostUpdate结果，通常相差一个物理步。对应表示无效时角速度为 `null`，不以零伪装有效测量；艾晟外部接口的无效值由地面站单独处理。
+
+三维向量为 `omega = (r × v) / |r|²`，其中 `r` 是目标减无人机名义重心的NED相对位置，`v` 是同一相对位置的时间导数。`omega_ned_dps:[N,E,D]` 按NED右手系表达，单位°/s，与 `r` 正交，表示不包含沿视线自转分量的最小LOS角速度向量。实现先归一化再叉乘，避免位置叉乘或距离平方溢出。该向量的N/E/D分量不能当作方位角/仰角导数；其真实值不作±20°/s限幅，外部对应 `los_omega_n/e/d`。原有双角度导数的报文限幅保持±20°/s。
+
+首样本、重新绑定、暂停/重复时刻、时间回退及超过0.5 s的样本间隔须建立新的差分基准。单方位置变化超过 `max(1 m,1000 m/s×dt)` 视为瞬移，当前样本无效并重新建基准；这仅是测量连续性检查。距离小于1 µm时两种表示均无效；水平距离小于1 µm或总距离的百万分之一时，两角度导数无效，但三维向量仍可有效，典型为 `valid:false`、`reason:"vertical_singularity"`、`omega_valid:true`、`omega_reason:"ok"`。未绑定、首样本、时间/位置连续性异常会让两种表示均无效。`reason` 可为 `ok`、`observer_cg_unconfigured`、`observer_missing`、`target_unbound`、`target_unconfigured`、`target_unsynchronized`、`target_selection_mismatch`、`target_missing`、`first_sample`、`target_changed`、`time_paused`、`time_reset`、`time_gap`、`position_jump`、`zero_range`、`vertical_singularity`、`nonfinite_sample` 或 `nonfinite_rate`。

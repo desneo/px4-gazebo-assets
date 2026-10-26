@@ -124,8 +124,8 @@ class ClientTests(unittest.TestCase):
         self.assertEqual(self.client.messages, count)
 
     def confirm_public_angles(self):
-        self.receive({"type": "hello", "aircraft_id": 1, "version": 7, "angle_convention": "motion_head_joint_right_positive"})
-        self.receive({"type": "telemetry", "protocol_version": 7, "angle_convention": "motion_head_joint_right_positive", "attitude_deg": {
+        self.receive({"type": "hello", "aircraft_id": 1, "version": 8, "angle_convention": "motion_head_joint_right_positive"})
+        self.receive({"type": "telemetry", "protocol_version": 8, "angle_convention": "motion_head_joint_right_positive", "attitude_deg": {
             axis: {"pos": 0.0, "vel": 0.0, "acc": 0.0} for axis in ("yaw", "pitch")}})
 
     def test_public_control_requires_both_version_and_valid_public_telemetry(self):
@@ -158,7 +158,7 @@ class ClientTests(unittest.TestCase):
 
     def test_old_or_missing_telemetry_version_cannot_authorize_motion_head(self):
         self.confirm_public_angles()
-        for version in (4, 5, 6, None, True):
+        for version in (4, 5, 6, 7, None, True):
             self.client.telemetry['protocol_version'] = version
             self.assertFalse(self.client.public_angles_ready)
             self.assertEqual(self.client.send_manual(pitch=-20), -1)
@@ -171,6 +171,8 @@ class ClientTests(unittest.TestCase):
                                     (6, "motion_head_joint"),
                                     (6, "motion_head_joint_right_positive"),
                                     (7, "motion_head_joint"),
+                                    (7, "motion_head_joint_right_positive"),
+                                    (8, "motion_head_joint"),
                                     (None, None),
                                     (5, "motion_head_joint_right_positive")):
             self.confirm_public_angles()
@@ -190,7 +192,7 @@ class ClientTests(unittest.TestCase):
         self.assertTrue(all(packet["cmd"] in ("stop", "manual", "set_vision_mode")
                             for packet in self.packets))
 
-    def test_v7_with_old_telemetry_marker_does_not_enable_motion(self):
+    def test_v8_with_old_telemetry_marker_does_not_enable_motion(self):
         self.confirm_public_angles()
         self.client.telemetry["angle_convention"] = "motion_head_joint"
         self.assertFalse(self.client.public_angles_ready)
@@ -206,12 +208,12 @@ class ClientTests(unittest.TestCase):
                       "angle_convention": None, "plugin_compatible": False})
         self.assertFalse(self.client.public_angles_ready)
         self.assertFalse(self.client._pending)
-        self.receive({"type": "hello", "aircraft_id": 1, "version": 7,
+        self.receive({"type": "hello", "aircraft_id": 1, "version": 8,
                       "angle_convention": "motion_head_joint_right_positive", "plugin_compatible": True})
         self.assertFalse(self.client.public_angles_ready)  # 升级不能复用降级前姿态。
 
     def test_marker_alone_or_malformed_public_attitude_cannot_enable_control(self):
-        self.receive({"type": "hello", "aircraft_id": 1, "version": 7, "angle_convention": "motion_head_joint_right_positive"})
+        self.receive({"type": "hello", "aircraft_id": 1, "version": 8, "angle_convention": "motion_head_joint_right_positive"})
         for attitude in ({}, {axis: {"pos": 0., "vel": 0., "acc": float("nan")} for axis in ("yaw", "pitch")}):
             self.receive({"type": "telemetry", "angle_convention": "motion_head_joint_right_positive", "attitude_deg": attitude})
             self.assertFalse(self.client.public_angles_ready)
@@ -253,9 +255,9 @@ class ClientTests(unittest.TestCase):
         self.receive({"type": "hello", "aircraft_id": 23})
         self.assertTrue(self.client.identity_ready)
         self.assertEqual(self.client.send_reliable("home"), -1)
-        self.receive({"type": "hello", "aircraft_id": 23, "version": 7,
+        self.receive({"type": "hello", "aircraft_id": 23, "version": 8,
                       "angle_convention": "motion_head_joint_right_positive"})
-        self.receive({"type": "telemetry", "protocol_version": 7,
+        self.receive({"type": "telemetry", "protocol_version": 8,
                       "angle_convention": "motion_head_joint_right_positive", "attitude_deg": {
                           axis: {"pos": 0., "vel": 0., "acc": 0.}
                           for axis in ("yaw", "pitch")}})

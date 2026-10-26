@@ -88,7 +88,7 @@ def main():
             return json.loads(json.dumps(tel))
 
     def check_sample(value):
-        assert value['protocol_version'] == 7 and value['angle_convention'] == 'motion_head_joint_right_positive', value
+        assert value['protocol_version'] == 8 and value['angle_convention'] == 'motion_head_joint_right_positive', value
         assert set(value['joints_deg']) == {'yaw', 'pitch'}, value
         for axis, (lower, upper) in LIMITS.items():
             assert lower-.2 <= value['joints_deg'][axis]['pos'] <= upper+.2, value
@@ -234,7 +234,7 @@ def main():
     t = home()
     actual_optics('final_zero', t)
     stopped()
-    report = dict(result='passed', protocol_version=7, angle_convention='motion_head_joint_right_positive',
+    report = dict(result='passed', protocol_version=8, angle_convention='motion_head_joint_right_positive',
                   actual_limits_deg=positions, rendered_frames=rendered, optical_checks=optical_checks,
                   frame_checks=frame_checks,
                   tracking='CSRT TRACK valid with target miss', watchdog='passed',

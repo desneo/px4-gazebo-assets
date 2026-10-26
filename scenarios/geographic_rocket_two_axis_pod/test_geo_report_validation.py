@@ -101,7 +101,7 @@ class ReportAuthenticityTest(unittest.TestCase):
         self.tracking_rows = self.samples+[dict(kind='event', wall=231., event='result', **self.tracking)]
         self.binding_dir = self.run / 'rtsp_binding'
         payload = dict(aircraft_id=23, video_rtsp_path='/two_axis_pod_23', clock_domain='test-clock',
-                       version=7, protocol_version=7, angle_convention='motion_head_joint_right_positive')
+                       version=8, protocol_version=8, angle_convention='motion_head_joint_right_positive')
         self.binding_rows = [dict(kind='hello', wall=120., payload=payload)]
         for index in range(20):
             self.binding_rows.extend([dict(kind='video', wall=121.+index, seq=index),
@@ -184,6 +184,16 @@ class ReportAuthenticityTest(unittest.TestCase):
         path.write_text(text)
         self.assertRejected('动态模型')
 
+    def test_los_observer_cg_tampering_is_rejected(self):
+        import xml.etree.ElementTree as ET
+        path = self.model / 'model.sdf'
+        tree = ET.parse(path)
+        observer = tree.find("model/plugin[@name='two_axis::GimbalController']/los_observer_cg_model")
+        self.assertIsNotNone(observer)
+        observer.text = '0 0 0'
+        tree.write(path)
+        self.assertRejected('动态模型')
+
     def test_truth_altitude_failure_cannot_be_overridden_by_passed_summary(self):
         self.rows[1]['position_ned_m'][2] = -84.
         self.assertRejected('原始真值')
@@ -206,8 +216,19 @@ class ReportAuthenticityTest(unittest.TestCase):
         self.assertRejected('角度协议')
 
     def test_old_protocol_version_cannot_be_archived_as_current(self):
-        self.binding_rows[0]['payload']['version'] = 6
-        self.assertRejected('协议v7')
+        self.binding_rows[0]['payload']['version'] = 7
+        self.assertRejected('协议v8')
+
+    def test_csrt_los_target_must_match_scene_entity(self):
+        import xml.etree.ElementTree as ET
+        path = self.run / 'world.sdf'
+        tree = ET.parse(path)
+        plugin = tree.find("world/model[@name='rocket_two_axis_pod']/plugin[@name='two_axis::GimbalController']")
+        self.assertEqual(plugin.findtext('tracking_backend'), 'csrt')
+        self.assertEqual(plugin.findtext('los_target_name'), 'AERIAL_TRACKING_TARGET')
+        plugin.find('los_target_name').text = 'unrelated_target'
+        tree.write(path)
+        self.assertRejected('运行世界组合模型')
 
     def test_wrong_rtsp_aircraft_identity_is_rejected(self):
         self.binding_rows[2]['payload']['aircraft_id'] = 24

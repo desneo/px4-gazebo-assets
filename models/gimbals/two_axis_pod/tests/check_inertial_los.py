@@ -282,7 +282,9 @@ class Fixture:
     def packet(self, telemetry):
         self.forward.offer(json.dumps(telemetry, allow_nan=False))
         packet = json.loads(self.receiver.recv(65535))
-        assert len(packet) == 16, packet
+        assert len(packet) == 19, packet
+        assert type(packet["timestamp"]) is int, packet
+        assert type(packet["gate_x"]) is int and type(packet["gate_y"]) is int
         assert packet['gyro_yaw_rate'] == max(-20., min(20., telemetry['attitude_deg']['yaw']['vel']))
         assert packet['gyro_pitch_rate'] == max(-20., min(20., telemetry['attitude_deg']['pitch']['vel']))
         los = telemetry['target_los']

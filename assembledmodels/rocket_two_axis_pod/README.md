@@ -107,7 +107,7 @@ PX4_INSTANCE=1 \
 
 此入口验证组件世界中的飞行。该世界包含惯性导航等物理传感器系统，没有加载图像渲染的 `Sensors` 系统，因此 `camera.quat_world` 只验收实际光学姿态，不代表视频帧、地面站或目标跟踪通过。完整地理场景的飞行与视频跟踪需要独立证据。
 
-配套地面站可发送16字段艾晟UDP JSON：`gyro_yaw_rate/gyro_pitch_rate` 承载机械关节相对转速，`yaw_los_rate/pitch_los_rate` 承载目标相对无人机固定名义重心的 NED 方位角／仰角变化率，右正、上正，单位 °/s，报文限幅 ±20°/s。LOS 有效性及原因保留在原始遥测；无有效目标、缺少名义重心或视线退化时，外发 LOS 两项为0，机械转速继续发送。框架角保持机械角定义，并包含最终跟踪框像素宽高 `tracking_gate_w/H`。`sim_truth` 使用当前绑定目标；CSRT 场景需要显式 `los_target_name` 关联真实实体，目标真值不用于持续图像控制。字段定义见[地面站说明](../../models/gimbals/two_axis_pod/ground_station/README.md)。
+配套地面站可发送19字段艾晟UDP JSON：`gyro_yaw_rate/gyro_pitch_rate` 承载机械关节相对转速，`yaw_los_rate/pitch_los_rate` 承载目标相对无人机固定名义重心的 NED 方位角／仰角变化率，右正、上正，单位 °/s，报文限幅 ±20°/s。LOS 有效性及原因保留在原始遥测；无有效目标、缺少名义重心或视线退化时，外发 LOS 两项为0，机械转速继续发送。框架角保持机械角定义，并包含最终跟踪框像素宽高 `tracking_gate_w/tracking_gate_h`。`sim_truth` 使用当前绑定目标；CSRT 场景需要显式 `los_target_name` 关联真实实体，目标真值不用于持续图像控制。字段定义见[地面站说明](../../models/gimbals/two_axis_pod/ground_station/README.md)。
 
 ## 多机接入
 
@@ -128,3 +128,5 @@ PX4_INSTANCE=1 \
 动态装配从基础吊舱继承两关节 ±20°/s 物理速度上限和控制器限速，无上层覆盖。机械限速与目标惯性 LOS 报文限幅分别生效；已有整机飞行及70仿真秒CSRT结果按其归档配置解释，不构成 v8 目标惯性 LOS 的整机验收。
 
 三维目标视线角速度通过`los_omega_n/e/d`输出，单位°/s，对应固定NED三轴，按`(r×v)/|r|²`计算，不含绕视线自转且不施加±20°/s限幅。原有方位角/仰角变化率与机械gyro字段保留现有限幅。内部`omega_valid/omega_reason`独立于两角度导数的`valid/reason`：竖直视线时方位角退化，向量仍可有效；未绑定等无效情况发送向量0/0/0。界面沿用track状态。
+
+`gate_x/gate_y`为最终`target.box_px`跟踪框在原始视频帧中的中心像素坐标，左上原点、右/下为正；由原始未取整的`x+w/2`、`y+h/2`四舍五入（恰好半像素向上取整）生成JSON整数，无效跟踪发送整数0/0。地面站显示同一计算结果，与窗口显示缩放无关。

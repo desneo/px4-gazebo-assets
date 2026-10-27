@@ -1434,6 +1434,18 @@ class GroundStation:
                 f"脱靶量 °:  X {angle[0]:+.3f}  Y {angle[1]:+.3f}（右/下为正）"]
 
     @staticmethod
+    def _gate_center_line(tele, fresh):
+        from telemetry_forward import tracking_gate_center
+
+        try:
+            center = tracking_gate_center(tele, fresh=fresh)
+        except (ValueError, TypeError, OverflowError):
+            center = None
+        if center is None:
+            return "跟踪框中心 px: X --  Y --"
+        return f"跟踪框中心 px: X {center[0]}  Y {center[1]}"
+
+    @staticmethod
     def _attitude_panel_lines(tele, ready):
         """机械角、机械gyro、目标角导数和NED向量分行显示，值与外发一致。"""
         from telemetry_forward import target_los_rates, target_los_omega
@@ -1534,6 +1546,8 @@ class GroundStation:
                 f"状态: {STATE_CN.get(t.get('state'), t.get('state'))}   稳定性: {STABILITY_CN.get(s.get('state'), s.get('state'))}   模式: {tele.get('mode')}",
                 f"目标中心误差: {s.get('center_err_deg', 0):.2f}°    机械输出: {tele.get('cmd_dps') or {}}",
                 *self._attitude_panel_lines(tele, ready),
+                self._gate_center_line(tele, ready and st["connected"]
+                                       and time.monotonic() - self.tele.last_telemetry_mono <= 1),
             ]
             colors = [(0, 255, 255)] * len(lines)
             colors[0] = (0, 255, 255)
@@ -1603,14 +1617,14 @@ class GroundStation:
         lines.insert(0, st["identity_error"] or f"飞机 {self.tele.aircraft_id} 身份已确认")
         colors.insert(0, (0, 0, 255) if st["identity_error"] else (0, 255, 0))
 
-        # 窄窗的四行姿态量占用发送面板下方整行，诊断文字留在上方。
+        # 窄窗的姿态量和框中心占用发送面板下方整行，诊断文字留在上方。
         # 宽窗逐行避让右侧控件；操作控件与视频选框坐标保持不变。
         entries = list(zip(lines, colors))
         if dw < 760:
             quantities, diagnostics = [], []
             for entry in entries:
                 (quantities if entry[0].startswith(("机械角度(", "陀螺仪角速度(",
-                                                   "目标LOS角速度(", "LOS向量NED("))
+                                                   "目标LOS角速度(", "LOS向量NED(", "跟踪框中心 px:"))
                  else diagnostics).append(entry)
             diagnostic_step = min(22, max(8, 152 // max(1, len(diagnostics))))
             quantity_step = min(30, max(12, (dh - 176) // max(1, len(quantities))))

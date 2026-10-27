@@ -206,10 +206,11 @@ Gazebo 专用话题为 `/two_axis_pod/command`、`/two_axis_pod/telemetry` 和 `
 
 ## 地面站艾晟报文
 
-Linux/Windows 地面站右上角提供独立的 IP、端口输入框和“发送艾晟报文/停止发送”按钮。此功能在地面站本机执行。每份来自已配置网关、已确认飞机身份的协议 8 `telemetry` 转换为一个 UTF-8 JSON 数据报；仅包含下表十六个字段，不包含飞机 ID、帧表、时间戳、type 或外层封装。`hello`、`pong`、回执和指令不发送。
+Linux/Windows 地面站右上角提供独立的 IP、端口输入框和“发送艾晟报文/停止发送”按钮。此功能在地面站本机执行。每份来自已配置网关、已确认飞机身份的协议 8 `telemetry` 转换为一个 UTF-8 JSON 数据报；仅包含下表十九个字段，不包含飞机 ID、帧表、type 或外层封装。`hello`、`pong`、回执和指令不发送。
 
 | 字段 | 类型 | 发送数值与来源 |
 |---|---|---|
+| `timestamp` | JSON整数 | 地面站发送线程在发送前生成的Unix毫秒时间戳，`time.time_ns() // 1_000_000`，起点1970-01-01 00:00:00 UTC；不使用仿真时间或源遥测时间 |
 | `track_status` | uint8 数值 | 视觉模式为 `manual_track`，或已确认 `AUTO_LOCKED` 且有锁定 ID 的 `auto_lock`；同时 `mode=TRACK`、`tracking.state=TRACK`、`target.valid=true`、`target.miss.valid=true` 且无视觉错误时为 1，其他为 0 |
 | `pitch_angle` | float32 数值 | `attitude_deg.pitch.pos`，朝前为负，不额外反号 |
 | `yaw_angle` | float32 数值 | `attitude_deg.yaw.pos` |
@@ -224,15 +225,19 @@ Linux/Windows 地面站右上角提供独立的 IP、端口输入框和“发送
 | `los_omega_n` | float32 数值 | `omega_valid=true`时取`omega_ned_dps[0]`，固定NED的北轴角速度，°/s、不限幅；无效时0.0 |
 | `los_omega_e` | float32 数值 | 东轴角速度，取`omega_ned_dps[1]`，°/s、不限幅；无效时0.0 |
 | `los_omega_d` | float32 数值 | 地轴角速度，取`omega_ned_dps[2]`，°/s、不限幅；无效时0.0 |
+| `gate_x` | int16 数值（JSON整数） | 有效跟踪时取`floor(target.box_px[0]+target.box_px[2]/2+0.5)`，原图左上原点、向右正，单位px；无效时整数0 |
+| `gate_y` | int16 数值（JSON整数） | 有效跟踪时取`floor(target.box_px[1]+target.box_px[3]/2+0.5)`，向下正，单位px；无效时整数0 |
 | `tracking_gate_w` | float32 数值 | 有效跟踪时为最终 `target.box_px[2]`，单位 px；无效时为 0.0 |
 | `tracking_gate_h` | float32 数值 | 有效跟踪时为最终 `target.box_px[3]`，单位 px；无效时为 0.0 |
 
-JSON 中发送数值而非二进制结构体，不进行 int16 量化；角度、脱靶角直接使用度，角速度直接使用度/秒，不进行倍率换算。丢失或未跟踪时仍发送当前机械角及机械角速度，脱靶角、`tracking_confidence`、`tracking_gate_w` 和 `tracking_gate_h` 置零，`target_confidence` 始终为 0.8。有效跟踪时门宽高取最终显式框经画面边界裁剪后的实际像素尺寸。`gyro_*_rate` 承载原机械关节相对转速，按接收端字段命名映射，不是真实陀螺仪的绝对角速度测量。`*_los_rate` 承载目标相对无人机固定名义重心的 NED 方位角/仰角变化率，不是镜头光轴角速度。原有四个速率字段均在有限值和float32范围校验后对称限幅到−20～+20°/s；三维`los_omega_n/e/d`仅校验有限值及float32范围，不裁剪，向量无效时发送0/0/0；内部原始测量不裁剪。明确 `target_los.valid=false` 且两个内部速率为 `null` 时，外部两个 LOS 字段发送 0.0，机械 gyro 及其它字段继续发送；0/0 也可能是真实零变化，外部报文不另加有效标记，内部遥测保留独立有效标记。`track_status` 仍表示原跟踪有效性，不代替 LOS 数学有效性。缺少整个 `target_los`、坐标参考不符或对象畸形属于转换错误，不默认伪造为无效零值。非有限值、缺少有效机械角、有效跟踪却缺少有效像素框或角脱靶量、数值超出 float32 范围或协议不符时丢弃该包并显示转换错误，不发送 NaN/Infinity 或旧测量替代值。
+`timestamp`在测量字段转换后、序列化和`sendto`之前生成，表示地面站尝试发送该包时的系统时间，单位ms；与地面站入队时刻、Gazebo物理采样时间不同。每包独立生成，毫秒内多包可同值。PX4的uORB `timestamp`仍为接收端本地`hrt_absolute_time()`微秒，不被JSON时间戳覆盖。
 
-例如 pitch −56.37°、yaw 12.34°、垂直/水平脱靶 +0.5°/−0.25°、机械俯仰/偏航角速度 −1.23°/s、+2.34°/s，目标仰角/方位角变化率+0.6°/s、−0.4°/s，目标位于正北水平面时三维向量为(0,+0.6,−0.4)°/s：
+JSON 中发送数值而非二进制结构体；框中心按上述规则取整，其余角度等浮点字段不进行 int16 量化；角度、脱靶角直接使用度，角速度直接使用度/秒，不进行倍率换算。丢失或未跟踪时仍发送当前机械角及机械角速度，脱靶角、`tracking_confidence`、`tracking_gate_w` 和 `tracking_gate_h` 置零，`target_confidence` 始终为 0.8。有效跟踪时门宽高取最终显式框经画面边界裁剪后的实际像素尺寸。`gyro_*_rate` 承载原机械关节相对转速，按接收端字段命名映射，不是真实陀螺仪的绝对角速度测量。`*_los_rate` 承载目标相对无人机固定名义重心的 NED 方位角/仰角变化率，不是镜头光轴角速度。原有四个速率字段均在有限值和float32范围校验后对称限幅到−20～+20°/s；三维`los_omega_n/e/d`仅校验有限值及float32范围，不裁剪，向量无效时发送0/0/0；内部原始测量不裁剪。明确 `target_los.valid=false` 且两个内部速率为 `null` 时，外部两个 LOS 字段发送 0.0，机械 gyro 及其它字段继续发送；0/0 也可能是真实零变化，外部报文不另加有效标记，内部遥测保留独立有效标记。`track_status` 仍表示原跟踪有效性，不代替 LOS 数学有效性。缺少整个 `target_los`、坐标参考不符或对象畸形属于转换错误，不默认伪造为无效零值。非有限值、缺少有效机械角、有效跟踪却缺少有效像素框或角脱靶量、数值超出 float32 范围或协议不符时丢弃该包并显示转换错误，不发送 NaN/Infinity 或旧测量替代值。
+
+例如最终框为`[935,520,50,40] px`、中心`(960,540) px`，pitch −56.37°、yaw 12.34°、垂直/水平脱靶 +0.5°/−0.25°、机械俯仰/偏航角速度 −1.23°/s、+2.34°/s，目标仰角/方位角变化率+0.6°/s、−0.4°/s，目标位于正北水平面时三维向量为(0,+0.6,−0.4)°/s：
 
 ```json
-{"track_status":1,"pitch_angle":-56.37,"yaw_angle":12.34,"pitch_misalignment":0.5,"yaw_misalignment":-0.25,"tracking_confidence":25.5,"target_confidence":0.8,"gyro_pitch_rate":-1.23,"gyro_yaw_rate":2.34,"pitch_los_rate":0.6,"yaw_los_rate":-0.4,"los_omega_n":0.0,"los_omega_e":0.6,"los_omega_d":-0.4,"tracking_gate_w":50.0,"tracking_gate_h":40.0}
+{"timestamp":1792999999123,"track_status":1,"pitch_angle":-56.37,"yaw_angle":12.34,"pitch_misalignment":0.5,"yaw_misalignment":-0.25,"tracking_confidence":25.5,"target_confidence":0.8,"gyro_pitch_rate":-1.23,"gyro_yaw_rate":2.34,"pitch_los_rate":0.6,"yaw_los_rate":-0.4,"los_omega_n":0.0,"los_omega_e":0.6,"los_omega_d":-0.4,"tracking_gate_w":50.0,"tracking_gate_h":40.0,"gate_x":960,"gate_y":540}
 ```
 
 关闭视觉、仅检测、自动搜索/交接、未选框、初始化、临时/最终丢失和视觉错误均发送 `track_status=0`、`tracking_confidence=0.0`。即使插件暂时残留 TRACK 标志，也不能绕过视觉模式判定。网关在 off/detect 下发现插件仍处于 TRACK 时，每 0.25 秒最多发布一次停止，直到插件遥测实际退出 TRACK；不伪造插件停车状态，不干扰 MANUAL/HOME。显式再次关闭视觉仍会发布停止指令。
@@ -242,3 +247,5 @@ JSON 中发送数值而非二进制结构体，不进行 int16 量化；角度�
 网关在 `hello` 和遥测中附加 `aircraft_id`（非负整数，默认 1）与 `video_rtsp_path`（例如 `/two_axis_pod_1`）。`hello.capabilities` 包含 `vision_mode`、`server_video_overlay`、`auto_lock` 和 `frame_exact_track`。同机多路共用 RTSP 8555，按路径末尾的飞机 ID 区分；ID 不改变机械角度语义，UDP 控制仍使用各机独立端口。详见[多机视频配置](../controller/service/README.md#多机共享-rtsp)。
 
 地面站按配置的 `aircraft_id` 核对当前网关 `hello.aircraft_id`，必须是相同的非负整数。尚未确认、缺失/非法 ID、ID 不符或连接超时时禁止所有控制（含停止、零速度、回零、跟踪和清故障），仅允许 ping、status、bye。身份不符时清除待重传控制，界面和日志显示期望 ID 与网关 ID；连接超时后仅收到 pong 或遥测不会恢复控制，须重新收到匹配 hello。GUI 与 `--selftest` 均使用相同校验，自检身份未确认时返回非零退出码。旧网关缺少 ID 时须升级网关，不能跳过校验。
+
+`gate_x/gate_y`使用最终显式框中心，按原始未做六位小数舍入的框坐标和尺寸计算后四舍五入，不能使用Python银行家舍入规则。坐标相对于原始视频帧（当前1920×1080），不随地面站窗口缩放；也不是以画面中心为原点的脱靶量或未裁剪实体投影中心。跟踪有效条件与`track_status`一致，无效时0/0；零值本身不单独表示无效。PX4 JSON接收映射到已有int16 `gate_x/gate_y`，仅接受0..32767的整数字面量，旧报文缺整对时按0/0兼容，残缺或非法字段拒绝。

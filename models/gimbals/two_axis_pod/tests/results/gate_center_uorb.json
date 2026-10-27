@@ -1,0 +1,199 @@
+{
+  "passed": true,
+  "scope": "合成跟踪遥测经生产TelemetryForwarder真实UDP进入隔离PX4最小接收实例的uORB；未运行Gazebo或飞行验收",
+  "instance": 8,
+  "port": 19008,
+  "original_sixteen_fields_unchanged_cases": 4,
+  "cases": [
+    {
+      "label": "normal",
+      "packet": {
+        "track_status": 1,
+        "pitch_angle": -56.37,
+        "yaw_angle": 12.34,
+        "pitch_misalignment": 0.5,
+        "yaw_misalignment": -0.25,
+        "tracking_confidence": 25.5,
+        "target_confidence": 0.8,
+        "gyro_pitch_rate": -1.23,
+        "gyro_yaw_rate": 2.34,
+        "pitch_los_rate": 4.5,
+        "yaw_los_rate": -6.25,
+        "los_omega_n": 7.125,
+        "los_omega_e": -28.5,
+        "los_omega_d": 32.75,
+        "tracking_gate_w": 50.0,
+        "tracking_gate_h": 40.0,
+        "gate_x": 120,
+        "gate_y": 215
+      },
+      "uorb": {
+        "gate_x": 120.0,
+        "gate_y": 215.0,
+        "track_status": 1.0,
+        "pitch_angle": -56.37,
+        "yaw_angle": 12.34,
+        "gyro_pitch_rate": -1.23,
+        "gyro_yaw_rate": 2.34,
+        "pitch_los_rate": 4.5,
+        "yaw_los_rate": -6.25,
+        "los_omega_n": 7.125,
+        "los_omega_e": -28.5,
+        "los_omega_d": 32.75
+      },
+      "passed": true
+    },
+    {
+      "label": "half_up",
+      "packet": {
+        "track_status": 1,
+        "pitch_angle": -56.37,
+        "yaw_angle": 12.34,
+        "pitch_misalignment": 0.5,
+        "yaw_misalignment": -0.25,
+        "tracking_confidence": 25.5,
+        "target_confidence": 0.8,
+        "gyro_pitch_rate": -1.23,
+        "gyro_yaw_rate": 2.34,
+        "pitch_los_rate": 4.5,
+        "yaw_los_rate": -6.25,
+        "los_omega_n": 7.125,
+        "los_omega_e": -28.5,
+        "los_omega_d": 32.75,
+        "tracking_gate_w": 1.0,
+        "tracking_gate_h": 1.0,
+        "gate_x": 1,
+        "gate_y": 1
+      },
+      "uorb": {
+        "gate_x": 1.0,
+        "gate_y": 1.0,
+        "track_status": 1.0,
+        "pitch_angle": -56.37,
+        "yaw_angle": 12.34,
+        "gyro_pitch_rate": -1.23,
+        "gyro_yaw_rate": 2.34,
+        "pitch_los_rate": 4.5,
+        "yaw_los_rate": -6.25,
+        "los_omega_n": 7.125,
+        "los_omega_e": -28.5,
+        "los_omega_d": 32.75
+      },
+      "passed": true
+    },
+    {
+      "label": "subpixel",
+      "packet": {
+        "track_status": 1,
+        "pitch_angle": -56.37,
+        "yaw_angle": 12.34,
+        "pitch_misalignment": 0.5,
+        "yaw_misalignment": -0.25,
+        "tracking_confidence": 25.5,
+        "target_confidence": 0.8,
+        "gyro_pitch_rate": -1.23,
+        "gyro_yaw_rate": 2.34,
+        "pitch_los_rate": 4.5,
+        "yaw_los_rate": -6.25,
+        "los_omega_n": 7.125,
+        "los_omega_e": -28.5,
+        "los_omega_d": 32.75,
+        "tracking_gate_w": 10.0,
+        "tracking_gate_h": 20.0,
+        "gate_x": 105,
+        "gate_y": 210
+      },
+      "uorb": {
+        "gate_x": 105.0,
+        "gate_y": 210.0,
+        "track_status": 1.0,
+        "pitch_angle": -56.37,
+        "yaw_angle": 12.34,
+        "gyro_pitch_rate": -1.23,
+        "gyro_yaw_rate": 2.34,
+        "pitch_los_rate": 4.5,
+        "yaw_los_rate": -6.25,
+        "los_omega_n": 7.125,
+        "los_omega_e": -28.5,
+        "los_omega_d": 32.75
+      },
+      "passed": true
+    },
+    {
+      "label": "invalid",
+      "packet": {
+        "track_status": 0,
+        "pitch_angle": -56.37,
+        "yaw_angle": 12.34,
+        "pitch_misalignment": 0.0,
+        "yaw_misalignment": 0.0,
+        "tracking_confidence": 0.0,
+        "target_confidence": 0.8,
+        "gyro_pitch_rate": -1.23,
+        "gyro_yaw_rate": 2.34,
+        "pitch_los_rate": 4.5,
+        "yaw_los_rate": -6.25,
+        "los_omega_n": 7.125,
+        "los_omega_e": -28.5,
+        "los_omega_d": 32.75,
+        "tracking_gate_w": 0.0,
+        "tracking_gate_h": 0.0,
+        "gate_x": 0,
+        "gate_y": 0
+      },
+      "uorb": {
+        "gate_x": 0.0,
+        "gate_y": 0.0,
+        "track_status": 0.0,
+        "pitch_angle": -56.37,
+        "yaw_angle": 12.34,
+        "gyro_pitch_rate": -1.23,
+        "gyro_yaw_rate": 2.34,
+        "pitch_los_rate": 4.5,
+        "yaw_los_rate": -6.25,
+        "los_omega_n": 7.125,
+        "los_omega_e": -28.5,
+        "los_omega_d": 32.75
+      },
+      "passed": true
+    },
+    {
+      "label": "legacy16",
+      "packet": {
+        "track_status": 1,
+        "pitch_angle": -56.37,
+        "yaw_angle": 12.34,
+        "pitch_misalignment": 0.5,
+        "yaw_misalignment": -0.25,
+        "tracking_confidence": 25.5,
+        "target_confidence": 0.8,
+        "gyro_pitch_rate": -1.23,
+        "gyro_yaw_rate": 2.34,
+        "pitch_los_rate": 4.5,
+        "yaw_los_rate": -6.25,
+        "los_omega_n": 7.125,
+        "los_omega_e": -28.5,
+        "los_omega_d": 32.75,
+        "tracking_gate_w": 50.0,
+        "tracking_gate_h": 40.0
+      },
+      "uorb": {
+        "gate_x": 0.0,
+        "gate_y": 0.0
+      },
+      "passed": true
+    }
+  ],
+  "limitations": [
+    "最小实例未接仿真时钟，timestamp为0；只验证字段与逐包发布，不验证频率或飞行。"
+  ],
+  "source_sha256": {
+    "/home/aeroarx/zsh/px4-gazebo-assets/models/gimbals/two_axis_pod/ground_station/telemetry_forward.py": "d3a02f0bd6519bd2e83f21348e8d1ed1d98e18266c2a4dd18e323acc1f0de9ff",
+    "/home/aeroarx/zsh/px4-gazebo-assets/models/gimbals/two_axis_pod/ground_station/ground_station.py": "f80a1f762cf9dd7d3c282741e20a9e57b710899ea6f29109dba9f4b7f5a01115",
+    "/home/aeroarx/zsh/PX4-Autopilot/src/modules/simulation/dyt_udp_bridge/DytUdpBridge.cpp": "ea2e9f713b067765595f8612092bfa5520892da02cf6e83d6df6d24f337687d1",
+    "/home/aeroarx/zsh/PX4-Autopilot/msg/DytAishengTelemetry.msg": "25d2b58f040ebe14c93da115c3c744082f18586671d4064a4018fea9755a45d8"
+  },
+  "px4_binary_sha256": "e6ad597a932b0722df9b1f4a423b933ce5d12b3aa065136911590982a9bf28d0",
+  "evidence_file": "gate_center_uorb_samples.json.gz",
+  "evidence_sha256": "7fda8a7e81e0094dc4e92b8279e1c955c141e84d846ea2985f07a2ab990f0607"
+}

@@ -7,6 +7,7 @@ from pathlib import Path
 import re
 import socket
 import threading
+import time
 
 from packet_rate import PacketRate
 
@@ -70,8 +71,51 @@ def target_los_omega(message):
     return tuple(float(value) for value in values)
 
 
+def valid_tracking_target(message):
+    """沿用艾晟有效跟踪判定；返回最终跟踪目标，失效时返回None。"""
+    target = message.get("target") or {}
+    tracking = message.get("tracking") or {}
+    vision = message.get("vision") or {}
+    tracking_enabled = (isinstance(vision, dict) and not vision.get("error")
+                        and (vision.get("mode") == "manual_track"
+                             or (vision.get("mode") == "auto_lock"
+                                 and vision.get("state") == "AUTO_LOCKED"
+                                 and type(vision.get("locked_track_id")) is int)))
+    miss = (target.get("miss") or {}) if isinstance(target, dict) else {}
+    valid = (tracking_enabled and message.get("mode") == "TRACK" and isinstance(tracking, dict)
+             and tracking.get("state") == "TRACK" and isinstance(target, dict)
+             and target.get("valid") is True and isinstance(miss, dict)
+             and miss.get("valid") is True)
+    return target if valid else None
+
+
+def tracking_gate_center(message, fresh=True):
+    """原始视频最终框中心像素，正数half-up；无效0/0，过期返回None。"""
+    if not fresh:
+        return None
+    if not isinstance(message, dict):
+        raise ValueError("缺少跟踪遥测")
+    target = valid_tracking_target(message)
+    if target is None:
+        return (0, 0)
+    box = target.get("box_px")
+    if not isinstance(box, (list, tuple)) or len(box) != 4:
+        raise ValueError("有效跟踪缺少像素跟踪框")
+    try:
+        finite = all(type(value) in (int, float) and math.isfinite(value) for value in box)
+    except OverflowError:
+        finite = False
+    if not finite or box[0] < 0 or box[1] < 0 or box[2] <= 0 or box[3] <= 0:
+        raise ValueError("跟踪框坐标必须为非负有限数值，宽高必须大于0")
+    # 不先对box做小数位舍入，边界亚像素会改变half-up结果。
+    center = (box[0] + box[2] / 2, box[1] + box[3] / 2)
+    if not all(math.isfinite(value) for value in center):
+        raise ValueError("跟踪框中心超出有限范围")
+    return tuple(math.floor(value + 0.5) for value in center)
+
+
 def aisheng_message(message):
-    """两轴 v8 遥测 -> 艾晟原始量；机械 gyro 与目标惯性 LOS 分开。"""
+    """两轴 v8 遥测 -> 艾晟测量字段；发送时间戳由发送线程追加。"""
     if (not isinstance(message, dict) or message.get("type") != "telemetry"
             or type(message.get("protocol_version")) is not int
             or message["protocol_version"] != 8
@@ -99,19 +143,9 @@ def aisheng_message(message):
     los_pitch_rate, los_yaw_rate = los_rates if los_rates is not None else (0.0, 0.0)
     omega = target_los_omega(message)
     omega_n, omega_e, omega_d = omega if omega is not None else (0.0, 0.0, 0.0)
-    target = message.get("target") or {}
-    tracking = message.get("tracking") or {}
-    vision = message.get("vision") or {}
-    tracking_enabled = (isinstance(vision, dict) and not vision.get("error")
-                        and (vision.get("mode") == "manual_track"
-                             or (vision.get("mode") == "auto_lock"
-                                 and vision.get("state") == "AUTO_LOCKED"
-                                 and type(vision.get("locked_track_id")) is int)))
-    miss = (target.get("miss") or {}) if isinstance(target, dict) else {}
-    valid = (tracking_enabled and message.get("mode") == "TRACK" and isinstance(tracking, dict)
-             and tracking.get("state") == "TRACK" and isinstance(target, dict)
-             and target.get("valid") is True and isinstance(miss, dict)
-             and miss.get("valid") is True)
+    target = valid_tracking_target(message)
+    valid = target is not None
+    miss = target.get("miss") if valid else {}
     offsets = miss.get("offset_deg") if valid else None
     if valid and (not isinstance(offsets, (list, tuple)) or len(offsets) != 2):
         raise ValueError("有效跟踪缺少二维角脱靶量")
@@ -122,6 +156,7 @@ def aisheng_message(message):
     gate_height = scaled(box[3]) if valid else 0.0
     if valid and (gate_width <= 0 or gate_height <= 0):
         raise ValueError("有效跟踪框宽高必须大于0")
+    gate_x, gate_y = tracking_gate_center(message)
     return {
         "track_status": int(valid),
         "pitch_angle": scaled(attitude["pitch"].get("pos")),
@@ -139,6 +174,8 @@ def aisheng_message(message):
         "los_omega_d": omega_d,
         "tracking_gate_w": gate_width,
         "tracking_gate_h": gate_height,
+        "gate_x": gate_x,
+        "gate_y": gate_y,
     }
 
 
@@ -242,6 +279,8 @@ class TelemetryForwarder:
                 raw = self._queue.popleft()
                 try:
                     payload = aisheng_message(json.loads(raw))
+                    # 记录发送时的Unix整数毫秒，不沿用源遥测或入队时刻。
+                    payload["timestamp"] = time.time_ns() // 1_000_000
                     data = json.dumps(payload, separators=(",", ":"), allow_nan=False).encode("utf-8")
                     self._socket.sendto(data, self._target)
                     self.sent += 1

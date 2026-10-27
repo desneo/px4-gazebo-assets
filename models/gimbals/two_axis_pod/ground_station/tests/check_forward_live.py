@@ -92,6 +92,7 @@ def main():
         "--config", args.config, "--duration", "8", "--gui-snapshot", str(args.output / "final.png")])
     station = AcceptanceStation(cfg, gui_args)
     original = station.tele.on_telemetry
+    capture_start_ms = time.time_ns() // 1_000_000
     sources = []
     expected = set()
 
@@ -106,12 +107,16 @@ def main():
         assert station.run() == 0
         assert station.phase == 5, "输入、发送、停止、重启与退出跟踪必须全部执行"
         assert len(received) > 80, "没有收到足够的艾晟报文"
-        assert all(raw in expected for _, raw, _ in received), "艾晟报文必须与原始遥测转换逐项匹配"
+        assert all(json.dumps({k: v for k, v in msg.items() if k != "timestamp"},
+                              separators=(",", ":"), allow_nan=False).encode() in expected
+                   for _, _, msg in received), "艾晟测量字段必须与原始遥测转换逐项匹配"
         packets = [msg for _, _, msg in received]
-        assert all(len(msg) == 16 and msg.get('target_confidence') == 0.8
+        assert all(len(msg) == 19 and type(msg.get("timestamp")) is int
+                   and capture_start_ms <= msg["timestamp"] <= time.time_ns() // 1_000_000 and msg.get('target_confidence') == 0.8
                    and type(msg['target_confidence']) is float
                    and type(msg['tracking_gate_w']) is float
-                   and type(msg['tracking_gate_h']) is float for msg in packets)
+                   and type(msg['tracking_gate_h']) is float
+                   and type(msg['gate_x']) is int and type(msg['gate_y']) is int for msg in packets)
         assert any(msg['track_status'] == 1 and msg['pitch_angle'] < 0 for msg in packets)
         assert any(msg['track_status'] == 0 and msg['tracking_confidence'] == 0
                    and msg['pitch_misalignment'] == msg['yaw_misalignment'] == 0 for msg in packets)
@@ -125,8 +130,11 @@ def main():
             if forwarded["track_status"]:
                 assert forwarded["tracking_gate_w"] == bw
                 assert forwarded["tracking_gate_h"] == bh
+                assert forwarded["gate_x"] == math.floor(bx + bw / 2 + .5)
+                assert forwarded["gate_y"] == math.floor(by + bh / 2 + .5)
             else:
                 assert forwarded["tracking_gate_w"] == forwarded["tracking_gate_h"] == 0.0
+                assert forwarded["gate_x"] == forwarded["gate_y"] == 0
             dx, dy = miss["offset_px"]
             assert abs(dx - (bx + bw / 2 - 960)) <= .11
             assert abs(dy - (by + bh / 2 - 540)) <= .11

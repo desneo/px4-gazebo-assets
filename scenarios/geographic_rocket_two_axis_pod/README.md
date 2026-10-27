@@ -12,7 +12,7 @@ PX4 控制真实动力学飞行。默认相对起飞点高度 **80 m**、航段�
 
 吊舱安装面位于机体系 `(0,0,0.289) m`，零安装旋转，各同名轴对齐；机尾z=-0.210 m、最高点z=+0.380 m。yaw 绕机体水平 +X，按镜头视线方向左负右正；pitch 绕随动 −Y，CAD 零位朝 +Z；机械范围 yaw±60°、pitch−80°～+30°，运动链为 `Rx(yaw) Ry(-pitch)`。外轴穿过球心，球心不公转。模型、插件、网关、地面站和跟踪检查均使用协议 v8、`motion_head_joint_right_positive`。组合固定零关节名义重心 `(-0.000176261396,-0.000000003426,0.044398504845) m` FLU 用于派生 CA/EKF 位置；相机位置和光学外参从基础 SDF 及装配安装面重建。组件飞行正式归档和地理场景补充运行分别保存其运行快照与原始证据，不能相互替代。
 
-地面站“发送艾晟报文”提供16字段UDP JSON：`gyro_yaw_rate/gyro_pitch_rate` 为机械相对转速，`yaw_los_rate/pitch_los_rate` 为目标相对无人机固定名义重心的 NED 方位角／仰角变化率，右正、上正、单位 °/s，外发限幅 ±20°/s；无效时 LOS 两项发0，机械转速继续发送。最终框像素宽高为 `tracking_gate_w/H`；框架角保持机械角，原始脱靶量仍为图像右、下正。字段定义见[地面站说明](../../models/gimbals/two_axis_pod/ground_station/README.md)。
+地面站“发送艾晟报文”提供19字段UDP JSON：`gyro_yaw_rate/gyro_pitch_rate` 为机械相对转速，`yaw_los_rate/pitch_los_rate` 为目标相对无人机固定名义重心的 NED 方位角／仰角变化率，右正、上正、单位 °/s，外发限幅 ±20°/s；无效时 LOS 两项发0，机械转速继续发送。最终框像素宽高为 `tracking_gate_w/tracking_gate_h`；框架角保持机械角，原始脱靶量仍为图像右、下正。字段定义见[地面站说明](../../models/gimbals/two_axis_pod/ground_station/README.md)。
 
 图像跟踪使用组件 CSRT 与载机转动补偿；生成世界显式设置 `los_target_name=AERIAL_TRACKING_TARGET`，将目标真值用于惯性 LOS 遥测及独立评分，不参与持续控制。LOS 起点 `los_observer_cg_model` 从动态装配的固定零关节名义重心派生，与PX4位置参考相同。可达时持续跟踪，限位、速度饱和、视线退化与目标丢失应在地面站明确显示；不能仅以 TRACK 字样判断稳定锁定。
 
@@ -150,3 +150,5 @@ python3 scenarios/geographic_rocket_two_axis_pod/report_validation.py \
 它验证两个独立编码进程同端口红蓝画面隔离、路径/RTP端口冲突拒绝、单路停止、租约清理和中继重启恢复。该测试与组合单机实飞分别记录，不代表已验证两架PX4飞机同时飞行。地面站会核对配置ID与当前网关hello的ID，不一致时禁止控制并显示原因。`--check-station-identity` 使用真实hello验证ID23就绪和误配ID24禁用；误配的回零、框选、手动和清故障调用使用本地记录socket检查拦截结果，不发往飞机。RTSP路径与视频帧表由本场景额外交叉核对。
 
 三维目标视线角速度通过`los_omega_n/e/d`输出，单位°/s，对应固定NED三轴，按`(r×v)/|r|²`计算，不含绕视线自转且不施加±20°/s限幅。原有方位角/仰角变化率与机械gyro字段保留现有限幅。内部`omega_valid/omega_reason`独立于两角度导数的`valid/reason`：竖直视线时方位角退化，向量仍可有效；未绑定等无效情况发送向量0/0/0。界面沿用track状态。
+
+`gate_x/gate_y`为最终`target.box_px`跟踪框在原始视频帧中的中心像素坐标，左上原点、右/下为正；由原始未取整的`x+w/2`、`y+h/2`四舍五入（恰好半像素向上取整）生成JSON整数，无效跟踪发送整数0/0。地面站显示同一计算结果，与窗口显示缩放无关。

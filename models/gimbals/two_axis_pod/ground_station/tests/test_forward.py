@@ -47,21 +47,23 @@ class ForwardTests(unittest.TestCase):
         self.receiver.settimeout(.08)
         return data
 
-    def test_only_sixteen_raw_aisheng_fields_without_wrapper(self):
+    def test_only_nineteen_raw_aisheng_fields_without_wrapper(self):
         raw = json.dumps(telemetry(), ensure_ascii=False).encode()
         self.forwarder.offer(raw)
         with self.assertRaises(socket.timeout):
             self.receiver.recvfrom(8192)
         self.start()
         self.forwarder.offer(raw)
-        self.assertEqual(json.loads(self.receive()), {
+        packet = json.loads(self.receive())
+        self.assertIs(type(packet.pop("timestamp")), int)
+        self.assertEqual(packet, {
             "track_status": 1, "pitch_angle": -56.37, "yaw_angle": 12.34,
             "pitch_misalignment": 0.5, "yaw_misalignment": -0.25,
             "tracking_confidence": 25.5, "target_confidence": 0.8,
             "gyro_pitch_rate": -1.23, "gyro_yaw_rate": 2.34,
             "pitch_los_rate": 4.5, "yaw_los_rate": -6.25,
             "los_omega_n": 7.125, "los_omega_e": -28.5, "los_omega_d": 32.75,
-            "tracking_gate_w": 50.0, "tracking_gate_h": 40.0})
+            "tracking_gate_w": 50.0, "tracking_gate_h": 40.0, "gate_x": 120, "gate_y": 215})
         self.assertEqual(self.forwarder.snapshot()["sent"], 1)
         # 没有新遥测不定时重复发送上一次状态。
         with self.assertRaises(socket.timeout):
@@ -110,7 +112,9 @@ class ForwardTests(unittest.TestCase):
         with self.assertRaises(socket.timeout):
             self.receiver.recvfrom(8192)
         client._on_datagram(raw, client.target)
-        self.assertEqual(json.loads(self.receive()), aisheng_message(telemetry()))
+        packet = json.loads(self.receive())
+        self.assertIs(type(packet.pop("timestamp")), int)
+        self.assertEqual(packet, aisheng_message(telemetry()))
         client._on_datagram(b'{"type":"hello","aircraft_id":2}', client.target)
         client._on_datagram(raw, client.target)
         with self.assertRaises(socket.timeout):

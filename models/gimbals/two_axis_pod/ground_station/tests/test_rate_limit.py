@@ -114,10 +114,10 @@ class RateLimitTests(unittest.TestCase):
                 self.assertEqual(packet["tracking_gate_w"], 0.0)
                 self.assertEqual(packet["tracking_gate_h"], 0.0)
 
-    def test_other_nine_fields_unchanged_and_format_has_sixteen_fields(self):
+    def test_other_nine_fields_unchanged_and_format_has_eighteen_fields(self):
         packet = aisheng_message(telemetry(-83.5, 67.25))
         self.assertEqual(set(packet), set(OTHER_FIELDS) | {"pitch_los_rate", "yaw_los_rate", "gyro_pitch_rate", "gyro_yaw_rate",
-                                                                 "los_omega_n", "los_omega_e", "los_omega_d"})
+                                                                 "los_omega_n", "los_omega_e", "los_omega_d", "gate_x", "gate_y"})
         self.assertEqual({key: packet[key] for key in OTHER_FIELDS}, OTHER_FIELDS)
 
     def test_source_measurement_is_not_mutated(self):
@@ -161,7 +161,7 @@ class TargetLosTests(unittest.TestCase):
         self.assertEqual((packet["pitch_los_rate"], packet["yaw_los_rate"]), (0., 0.))
         self.assertEqual((packet["gyro_pitch_rate"], packet["gyro_yaw_rate"]), (15., -16.))
         self.assertEqual({key: packet[key] for key in OTHER_FIELDS}, OTHER_FIELDS)
-        self.assertEqual(len(packet), 16)
+        self.assertEqual(len(packet), 18)
         self.assertNotIn("los_valid", packet)
 
     def test_missing_los_or_bad_reference_cannot_silently_become_zero(self):
@@ -282,7 +282,7 @@ class RateLimitUdpTests(unittest.TestCase):
     def receive(self):
         return json.loads(self.receiver.recvfrom(8192)[0])
 
-    def test_actual_udp_contains_independent_limited_sixteen_field_json(self):
+    def test_actual_udp_contains_independent_limited_nineteen_field_json(self):
         for pitch, yaw in ((45.5, -37.25), (-45.5, 37.25)):
             source = telemetry(pitch, yaw)
             original = copy.deepcopy(source)
@@ -292,7 +292,7 @@ class RateLimitUdpTests(unittest.TestCase):
                 self.assertEqual(packet["gyro_pitch_rate"], 20.0 if pitch > 0 else -20.0)
                 self.assertEqual(packet["gyro_yaw_rate"], 20.0 if yaw > 0 else -20.0)
                 self.assertEqual({key: packet[key] for key in OTHER_FIELDS}, OTHER_FIELDS)
-                self.assertEqual(len(packet), 16)
+                self.assertEqual(len(packet), 19)
                 self.assertEqual(packet["pitch_los_rate"], -2.5)
                 self.assertEqual(packet["yaw_los_rate"], 3.25)
                 self.assertEqual(source, original)
@@ -305,7 +305,7 @@ class RateLimitUdpTests(unittest.TestCase):
                                     reason="vertical_singularity", omega_ned_dps=[31., -42., 0.])
         self.forwarder.offer(json.dumps(source).encode())
         packet = self.receive()
-        self.assertEqual(len(packet), 16)
+        self.assertEqual(len(packet), 19)
         self.assertEqual([packet[f"los_omega_{axis}"] for axis in "ned"], [31., -42., 0.])
         self.assertEqual((packet["pitch_los_rate"], packet["yaw_los_rate"]), (0., 0.))
         source["target_los"].update(omega_valid=False, omega_ned_dps=None, omega_reason="no_target")

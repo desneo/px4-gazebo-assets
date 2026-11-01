@@ -68,16 +68,23 @@ class Gateway:
         self.last_discrete_time = 0.0
         self.px4_tx = 0
         self.px4_errors = 0
-        self.px4_sender = None
-        if args.px4_json_port:
+        self.json_senders = []
+        if args.px4_json_port or args.json_telemetry_port:
             if (not math.isfinite(args.px4_json_rate)
                     or args.px4_json_rate <= 0):
-                raise ValueError("PX4 JSON 频率必须为有限正数")
+                raise ValueError("JSON 遥测频率必须为有限正数")
             from gateway.px4_forward import Px4JsonSender
-            self.px4_sender = Px4JsonSender(
-                args.px4_json_host, args.px4_json_port)
-            print(f"PX4 JSON：{args.px4_json_host}:{args.px4_json_port}，"
-                  f"{args.px4_json_rate:g} Hz", flush=True)
+            if args.px4_json_port:
+                self.json_senders.append(Px4JsonSender(
+                    args.px4_json_host, args.px4_json_port))
+                print(f"PX4 JSON：{args.px4_json_host}:{args.px4_json_port}，"
+                      f"{args.px4_json_rate:g} Hz", flush=True)
+            if args.json_telemetry_port:
+                self.json_senders.append(Px4JsonSender(
+                    args.json_telemetry_host, args.json_telemetry_port))
+                print(f"GCS JSON 遥测：{args.json_telemetry_host}:"
+                      f"{args.json_telemetry_port}，{args.px4_json_rate:g} Hz",
+                      flush=True)
         self.node.subscribe(
             StringMsg, f"{args.topic_prefix}/telemetry", self._on_telemetry)
         self.node.subscribe(
@@ -85,21 +92,51 @@ class Gateway:
         self.image_topic = args.image_topic or f"{args.topic_prefix}/camera"
         self.tele_image_topic = (
             args.tele_image_topic or f"{args.topic_prefix}/camera_tele")
-        self.video_processes = []
+        self.video_process = None
+        self.video_lens = "wide"
+        self.rtsp_process = None
         if args.video:
-            for topic, port in ((self.image_topic, args.wide_video_port),
-                                (self.tele_image_topic, args.tele_video_port)):
-                command = [
-                    sys.executable, "-m", "gateway.video_worker",
-                    "--topic", topic, "--host", args.video_host,
-                    "--port", str(port), "--width", str(args.video_width),
-                    "--height", str(args.video_height), "--fps", str(args.video_fps),
-                    "--bitrate", str(args.bitrate),
-                ]
-                self.video_processes.append(
-                    subprocess.Popen(command, cwd=str(ROOT)))
-            print(f"RTP 视频：广角 {args.video_host}:{args.wide_video_port}，"
-                  f"长焦 {args.video_host}:{args.tele_video_port}", flush=True)
+            rtsp_command = [
+                sys.executable, "-m", "gateway.rtsp_server",
+                "--rtp-port", str(args.video_port),
+                "--rtsp-port", str(args.rtsp_port),
+                "--mount", args.rtsp_mount,
+            ]
+            self.rtsp_process = subprocess.Popen(rtsp_command, cwd=str(ROOT))
+            self._start_video("wide")
+            print(f"RTSP 视频：rtsp://0.0.0.0:{args.rtsp_port}{args.rtsp_mount} "
+                  f"（当前镜头：广角）", flush=True)
+
+    def _start_video(self, lens: str) -> None:
+        self._stop_video()
+        topic = self.image_topic if lens == "wide" else self.tele_image_topic
+        command = [
+            sys.executable, "-m", "gateway.video_worker",
+            "--topic", topic, "--host", "127.0.0.1",
+            "--port", str(self.args.video_port),
+            "--width", str(self.args.video_width),
+            "--height", str(self.args.video_height),
+            "--fps", str(self.args.video_fps),
+            "--bitrate", str(self.args.bitrate),
+        ]
+        self.video_process = subprocess.Popen(command, cwd=str(ROOT))
+        self.video_lens = lens
+
+    def _stop_video(self) -> None:
+        if self.video_process is None:
+            return
+        self.video_process.terminate()
+        try:
+            self.video_process.wait(timeout=2.0)
+        except subprocess.TimeoutExpired:
+            self.video_process.kill()
+        self.video_process = None
+
+    def _switch_video(self, lens: str) -> None:
+        if not self.args.video or lens == self.video_lens:
+            return
+        self._start_video(lens)
+        print(f"RTSP 视频切换：{lens}（URL 不变）", flush=True)
 
     # ---------------- Gazebo 回调 ----------------
     def _on_telemetry(self, msg: StringMsg) -> None:
@@ -361,6 +398,7 @@ class Gateway:
                 self.goto_target = None
                 self.manual_until = 0.0
                 self.manual_active = False
+            self._switch_video(lens)
             self._log(f"激活镜头 {lens}")
         else:
             self._log(f"未实现命令 0x{cmd:02X}")
@@ -407,8 +445,7 @@ class Gateway:
             return (float(center[0]) - x) ** 2 + (float(center[1]) - y) ** 2
         best = min(candidates, key=dist2)
         if dist2(best) > self.args.click_radius ** 2:
-            self._log("点选锁定失败：点击位置附近没有飞机")
-            return
+            self._log("点击位置附近没有飞机，改为锁定画面内最近目标")
         self._start_track(best, auto=False)
 
     def _try_auto_lock(self) -> None:
@@ -543,7 +580,8 @@ class Gateway:
             if not fresh:
                 continue
             try:
-                self.px4_sender.send(data)
+                for sender in self.json_senders:
+                    sender.send(data)
                 with self.lock:
                     self.px4_tx += 1
             except (ValueError, OSError) as exc:
@@ -564,7 +602,7 @@ class Gateway:
             threading.Thread(target=self._auto_lock_loop, daemon=True),
             threading.Thread(target=self._control_timeout_loop, daemon=True),
         ]
-        if self.px4_sender is not None:
+        if self.json_senders:
             threads.append(threading.Thread(target=self._px4_loop, daemon=True))
         for thread in threads:
             thread.start()
@@ -583,17 +621,17 @@ class Gateway:
             pass
         finally:
             self.running = False
-            for process in self.video_processes:
-                process.terminate()
-            for process in self.video_processes:
+            self._stop_video()
+            if self.rtsp_process is not None:
+                self.rtsp_process.terminate()
                 try:
-                    process.wait(timeout=2.0)
+                    self.rtsp_process.wait(timeout=2.0)
                 except subprocess.TimeoutExpired:
-                    process.kill()
+                    self.rtsp_process.kill()
             self.control_sock.close()
             self.telemetry_sock.close()
-            if self.px4_sender is not None:
-                self.px4_sender.close()
+            for sender in self.json_senders:
+                sender.close()
 
 
 def parse_args() -> argparse.Namespace:
@@ -610,16 +648,21 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--px4-json-host", default="127.0.0.1")
     parser.add_argument("--px4-json-port", type=int, default=0,
                         help="19 字段 PX4 JSON 目标端口；0 关闭转发")
+    parser.add_argument("--json-telemetry-host", default="127.0.0.1")
+    parser.add_argument("--json-telemetry-port", type=int, default=0,
+                        help="19 字段 JSON 遥测发往 GCS 的端口；0 关闭")
     parser.add_argument("--px4-json-rate", type=float, default=50.0,
                         help="PX4 JSON 发送频率 Hz（默认：50）")
     parser.add_argument("--click-radius", type=float, default=80.0,
                         help="双击命中真值候选的最大像素距离")
     parser.add_argument("--track-box-w", type=float, default=80.0)
     parser.add_argument("--track-box-h", type=float, default=60.0)
-    parser.add_argument("--video", action="store_true", help="启用双路 RTP 视频")
+    parser.add_argument("--video", action="store_true", help="启用单路 RTSP 视频")
     parser.add_argument("--video-host", default="127.0.0.1")
-    parser.add_argument("--wide-video-port", type=int, default=7001)
-    parser.add_argument("--tele-video-port", type=int, default=7002)
+    parser.add_argument("--video-port", type=int, default=7001,
+                        help="内部单路 RTP 端口（供 RTSP 服务读取）")
+    parser.add_argument("--rtsp-port", type=int, default=8554)
+    parser.add_argument("--rtsp-mount", default="/aisheng_seeker")
     parser.add_argument("--video-width", type=int, default=1920,
                         help="编码宽度；需与相机输出一致")
     parser.add_argument("--video-height", type=int, default=1080,

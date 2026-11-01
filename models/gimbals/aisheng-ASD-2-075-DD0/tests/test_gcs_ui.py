@@ -64,12 +64,11 @@ class GcsUiTest(unittest.TestCase):
                 self.stopped += 1
         station = GCS.GCS.__new__(GCS.GCS)
         class Video:
-            def set_active(self, _active):
+            def restart(self):
                 pass
         station.client = Client()
         station.manual = Manual()
-        station.wide = Video()
-        station.tele = Video()
+        station.video = Video()
         station.active = "wide"
         station.joystick = False
         station.joystick_values = (0.0, 0.0)
@@ -94,26 +93,25 @@ class GcsUiTest(unittest.TestCase):
                 self.sent.append((command, kwargs))
         class Video:
             def get(self):
-                return np.zeros((720, 1280, 3), dtype=np.uint8)
+                return np.zeros((540, 960, 3), dtype=np.uint8)
         station = GCS.GCS.__new__(GCS.GCS)
         station.client = Client()
-        station.wide = Video()
-        station.tele = Video()
+        station.video = Video()
         station.active = "wide"
         station.buttons = []
         station.joystick = False
         station.joystick_values = (0.0, 0.0)
-        station.view_crop = (0, 0, 1280, 720)
+        station.view_crop = (0, 0, 960, 540)
         station.view_scale_x = 1.0
         station.view_scale_y = 1.0
-        station.source_size = (1280, 720)
+        station.source_size = (960, 540)
         station.last_cmd = ""
-        GCS.GCS._on_mouse(station, GCS.cv2.EVENT_LBUTTONDBLCLK, 640, 360, 0, None)
+        GCS.GCS._on_mouse(station, GCS.cv2.EVENT_LBUTTONDBLCLK, 480, 270, 0, None)
         self.assertEqual(station.client.sent[0][0], GCS.proto.CMD_FRAME_UNLOCK)
         self.assertEqual(station.client.sent[1], (
-            GCS.proto.CMD_POINT_LOCK, {"p1": 640, "p2": 360}))
+            GCS.proto.CMD_POINT_LOCK, {"p1": 960, "p2": 540}))
 
-    def test_send_angle_uses_trackbar_values_only_on_button(self):
+    def test_send_angle_uses_input_values_only_on_button(self):
         from unittest import mock
         class Client:
             def __init__(self):
@@ -125,25 +123,72 @@ class GcsUiTest(unittest.TestCase):
             def stop(self):
                 pass
         class Video:
-            def set_active(self, _active):
+            def restart(self):
                 pass
         station = GCS.GCS.__new__(GCS.GCS)
         station.client = Client()
         station.manual = Manual()
-        station.wide = Video()
-        station.tele = Video()
+        station.video = Video()
         station.active = "wide"
         station.joystick = False
         station.joystick_values = (0.0, 0.0)
         station.last_cmd = ""
-        station.trackbar_ready = True
-        def position(name, _window):
-            return 123 if name == "Yaw x0.1" else 900
-        with mock.patch.object(GCS.cv2, "getTrackbarPos", side_effect=position):
-            station._activate("send_angle")
+        station.angle_inputs = {"yaw": "12.3", "pitch": "-45.6"}
+        station._activate("send_angle")
         self.assertEqual(station.client.sent[-1], (
-            GCS.proto.CMD_SPECIFIED_ANGLE, {"p1": -4770, "p2": 1000}))
-        self.assertIn("yaw -47.7", station.last_cmd)
+            GCS.proto.CMD_SPECIFIED_ANGLE, {"p1": 1230, "p2": -4560}))
+        self.assertIn("yaw 12.3", station.last_cmd)
+
+    def test_json_receiver_and_manual_forward(self):
+        import json
+        import socket
+        import time
+        receiver = GCS.JsonTelemetryReceiver(0)
+        try:
+            port = receiver.rx.getsockname()[1]
+            message = {
+                "timestamp": 1, "track_status": 0, "pitch_angle": 0.0,
+                "yaw_angle": 0.0, "pitch_misalignment": 0.0,
+                "yaw_misalignment": 0.0, "tracking_confidence": 0.0,
+                "target_confidence": 0.8, "gyro_pitch_rate": 0.0,
+                "gyro_yaw_rate": 0.0, "pitch_los_rate": 0.0,
+                "yaw_los_rate": 0.0, "los_omega_n": 0.0,
+                "los_omega_e": 0.0, "los_omega_d": 0.0,
+                "tracking_gate_w": 0.0, "tracking_gate_h": 0.0,
+                "gate_x": 0, "gate_y": 0,
+            }
+            tx = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            tx.sendto(json.dumps(message).encode(), ("127.0.0.1", port))
+            deadline = time.monotonic() + 1.0
+            while receiver.latest is None and time.monotonic() < deadline:
+                time.sleep(0.01)
+            self.assertEqual(receiver.latest, message)
+            out = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            out.bind(("127.0.0.1", 0))
+            out.settimeout(2.0)
+            station = GCS.GCS.__new__(GCS.GCS)
+            station.json_rx = receiver
+            station.forward_inputs = {"ip": "127.0.0.1", "port": str(out.getsockname()[1])}
+            station.forward_focus = None
+            station.forward_selected = False
+            station.forward_active = False
+            station.forward_count = 0
+            station.forward_error = ""
+            station.forward_thread = None
+            station.forward_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            station.running = True
+            station._toggle_forward()
+            payload, _ = out.recvfrom(8192)
+            forwarded = json.loads(payload)
+            self.assertEqual(len(forwarded), 19)
+            self.assertIsInstance(forwarded["timestamp"], int)
+            station.forward_active = False
+            station.forward_thread.join(timeout=1.0)
+            station.forward_sock.close()
+            out.close()
+            tx.close()
+        finally:
+            receiver.close()
 
     def test_single_axis_zero_keeps_the_other_axis(self):
         class Client:

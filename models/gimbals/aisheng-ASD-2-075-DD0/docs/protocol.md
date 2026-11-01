@@ -16,7 +16,7 @@
 | 字节序 | 小端 |
 | 校验 | 字节 4 起求和取低 8 位；控制帧 4～44，遥测帧 4～103 |
 
-UDP 不保证到达、顺序或唯一性。网关丢弃帧头、长度或校验和错误的帧；标准协议没有 ACK，上位机按遥测状态判断命令效果。上位机以 `0x00` 无效指令 10 Hz 发送心跳；网关超过 2 s 没有有效控制帧时停止跟踪和自动锁定并保持当前角度。离散命令在 200 ms 内重复帧只执行一次，`0xB1` 连续速度流不去重。遥测目标 100 Hz；演示默认 1280×720 双路，当前环境可保持 30 fps 和 100 Hz；1920×1080 双路受渲染和 Python 图像订阅限制约 20～25 fps，网关不补发旧样本。
+UDP 不保证到达、顺序或唯一性。网关丢弃帧头、长度或校验和错误的帧；标准协议没有 ACK，上位机按遥测状态判断命令效果。上位机以 `0x00` 无效指令 10 Hz 发送心跳；网关超过 2 s 没有有效控制帧时停止跟踪和自动锁定并保持当前角度。离散命令在 200 ms 内重复帧只执行一次，`0xB1` 连续速度流不去重。遥测目标 100 Hz；演示默认 1920×1080 单路当前镜头，当前环境可保持 30 fps 和 100 Hz；同时订阅/编码两路 1080p 会因 Gazebo 渲染和 Python 图像订阅下降，网关不补发旧样本。
 
 ## 控制帧 45 字节
 
@@ -120,14 +120,17 @@ UDP 不保证到达、顺序或唯一性。网关丢弃帧头、长度或校验�
 - `gyro_*`、`pitch_los_rate`、`yaw_los_rate` 按 ±20°/s 限幅；`los_omega_n/e/d` 取独立 `omega_ned_dps`，不按 ±20 限幅。
 - 目标无效时 `track_status=0`，脱靶量、波门和中心置 0；机械角和 gyro 仍发送。
 - `gate_x/y` 取最终跟踪框中心的 half-up 整数像素；`tracking_gate_w/h` 保留浮点宽度/高度。
+- `--json-telemetry-port` 可把同一 19 字段 JSON 另发一份给上位机（默认演示 8792），供“发送艾晟报文”手动转发到用户指定 IP/端口。
 
 ## 视频
 
-- 发送端：Gazebo RGB 图像 → `videoconvert` → `nvcudah264enc` 低延迟 CBR → `rtph264pay pt=96 config-interval=1 mtu=1400` → `udpsink`。网关为每路相机启动独立编码进程，避免两路 1080p 图像同时占用 Python GIL。
-- 演示默认相机输出 1280×720@30；当前 WSL/RTX 4060 环境下双路可稳定 30 fps，1920×1080 双路约 20～25 fps。`run_demo.sh` 的 `AISHENG_VIDEO_WIDTH/HEIGHT` 可覆盖。
-- 接收端：`udpsrc` → `rtpjitterbuffer latency=0` → `rtph264depay` → `h264parse` → `nvh264dec` → `videoconvert` → BGR `appsink`。
-- 产品文档写 UDP H.264/H.265 裸流；仿真使用 RTP over UDP，未实现视频 SEI。两者差异在对接真实数据链时需要适配。
-- 当前不实现视频 SEI、OSD 烧录和多客户端视频订阅管理；数字变焦由上位机显示端按遥测状态做中心裁剪，RTP 流保持全视场。
+- 控制器只订阅当前镜头图像，非活动镜头不接收、不反序列化；两个相机传感器仍按模型配置渲染。
+- 发送端：Gazebo RGB 图像 → `videoconvert n-threads=4` → `nvcudah264enc` 低延迟 CBR → 内部 RTP（`127.0.0.1:7001`）。
+- RTSP 服务：内部 RTP → `rtph264depay` → `rtph264pay` → 固定挂载 `/aisheng_seeker`；广角/长焦共用 `rtsp://主机:8554/aisheng_seeker`，切换镜头时 URL 不变，网关停止旧编码并启动新镜头编码。
+- 接收端：`rtspsrc protocols=udp latency=0` → `rtph264depay` → `h264parse` → `nvh264dec` → `videoscale`（显示 960×540）→ `videoconvert n-threads=4` → BGR `appsink`。
+- 演示默认相机和编码均为 1920×1080@30；当前 WSL/RTX 4060 环境单路 1080p 实测编码/解码 29～30fps。
+- 产品文档写 UDP H.264/H.265 裸流；仿真使用 RTSP over RTP/UDP，未实现视频 SEI。两者差异在对接真实数据链时需要适配。
+- 当前不实现视频 SEI、OSD 烧录和多客户端视频订阅管理；数字变焦由上位机显示端按遥测状态做中心裁剪，RTSP 流保持全视场。
 
 ## 限制
 

@@ -19,7 +19,7 @@ ENCODE_LAUNCH = (
     "caps=video/x-raw,format=RGB,width={w},height={h},framerate={fps}/1 "
     "max-buffers=3 leaky-type=downstream block=false "
     "! queue leaky=downstream max-size-buffers=2 max-size-time=0 max-size-bytes=0 "
-    "! videoconvert "
+    "! videoconvert n-threads=4 "
     "! nvcudah264enc preset=low-latency-hq tune=ultra-low-latency rate-control=cbr "
     "bitrate={bitrate} gop-size={fps} zero-reorder-delay=true b-frames=0 "
     "! rtph264pay pt=96 config-interval=1 mtu=1400 "

@@ -115,6 +115,7 @@ private:
   void OnImageTele(const gz::msgs::Image &_msg);
   void OnImageImpl(const gz::msgs::Image &_msg, bool _tele);
   bool SwitchCamera(bool _tele);
+  void SubscribeCamera(bool _tele);
   void OnCommand(const gz::msgs::StringMsg &_msg);
   void PublishResult(const std::string &_cmd, bool _ok,
                      const std::string &_message,
@@ -132,6 +133,7 @@ private:
   std::string linkName_{"camera_link"};
   std::string sensorName_{"camera"};
   std::string sensorNameTele_{"camera_tele"};
+  std::string imageTopicWide_;
   std::string imageTopicTele_;
   std::string commandTopic_{"/two_axis_pod/command"};
   std::string telemetryTopic_{"/two_axis_pod/telemetry"};
@@ -463,16 +465,13 @@ void GimbalController::Configure(
   if (auto *n = _ecm.Component<gz::sim::components::Name>(this->modelEntity_))
     modelName = n->Data();
 
-  const std::string imageTopic = getStr("image_topic",
+  imageTopicWide_ = getStr("image_topic",
     "/world/" + worldName + "/model/" + modelName + "/link/" + linkName_ +
     "/sensor/" + sensorName_ + "/image");
   imageTopicTele_ = getStr("image_topic_tele",
     "/world/" + worldName + "/model/" + modelName + "/link/" + linkName_ +
     "/sensor/" + sensorNameTele_ + "/image");
 
-  this->node_.Subscribe(imageTopic, &GimbalController::OnImageWide, this);
-  if (sensorEntityTele_ != gz::sim::kNullEntity)
-    this->node_.Subscribe(imageTopicTele_, &GimbalController::OnImageTele, this);
   this->node_.Subscribe(commandTopic_, &GimbalController::OnCommand, this);
   this->telemetryPub_ =
     this->node_.Advertise<gz::msgs::StringMsg>(telemetryTopic_);
@@ -480,7 +479,8 @@ void GimbalController::Configure(
     this->node_.Advertise<gz::msgs::StringMsg>(resultTopic_);
 
   configured_ = true;
-  gzmsg << "[gimbal] 插件已配置: 模型=" << modelName << " 图像=" << imageTopic
+  SubscribeCamera(false);
+  gzmsg << "[gimbal] 插件已配置: 模型=" << modelName << " 图像=" << imageTopicWide_
         << " 长焦图像=" << (sensorEntityTele_ == gz::sim::kNullEntity ?
           std::string("不可用") : imageTopicTele_)
         << " 指令=" << commandTopic_ << " 遥测=" << telemetryTopic_
@@ -535,6 +535,17 @@ void GimbalController::OnImageImpl(const gz::msgs::Image &_msg, bool _tele)
   this->frame_.seq = seq;
 }
 
+void GimbalController::SubscribeCamera(bool _tele)
+{
+  this->node_.Unsubscribe(imageTopicWide_);
+  if (!imageTopicTele_.empty())
+    this->node_.Unsubscribe(imageTopicTele_);
+  if (_tele && sensorEntityTele_ != gz::sim::kNullEntity)
+    this->node_.Subscribe(imageTopicTele_, &GimbalController::OnImageTele, this);
+  else
+    this->node_.Subscribe(imageTopicWide_, &GimbalController::OnImageWide, this);
+}
+
 bool GimbalController::SwitchCamera(bool _tele)
 {
   if (_tele && sensorEntityTele_ == gz::sim::kNullEntity)
@@ -580,6 +591,7 @@ bool GimbalController::SwitchCamera(bool _tele)
     cameraFar_ = cameraFarWide_;
     cfg_.sensor_rotation = sensorRotationWide_;
   }
+  SubscribeCamera(_tele);
   return true;
 }
 

@@ -9,6 +9,7 @@ assembledmodels/rocket_two_axis_pod/runtime/
 specs/
 
 models/gimbals/two_axis_pod/controller/build/
+models/gimbals/aisheng-ASD-2-075-DD0/controller/build/
 .venv-windows/
 .venv-linux/
 .opencode

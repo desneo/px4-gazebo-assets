@@ -1,0 +1,354 @@
+<?xml version='1.0' encoding='utf-8'?>
+<sdf version="1.9">
+  <model name="aisheng_seeker">
+    <self_collide>false</self_collide>
+    <link name="mount_link">
+      <pose>0 0 0 0 0 0</pose>
+      <inertial>
+        <pose>-0.0104455659039 -9.82706027068e-08 0.0352928324467 0 0 0</pose>
+        <mass>0.174257558779</mass>
+        <inertia>
+          <ixx>0.000197189244001</ixx>
+          <iyy>0.000184433566327</iyy>
+          <izz>0.000181827347684</izz>
+          <ixy>-1.31252964471e-10</ixy>
+          <ixz>4.29027948119e-05</ixz>
+          <iyz>-5.24329263009e-10</iyz>
+        </inertia>
+      </inertial>
+      <visual name="mount_ring_6xM3_visual">
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <mesh>
+            <uri>model://aisheng-ASD-2-075-DD0/meshes/mount_ring_6xM3.dae</uri>
+          </mesh>
+        </geometry>
+        <material>
+          <ambient>0.4 0.439215686275 0.474509803922 1</ambient>
+          <diffuse>0.4 0.439215686275 0.474509803922 1</diffuse>
+          <specular>.35 .35 .35 1</specular>
+        </material>
+      </visual>
+      <collision name="mount_ring_6xM3_collision">
+        <geometry>
+          <mesh>
+            <uri>model://aisheng-ASD-2-075-DD0/meshes/mount_ring_6xM3.dae</uri>
+          </mesh>
+        </geometry>
+      </collision>
+      <visual name="fixed_cowling_visual">
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <mesh>
+            <uri>model://aisheng-ASD-2-075-DD0/meshes/fixed_cowling.dae</uri>
+          </mesh>
+        </geometry>
+        <material>
+          <ambient>0.513725490196 0.533333333333 0.545098039216 1</ambient>
+          <diffuse>0.513725490196 0.533333333333 0.545098039216 1</diffuse>
+          <specular>.35 .35 .35 1</specular>
+        </material>
+      </visual>
+      <collision name="fixed_cowling_collision">
+        <geometry>
+          <mesh>
+            <uri>model://aisheng-ASD-2-075-DD0/meshes/fixed_cowling.dae</uri>
+          </mesh>
+        </geometry>
+      </collision>
+      <visual name="azimuth_bearing_housing_visual">
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <mesh>
+            <uri>model://aisheng-ASD-2-075-DD0/meshes/azimuth_bearing_housing.dae</uri>
+          </mesh>
+        </geometry>
+        <material>
+          <ambient>0.321568627451 0.356862745098 0.388235294118 1</ambient>
+          <diffuse>0.321568627451 0.356862745098 0.388235294118 1</diffuse>
+          <specular>.35 .35 .35 1</specular>
+        </material>
+      </visual>
+      <collision name="azimuth_bearing_housing_collision">
+        <geometry>
+          <mesh>
+            <uri>model://aisheng-ASD-2-075-DD0/meshes/azimuth_bearing_housing.dae</uri>
+          </mesh>
+        </geometry>
+      </collision>
+    </link>
+    <link name="yaw_arm_link">
+      <pose>0 0 0.056 0 0 0</pose>
+      <inertial>
+        <pose>0.0133281794128 -2.85085836433e-11 -3.04291314368e-13 0 0 0</pose>
+        <mass>0.0282475176136</mass>
+        <inertia>
+          <ixx>1.41791303438e-05</ixx>
+          <iyy>5.13198460895e-06</iyy>
+          <izz>1.52669420458e-05</izz>
+          <ixy>-2.32573708648e-14</ixy>
+          <ixz>-2.19778433748e-16</ixz>
+          <iyz>5.27564487864e-17</iyz>
+        </inertia>
+      </inertial>
+      <visual name="azimuth_yoke_visual">
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <mesh>
+            <uri>model://aisheng-ASD-2-075-DD0/meshes/azimuth_yoke.dae</uri>
+          </mesh>
+        </geometry>
+        <material>
+          <ambient>0.301960784314 0.337254901961 0.372549019608 1</ambient>
+          <diffuse>0.301960784314 0.337254901961 0.372549019608 1</diffuse>
+          <specular>.35 .35 .35 1</specular>
+        </material>
+      </visual>
+      <collision name="azimuth_yoke_collision">
+        <geometry>
+          <mesh>
+            <uri>model://aisheng-ASD-2-075-DD0/meshes/azimuth_yoke.dae</uri>
+          </mesh>
+        </geometry>
+      </collision>
+      <visual name="pitch_pivot_cap_left_visual">
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <mesh>
+            <uri>model://aisheng-ASD-2-075-DD0/meshes/pitch_pivot_cap_left.dae</uri>
+          </mesh>
+        </geometry>
+        <material>
+          <ambient>0.619607843137 0.643137254902 0.666666666667 1</ambient>
+          <diffuse>0.619607843137 0.643137254902 0.666666666667 1</diffuse>
+          <specular>.35 .35 .35 1</specular>
+        </material>
+      </visual>
+      <collision name="pitch_pivot_cap_left_collision">
+        <geometry>
+          <mesh>
+            <uri>model://aisheng-ASD-2-075-DD0/meshes/pitch_pivot_cap_left.dae</uri>
+          </mesh>
+        </geometry>
+      </collision>
+      <visual name="pitch_pivot_cap_right_visual">
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <mesh>
+            <uri>model://aisheng-ASD-2-075-DD0/meshes/pitch_pivot_cap_right.dae</uri>
+          </mesh>
+        </geometry>
+        <material>
+          <ambient>0.619607843137 0.643137254902 0.666666666667 1</ambient>
+          <diffuse>0.619607843137 0.643137254902 0.666666666667 1</diffuse>
+          <specular>.35 .35 .35 1</specular>
+        </material>
+      </visual>
+      <collision name="pitch_pivot_cap_right_collision">
+        <geometry>
+          <mesh>
+            <uri>model://aisheng-ASD-2-075-DD0/meshes/pitch_pivot_cap_right.dae</uri>
+          </mesh>
+        </geometry>
+      </collision>
+    </link>
+    <link name="camera_link">
+      <pose>0.015 0 0.056 0 0 0</pose>
+      <inertial>
+        <pose>-4.76098327429e-13 -1.3512427863e-10 2.41283785683e-05 0 0 0</pose>
+        <mass>0.0374949236077</mass>
+        <inertia>
+          <ixx>1.21589086382e-05</ixx>
+          <iyy>1.38989177595e-05</iyy>
+          <izz>1.21727468266e-05</izz>
+          <ixy>-3.29329979093e-14</ixy>
+          <ixz>8.12011588157e-15</ixz>
+          <iyz>-1.00515517416e-13</iyz>
+        </inertia>
+      </inertial>
+      <visual name="pitch_ball_shell_visual">
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <mesh>
+            <uri>model://aisheng-ASD-2-075-DD0/meshes/pitch_ball_shell.dae</uri>
+          </mesh>
+        </geometry>
+        <material>
+          <ambient>0.219607843137 0.262745098039 0.305882352941 1</ambient>
+          <diffuse>0.219607843137 0.262745098039 0.305882352941 1</diffuse>
+          <specular>.35 .35 .35 1</specular>
+        </material>
+      </visual>
+      <collision name="pitch_ball_shell_collision">
+        <geometry>
+          <mesh>
+            <uri>model://aisheng-ASD-2-075-DD0/meshes/pitch_ball_shell.dae</uri>
+          </mesh>
+        </geometry>
+      </collision>
+      <visual name="lens_bezel_visual">
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <mesh>
+            <uri>model://aisheng-ASD-2-075-DD0/meshes/lens_bezel.dae</uri>
+          </mesh>
+        </geometry>
+        <material>
+          <ambient>0.133333333333 0.172549019608 0.211764705882 1</ambient>
+          <diffuse>0.133333333333 0.172549019608 0.211764705882 1</diffuse>
+          <specular>.35 .35 .35 1</specular>
+        </material>
+      </visual>
+      <collision name="lens_bezel_collision">
+        <geometry>
+          <mesh>
+            <uri>model://aisheng-ASD-2-075-DD0/meshes/lens_bezel.dae</uri>
+          </mesh>
+        </geometry>
+      </collision>
+      <visual name="optical_window_visual">
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <mesh>
+            <uri>model://aisheng-ASD-2-075-DD0/meshes/optical_window.dae</uri>
+          </mesh>
+        </geometry>
+        <material>
+          <ambient>0.203921568627 0.380392156863 0.478431372549 1</ambient>
+          <diffuse>0.203921568627 0.380392156863 0.478431372549 1</diffuse>
+          <specular>.35 .35 .35 1</specular>
+        </material>
+      </visual>
+      <collision name="optical_window_collision">
+        <geometry>
+          <mesh>
+            <uri>model://aisheng-ASD-2-075-DD0/meshes/optical_window.dae</uri>
+          </mesh>
+        </geometry>
+      </collision>
+      <visual name="tele_lens_barrel_visual">
+        <pose>0.013 0 0.0205 0 0 0</pose>
+        <geometry>
+          <cylinder>
+            <radius>.0082</radius>
+            <length>.004</length>
+          </cylinder>
+        </geometry>
+        <material>
+          <ambient>.1333 .1725 .2118 1</ambient>
+          <diffuse>.1333 .1725 .2118 1</diffuse>
+          <specular>.45 .45 .45 1</specular>
+        </material>
+      </visual>
+      <visual name="tele_lens_window_visual">
+        <pose>0.013 0 0.0228 0 0 0</pose>
+        <geometry>
+          <cylinder>
+            <radius>.0054</radius>
+            <length>.001</length>
+          </cylinder>
+        </geometry>
+        <material>
+          <ambient>.2039 .3804 .4784 1</ambient>
+          <diffuse>.2039 .3804 .4784 1</diffuse>
+          <specular>.55 .55 .55 1</specular>
+        </material>
+      </visual>
+      <sensor name="camera" type="camera">
+        <pose>0 0 0.0237 0 -1.57079632679 0</pose>
+        <always_on>true</always_on>
+        <update_rate>30</update_rate>
+        <topic>/aisheng_seeker/camera</topic>
+        <camera>
+          <horizontal_fov>0.663225115758</horizontal_fov>
+          <image>
+            <width>1920</width>
+            <height>1080</height>
+            <format>R8G8B8</format>
+          </image>
+          <clip>
+            <near>0.005</near>
+            <far>30000</far>
+          </clip>
+        </camera>
+      </sensor>
+      <sensor name="camera_tele" type="camera">
+        <pose>0.013 0 0.0225 0 -1.57079632679 0</pose>
+        <always_on>true</always_on>
+        <update_rate>30</update_rate>
+        <topic>/aisheng_seeker/camera_tele</topic>
+        <camera>
+          <horizontal_fov>0.221656815003</horizontal_fov>
+          <image>
+            <width>1920</width>
+            <height>1080</height>
+            <format>R8G8B8</format>
+          </image>
+          <clip>
+            <near>0.005</near>
+            <far>30000</far>
+          </clip>
+        </camera>
+      </sensor>
+    </link>
+    <joint name="yaw_joint" type="revolute">
+      <parent>mount_link</parent>
+      <child>yaw_arm_link</child>
+      <pose>0 0 0 0 0 0</pose>
+      <axis>
+        <xyz>1 0 0</xyz>
+        <limit>
+          <lower>-1.0471975512</lower>
+          <upper>1.0471975512</upper>
+          <effort>5</effort>
+          <velocity>1.0471975512</velocity>
+        </limit>
+        <dynamics>
+          <damping>0.1</damping>
+        </dynamics>
+      </axis>
+    </joint>
+    <joint name="pitch_joint" type="revolute">
+      <parent>yaw_arm_link</parent>
+      <child>camera_link</child>
+      <pose>0 0 0 0 0 0</pose>
+      <axis>
+        <xyz>0 -1 0</xyz>
+        <limit>
+          <lower>-1.3962634016</lower>
+          <upper>0.523598775598</upper>
+          <effort>5</effort>
+          <velocity>1.0471975512</velocity>
+        </limit>
+        <dynamics>
+          <damping>0.1</damping>
+        </dynamics>
+      </axis>
+    </joint>
+    <plugin filename="gz-aisheng-seeker-controller" name="two_axis::GimbalController">
+      <yaw_joint>yaw_joint</yaw_joint>
+      <pitch_joint>pitch_joint</pitch_joint>
+      <mount_link>mount_link</mount_link>
+      <camera_link>camera_link</camera_link>
+      <camera_sensor>camera</camera_sensor>
+      <mount_mode>upright</mount_mode>
+      <command_topic>/aisheng_seeker/command</command_topic>
+      <telemetry_topic>/aisheng_seeker/telemetry</telemetry_topic>
+      <command_result_topic>/aisheng_seeker/command_result</command_result_topic>
+      <image_topic>/aisheng_seeker/camera</image_topic>
+      <control_rate>100</control_rate>
+      <tracking_backend>sim_truth</tracking_backend>
+      <telemetry_config>model://aisheng-ASD-2-075-DD0/controller/service/telemetry.json</telemetry_config>
+      <max_rate_dps>60</max_rate_dps>
+      <max_acc_dps2>160</max_acc_dps2>
+      <kp>6</kp>
+      <yaw_min_deg>-60</yaw_min_deg>
+      <yaw_max_deg>60</yaw_max_deg>
+      <pitch_min_deg>-80</pitch_min_deg>
+      <pitch_max_deg>30</pitch_max_deg>
+      <los_observer_cg_model>0 0 0</los_observer_cg_model>
+      <sim_truth_target_name>target_aircraft</sim_truth_target_name>
+      <sim_truth_target_name>target_aircraft_2</sim_truth_target_name>
+    </plugin>
+  </model>
+</sdf>

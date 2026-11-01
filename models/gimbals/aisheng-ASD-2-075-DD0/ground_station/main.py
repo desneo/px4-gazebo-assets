@@ -186,7 +186,7 @@ class GCS:
         self.tele = VideoReceiver(args.tele_port, "tele")
         self.client = TelemetryClient(args.host, args.control_port, args.telemetry_port)
         self.manual = ManualController(self.client)
-        self.active = "wide"
+        self.active = args.lens
         self.trackbar_ready = False
         self.manual_yaw = 0.0
         self.manual_pitch = 0.0
@@ -239,15 +239,18 @@ class GCS:
     def _on_mouse(self, event, x, y, _flags, _param):
         if event != cv2.EVENT_LBUTTONDBLCLK:
             return
+        frame = self.client.latest
+        plugin_lens = "tele" if frame and (frame.status_control2 & 0x10) else "wide"
+        if plugin_lens != self.active:
+            print(f"镜头切换中：显示 {self.active}，插件 {plugin_lens}", flush=True)
+            return
         x0, y0, _cw, _ch = self.view_crop
         u = x0 + x / self.view_scale_x
         v = y0 + y / self.view_scale_y
         if not (0 <= u < WIDTH and 0 <= v < HEIGHT):
             return
-        if self.active == "tele":
-            u, v = self._tele_to_wide(u, v)
         self.client.send(proto.CMD_POINT_LOCK, p1=int(round(u)), p2=int(round(v)))
-        print(f"双击锁定：{self.active} -> wide ({u:.0f},{v:.0f})", flush=True)
+        print(f"双击锁定：{self.active} ({u:.0f},{v:.0f})", flush=True)
 
     def _handle_key(self, key: int):
         if key in (ord("q"), 27):
@@ -302,9 +305,13 @@ class GCS:
             return
         servo = (frame.status_control >> 5) & 0x7
         tracking = bool(frame.work_state & 1)
+        plugin_lens = "tele" if frame.status_control2 & 0x10 else "wide"
         servo_text = {1: "LOCKED", 4: "FREE", 6: "TRACK"}.get(servo, f"SERVO {servo:03b}")
         status = f"{servo_text}  {'TRACKING' if tracking else 'IDLE'}  " \
                  f"{'AUTO' if frame.autonomous else 'MANUAL'}"
+        lens_text = self.active.upper()
+        if plugin_lens != self.active:
+            lens_text += f" -> {plugin_lens.upper()}"
         lines = [
             status,
             f"YAW {frame.yaw_deg:+7.2f}  PITCH {frame.pitch_deg:+7.2f} deg",
@@ -313,19 +320,15 @@ class GCS:
             f"MISS {frame.yaw_misalignment_deg:+6.2f}/{frame.pitch_misalignment_deg:+6.2f} deg",
             f"GATE {frame.gate_x:4d},{frame.gate_y:4d}  {frame.gate_w:3d}x{frame.gate_h:3d}",
             f"TLM {self.tlm_rate:5.1f} Hz  VIDEO {self.video_rate:5.1f} fps",
-            f"LENS {self.active.upper()}  ZOOM {1 << ((frame.status_control2 & 3) - 1) if (frame.status_control2 & 3) else 1}x",
+            f"LENS {lens_text}  ZOOM {1 << ((frame.status_control2 & 3) - 1) if (frame.status_control2 & 3) else 1}x",
         ]
         y = 26
         for line in lines:
             self._draw_text(image, line, 12, y)
             y += 24
-        if tracking and frame.gate_w > 0:
+        if tracking and frame.gate_w > 0 and plugin_lens == self.active:
             cx, cy = float(frame.gate_x), float(frame.gate_y)
             gw, gh = float(frame.gate_w), float(frame.gate_h)
-            if self.active == "tele":
-                cx, cy = self._wide_to_tele(cx, cy)
-                gw *= F_TELE / F_WIDE
-                gh *= F_TELE / F_WIDE
             vx, vy = self._source_to_view(cx, cy)
             vw = gw * self.view_scale_x
             vh = gh * self.view_scale_y
@@ -348,6 +351,9 @@ class GCS:
         cv2.createTrackbar("Pitch", WINDOW, 80, 110, self._on_trackbar)
         cv2.setMouseCallback(WINDOW, self._on_mouse)
         self.trackbar_ready = True
+        if not self.args.no_lens_switch:
+            self.client.send(proto.CMD_DETECTOR_SWITCH,
+                             p1=1 if self.active == "wide" else 2)
         try:
             while self.running:
                 receiver = self.wide if self.active == "wide" else self.tele
@@ -363,8 +369,10 @@ class GCS:
                 else:
                     display = self._view_geometry(source, frame)
                 self._overlay(display, frame)
+                plugin_lens = "tele" if frame and (frame.status_control2 & 0x10) else "wide"
                 if (self.args.snapshot and not self.snapshot_saved
-                        and source is not None and frame is not None):
+                        and source is not None and frame is not None
+                        and plugin_lens == self.active):
                     Path(self.args.snapshot).parent.mkdir(parents=True, exist_ok=True)
                     cv2.imwrite(self.args.snapshot, display)
                     print(f"已保存上位机截图：{self.args.snapshot}", flush=True)
@@ -398,6 +406,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--telemetry-port", type=int, default=8791)
     parser.add_argument("--wide-port", type=int, default=7001)
     parser.add_argument("--tele-port", type=int, default=7002)
+    parser.add_argument("--lens", choices=("wide", "tele"), default="wide",
+                        help="启动时激活的镜头")
+    parser.add_argument("--no-lens-switch", action="store_true",
+                        help="启动时不发送镜头切换命令")
     parser.add_argument("--snapshot", default="", help="保存一张上位机显示截图后继续运行")
     return parser.parse_args()
 

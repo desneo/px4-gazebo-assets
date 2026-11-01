@@ -307,11 +307,13 @@ def generate():
                   name='two_axis::GimbalController')
     settings = dict(
         yaw_joint='yaw_joint', pitch_joint='pitch_joint', mount_link='mount_link',
-        camera_link='camera_link', camera_sensor='camera', mount_mode='upright',
+        camera_link='camera_link', camera_sensor='camera',
+        camera_sensor_tele='camera_tele', mount_mode='upright',
         command_topic='/aisheng_seeker/command',
         telemetry_topic='/aisheng_seeker/telemetry',
         command_result_topic='/aisheng_seeker/command_result',
         image_topic='/aisheng_seeker/camera',
+        image_topic_tele='/aisheng_seeker/camera_tele',
         control_rate=100, tracking_backend='sim_truth',
         telemetry_config=MODEL_URI + '/controller/service/telemetry.json',
         max_rate_dps=c['max_rate_dps'], max_acc_dps2=c['max_acc_dps2'],

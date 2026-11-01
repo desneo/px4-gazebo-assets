@@ -23,9 +23,13 @@
 
 ![广角 4x 数字变焦](docs/zoom4.png)
 
-![上位机跟踪画面](docs/gcs_tracking.png)
+![上位机广角跟踪画面](docs/gcs_tracking.png)
 
-上位机正在跟踪 `target_aircraft`：绿色框为跟踪框，目标已居中，左上角显示标准遥测转换后的框架角、角速度、失调角、波门和接收速率。
+上位机正在用广角跟踪 `target_aircraft`：绿色框为跟踪框，目标已居中，左上角显示标准遥测转换后的框架角、角速度、失调角、波门和接收速率。
+
+![上位机长焦跟踪画面](docs/gcs_tele_tracking.png)
+
+上位机切换到长焦后的原生跟踪画面：`LENS TELE`、目标居中、跟踪框约 90×70 px。
 
 ## 模型来源与边界
 
@@ -54,7 +58,7 @@ los_mount = (-sin(pitch), -sin(yaw)cos(pitch), cos(yaw)cos(pitch))
 - `camera_tele`：长焦，1920×1080@30 Hz，水平视场 12.7°，垂直约 7°，位于原镜头下方的第二镜圈位置，光轴与广角平行。
 - 两路传感器都在 `camera_link` 上；网关用 NVENC 编码为 H.264 RTP over UDP，上位机用 NVDEC 解码显示。
 - 图像话题：`/aisheng_seeker/camera`、`/aisheng_seeker/camera_tele`；外部观察相机话题 `/aisheng_seeker/overview`。
-- 上位机可切换广角/长焦显示。跟踪控制目前固定使用广角相机；长焦画面双击时会按视场角换算到广角像素再锁定，跟踪框再换算回长焦显示。长焦原生独立跟踪尚未实现。
+- 上位机可切换广角/长焦显示；网关同时通知插件切换活动相机。双击/自动锁定使用当前活动镜头的像素和真值候选，跟踪控制使用该镜头的内参和光轴，长焦可原生独立跟踪。
 - 变焦 +/- 更新遥测状态位；上位机按 1×/2×/4× 对广角画面做中心裁剪和缩放，RTP 流本身仍为全视场。
 
 ## 标准二进制 UDP 与视频
@@ -203,6 +207,7 @@ export GZ_PARTITION=<启动脚本打印的分区>
 - `tests/move_target.py`：用 Gazebo `set_pose` 服务移动目标飞机，验证动态真值跟踪。
 - `tests/check_binary.py`：二进制协议/运动回环检查。
 - `tests/check_lock.py`：点选锁定/自动锁定/取消锁定/电锁回环检查。
+- `tests/check_tele.py`：长焦原生点选锁定回环检查。
 - `tests/test_protocol.py`：协议编解码单元测试。
 - `tests/test_coordinates.py`：广角/长焦像素换算单元测试。
 
@@ -217,5 +222,6 @@ export GZ_PARTITION=<启动脚本打印的分区>
 - 上位机 10 Hz 心跳；停止心跳 2 s 后网关停止跟踪并保持角度，控制超时保护已回环验证。
 - 广角、长焦 RTP 视频在 7001/7002 端口有持续 H.264 包；上位机能解码显示广角/长焦、遥测、跟踪框和按键提示。
 - 广角 1×/2×/4× 数字变焦已在上位机显示端验证，4× 画面为中心裁剪放大，`docs/zoom4.png` 为实际截图。
+- 长焦原生点选锁定已验证：`camera.active=tele`、`tracking.state=TRACK`、跟踪框约 90×70 px，目标居中，失调角约 0。
 - 60°/s 速度指令的峰值角速度已确认；yaw 正指令使机械角正向增加，pitch 负指令使机械角负向增加。
-- 尚未验证：更高机动/连续满速/极限限位碰撞、长焦原生独立跟踪、视频 SEI、多客户端控制。
+- 尚未验证：更高机动/连续满速/极限限位碰撞、视频 SEI、多客户端控制。

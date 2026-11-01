@@ -128,6 +128,7 @@ class Gateway:
             auto = self.auto_lock
             last_control = self.last_control
             zoom = self.zoom
+            active_lens = self.active_lens
         joints = data.get("joints_deg", {})
         try:
             yaw = float(joints["yaw"]["pos"])
@@ -175,6 +176,8 @@ class Gateway:
         zoom_bits = {1: 1, 2: 2, 4: 3}.get(zoom, 1)
         mode_bits = 3 if auto else (1 if tracking_valid else 0)
         status2 = (zoom_bits & 0x3) | ((mode_bits & 0x3) << 2)
+        if active_lens == "tele":
+            status2 |= 0x10
         frame = data.get("frame", {})
         timestamp_ms = int(float(data.get("sim_uptime", 0.0)) * 1000.0) & 0xFFFFFFFF
         aircraft_pitch = last_control.aircraft_pitch_deg if last_control else 0.0
@@ -322,8 +325,14 @@ class Gateway:
             self._log(f"广角变倍 {self.zoom}x")
         elif cmd == proto.CMD_DETECTOR_SWITCH:
             lens = "wide" if frame.p1 != 2 else "tele"
+            self._publish({"cmd": "stop"})
+            self._publish({"cmd": "set_camera", "sensor": lens})
             with self.lock:
                 self.active_lens = lens
+                self.auto_lock = False
+                self.tracking_command = False
+                self.goto_target = None
+                self.manual_until = 0.0
             self._log(f"激活镜头 {lens}")
         else:
             self._log(f"未实现命令 0x{cmd:02X}")
@@ -350,7 +359,14 @@ class Gateway:
     def _candidates(self) -> list[dict]:
         with self.lock:
             data = self.latest
-        return data.get("truth_candidates", []) if data else []
+        candidates = data.get("truth_candidates", []) if data else []
+        width, height = self._image_size()
+        visible = []
+        for candidate in candidates:
+            center = candidate.get("center_px", [])
+            if len(center) == 2 and 0 <= center[0] < width and 0 <= center[1] < height:
+                visible.append(candidate)
+        return visible
 
     def _point_lock(self, x: int, y: int) -> None:
         candidates = self._candidates()
@@ -377,6 +393,13 @@ class Gateway:
         self._start_track(min(candidates, key=dist2), auto=True)
 
     def _start_track(self, candidate: dict, auto: bool) -> None:
+        with self.lock:
+            data = self.latest
+            active = self.active_lens
+        plugin_active = data.get("camera", {}).get("active") if data else None
+        if plugin_active and plugin_active != active:
+            self._log(f"镜头切换未完成（插件 {plugin_active} / 请求 {active}）")
+            return
         width, height = self._image_size()
         center = candidate.get("center_px", [width / 2.0, height / 2.0])
         box_w = min(self.args.track_box_w, width)

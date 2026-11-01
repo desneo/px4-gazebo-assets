@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <chrono>
 #include <cmath>
 #include <cstdint>
@@ -110,7 +111,10 @@ public:
                   const gz::sim::EntityComponentManager &_ecm) override;
 
 private:
-  void OnImage(const gz::msgs::Image &_msg);
+  void OnImageWide(const gz::msgs::Image &_msg);
+  void OnImageTele(const gz::msgs::Image &_msg);
+  void OnImageImpl(const gz::msgs::Image &_msg, bool _tele);
+  bool SwitchCamera(bool _tele);
   void OnCommand(const gz::msgs::StringMsg &_msg);
   void PublishResult(const std::string &_cmd, bool _ok,
                      const std::string &_message,
@@ -127,6 +131,8 @@ private:
   std::string mountLinkName_{"mount_link"};
   std::string linkName_{"camera_link"};
   std::string sensorName_{"camera"};
+  std::string sensorNameTele_{"camera_tele"};
+  std::string imageTopicTele_;
   std::string commandTopic_{"/two_axis_pod/command"};
   std::string telemetryTopic_{"/two_axis_pod/telemetry"};
   std::string resultTopic_{"/two_axis_pod/command_result"};
@@ -146,10 +152,16 @@ private:
   TargetLosSample targetLos_;
   std::string targetLosName_;
   double cameraHfov_{0}, cameraNear_{0}, cameraFar_{0};
+  double cameraHfovWide_{0}, cameraNearWide_{0}, cameraFarWide_{0};
+  double cameraHfovTele_{0}, cameraNearTele_{0}, cameraFarTele_{0};
+  Mat3 sensorRotationWide_, sensorRotationTele_;
+  std::atomic<bool> activeTele_{false};
 
   gz::sim::Entity modelEntity_{gz::sim::kNullEntity};
   gz::sim::Entity mountEntity_{gz::sim::kNullEntity};
   gz::sim::Entity sensorEntity_{gz::sim::kNullEntity};
+  gz::sim::Entity sensorEntityWide_{gz::sim::kNullEntity};
+  gz::sim::Entity sensorEntityTele_{gz::sim::kNullEntity};
   gz::sim::Entity worldEntity_{gz::sim::kNullEntity};
   std::array<gz::sim::Entity, 2> jointEntities_
   {
@@ -220,6 +232,7 @@ void GimbalController::Configure(
   mountLinkName_ = getStr("mount_link", mountLinkName_);
   linkName_ = getStr("camera_link", linkName_);
   sensorName_ = getStr("camera_sensor", sensorName_);
+  sensorNameTele_ = getStr("camera_sensor_tele", sensorNameTele_);
   losTargetName_ = getStr("los_target_name", "");
   if (_sdf->HasElement("los_observer_cg_model"))
   {
@@ -337,6 +350,47 @@ void GimbalController::Configure(
     gzerr << "[two_axis] camera sensor 光学旋转必须为 RPY=(0,-pi/2,0)，插件禁用\n";
     return;
   }
+  sensorEntityWide_ = sensorEntity_;
+  cameraHfovWide_ = cameraHfov_;
+  cameraNearWide_ = cameraNear_;
+  cameraFarWide_ = cameraFar_;
+  sensorRotationWide_ = cfg_.sensor_rotation;
+
+  const auto teleEntity = cameraLink.SensorByName(_ecm, sensorNameTele_);
+  if (teleEntity != gz::sim::kNullEntity)
+  {
+    const auto *teleComponent =
+      _ecm.Component<gz::sim::components::Camera>(teleEntity);
+    const auto *teleCamera = teleComponent ? teleComponent->Data().CameraSensor() : nullptr;
+    if (teleCamera)
+    {
+      const double hfov = teleCamera->HorizontalFov().Radian();
+      const double nearClip = teleCamera->NearClip();
+      const double farClip = teleCamera->FarClip();
+      const auto teleOptical = (gz::sim::worldPose(cameraLinkEntity, _ecm).Rot().Inverse() *
+                                gz::sim::worldPose(teleEntity, _ecm).Rot());
+      const Mat3 teleRotation = MatMul(Rz(teleOptical.Yaw()),
+        MatMul(Ry(teleOptical.Pitch()), Rx(teleOptical.Roll())));
+      if (std::isfinite(hfov) && hfov > 0 && hfov < M_PI &&
+          std::isfinite(nearClip) && std::isfinite(farClip) &&
+          nearClip > 0 && farClip > nearClip && ValidSensorRotation(teleRotation))
+      {
+        sensorEntityTele_ = teleEntity;
+        cameraHfovTele_ = hfov;
+        cameraNearTele_ = nearClip;
+        cameraFarTele_ = farClip;
+        sensorRotationTele_ = teleRotation;
+      }
+      else
+      {
+        gzwarn << "[two_axis] 长焦相机内参或光学基底无效，仅使用广角\n";
+      }
+    }
+  }
+  else
+  {
+    gzwarn << "[two_axis] 未找到长焦相机 " << sensorNameTele_ << "，仅使用广角\n";
+  }
 
   cfg_.max_rate_dps = getDouble("max_rate_dps", cfg_.max_rate_dps);
   cfg_.max_acc_dps2 = getDouble("max_acc_dps2", cfg_.max_acc_dps2);
@@ -412,8 +466,13 @@ void GimbalController::Configure(
   const std::string imageTopic = getStr("image_topic",
     "/world/" + worldName + "/model/" + modelName + "/link/" + linkName_ +
     "/sensor/" + sensorName_ + "/image");
+  imageTopicTele_ = getStr("image_topic_tele",
+    "/world/" + worldName + "/model/" + modelName + "/link/" + linkName_ +
+    "/sensor/" + sensorNameTele_ + "/image");
 
-  this->node_.Subscribe(imageTopic, &GimbalController::OnImage, this);
+  this->node_.Subscribe(imageTopic, &GimbalController::OnImageWide, this);
+  if (sensorEntityTele_ != gz::sim::kNullEntity)
+    this->node_.Subscribe(imageTopicTele_, &GimbalController::OnImageTele, this);
   this->node_.Subscribe(commandTopic_, &GimbalController::OnCommand, this);
   this->telemetryPub_ =
     this->node_.Advertise<gz::msgs::StringMsg>(telemetryTopic_);
@@ -422,13 +481,27 @@ void GimbalController::Configure(
 
   configured_ = true;
   gzmsg << "[gimbal] 插件已配置: 模型=" << modelName << " 图像=" << imageTopic
+        << " 长焦图像=" << (sensorEntityTele_ == gz::sim::kNullEntity ?
+          std::string("不可用") : imageTopicTele_)
         << " 指令=" << commandTopic_ << " 遥测=" << telemetryTopic_
         << " 控制=" << controlHz_ << "Hz 跟踪后端="
         << ToString(trackingBackend_) << "\n";
 }
 
-void GimbalController::OnImage(const gz::msgs::Image &_msg)
+void GimbalController::OnImageWide(const gz::msgs::Image &_msg)
 {
+  OnImageImpl(_msg, false);
+}
+
+void GimbalController::OnImageTele(const gz::msgs::Image &_msg)
+{
+  OnImageImpl(_msg, true);
+}
+
+void GimbalController::OnImageImpl(const gz::msgs::Image &_msg, bool _tele)
+{
+  if (_tele != activeTele_.load())
+    return;
   std::int64_t seq = -1;
   for (int i = 0; i < _msg.header().data_size(); ++i)
   {
@@ -460,6 +533,54 @@ void GimbalController::OnImage(const gz::msgs::Image &_msg)
                           std::chrono::steady_clock::now().time_since_epoch())
                         .count();
   this->frame_.seq = seq;
+}
+
+bool GimbalController::SwitchCamera(bool _tele)
+{
+  if (_tele && sensorEntityTele_ == gz::sim::kNullEntity)
+    return false;
+  activeTele_.store(_tele);
+  {
+    std::lock_guard<std::mutex> imgLock(this->imgMutex_);
+    this->frame_ = Frame{};
+  }
+  {
+    std::lock_guard<std::mutex> lock(this->ctrlMutex_);
+    this->control_.Stop();
+    this->processedFrames_.clear();
+    this->latestBgr_.release();
+    this->latestWidth_ = 0;
+    this->latestHeight_ = 0;
+    this->lastProcessedSeq_ = -1;
+    this->meanSeq_ = 0;
+    this->boundTruthEntity_ = gz::sim::kNullEntity;
+    this->boundTruthName_.clear();
+    this->truthInitialBox_ = Box{};
+    this->truthInitialDepth_ = 0.0;
+    this->targetLos_ = targetLosEstimator_.Reset("target_unbound");
+    this->targetLosName_.clear();
+  }
+  {
+    std::lock_guard<std::mutex> truthLock(this->truthMutex_);
+    this->truthHistory_.clear();
+  }
+  if (_tele)
+  {
+    sensorEntity_ = sensorEntityTele_;
+    cameraHfov_ = cameraHfovTele_;
+    cameraNear_ = cameraNearTele_;
+    cameraFar_ = cameraFarTele_;
+    cfg_.sensor_rotation = sensorRotationTele_;
+  }
+  else
+  {
+    sensorEntity_ = sensorEntityWide_;
+    cameraHfov_ = cameraHfovWide_;
+    cameraNear_ = cameraNearWide_;
+    cameraFar_ = cameraFarWide_;
+    cfg_.sensor_rotation = sensorRotationWide_;
+  }
+  return true;
 }
 
 void GimbalController::PostUpdate(
@@ -770,6 +891,22 @@ void GimbalController::OnCommand(const gz::msgs::StringMsg &_msg)
     }
     const auto &[ok, message] = result;
     reply(ok, message);
+  }
+  else if (cmd == "set_camera")
+  {
+    const json::Value *sensorV = v.Find("sensor");
+    const std::string sensor = sensorV ? sensorV->AsStr() : "";
+    if (sensor != "wide" && sensor != "tele")
+    {
+      reply(false, "镜头必须为 wide 或 tele");
+      return;
+    }
+    if (!this->SwitchCamera(sensor == "tele"))
+    {
+      reply(false, "长焦相机不可用");
+      return;
+    }
+    reply(true, "");
   }
   else if (cmd == "stop")
   {
@@ -1281,7 +1418,8 @@ void GimbalController::PublishTelemetry(double _now, const JointSample &_js,
      << "," << Num(qWorld[2], 6) << "," << Num(qWorld[3], 6)
      << "],\"rpy_world_deg\":[" << Num(rpyWorld[0], 3) << ","
      << Num(rpyWorld[1], 3) << "," << Num(rpyWorld[2], 3)
-     << "],\"frame_seq\":" << this->meanSeq_ << "}";
+     << "],\"frame_seq\":" << this->meanSeq_
+     << ",\"active\":\"" << (activeTele_.load() ? "tele" : "wide") << "\"}";
 
   os << ",\"truth_candidates\":[";
   if (!this->processedFrames_.empty())

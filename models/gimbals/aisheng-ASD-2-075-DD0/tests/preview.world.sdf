@@ -951,11 +951,13 @@
         <mount_link>mount_link</mount_link>
         <camera_link>camera_link</camera_link>
         <camera_sensor>camera</camera_sensor>
+        <camera_sensor_tele>camera_tele</camera_sensor_tele>
         <mount_mode>upright</mount_mode>
         <command_topic>/aisheng_seeker/command</command_topic>
         <telemetry_topic>/aisheng_seeker/telemetry</telemetry_topic>
         <command_result_topic>/aisheng_seeker/command_result</command_result_topic>
         <image_topic>/aisheng_seeker/camera</image_topic>
+        <image_topic_tele>/aisheng_seeker/camera_tele</image_topic_tele>
         <control_rate>100</control_rate>
         <tracking_backend>sim_truth</tracking_backend>
         <telemetry_config>model://aisheng-ASD-2-075-DD0/controller/service/telemetry.json</telemetry_config>

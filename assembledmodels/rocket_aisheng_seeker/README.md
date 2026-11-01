@@ -17,6 +17,8 @@
 
 ![导引头近景](docs/closeup.png)
 
+![整机与近景对比](docs/compare.png)
+
 导引头旁橙色箭头为 `ROCKET_AISHENG_SEEKER_LOCATION_MARKER`，无碰撞体。
 
 ## 运行

@@ -45,6 +45,11 @@ class VideoSender:
         self._base_pts = None
         self._warned_size = False
         self._pushed_once = False
+        self._pushed = 0
+        self._dropped = 0
+        self._last_stats = time.monotonic()
+        self._last_stats_seq = 0
+        self._last_stats_pushed = 0
         self.pipeline = Gst.parse_launch(ENCODE_LAUNCH.format(
             w=width, h=height, fps=fps, bitrate=bitrate_kbps,
             host=host, port=port))
@@ -80,6 +85,7 @@ class VideoSender:
         try:
             self._mailbox.put_nowait(item)
         except queue.Full:
+            self._dropped += 1
             try:
                 self._mailbox.get_nowait()
             except queue.Empty:
@@ -103,6 +109,7 @@ class VideoSender:
             t_before = time.monotonic()
             ret = self._appsrc.emit("push-buffer", buf)
             dt = time.monotonic() - t_before
+            self._pushed += 1
             self._last_push_done = time.monotonic()
             if not self._pushed_once:
                 self._pushed_once = True
@@ -116,6 +123,15 @@ class VideoSender:
         while not self._closing:
             time.sleep(1.0)
             now = time.monotonic()
+            if now - self._last_stats >= 5.0:
+                elapsed = now - self._last_stats
+                print(f"[video:{self.port}] 图像 "
+                      f"{(self._seq - self._last_stats_seq) / elapsed:.1f} fps，编码 "
+                      f"{(self._pushed - self._last_stats_pushed) / elapsed:.1f} fps，"
+                      f"丢弃 {self._dropped}", flush=True)
+                self._last_stats = now
+                self._last_stats_seq = self._seq
+                self._last_stats_pushed = self._pushed
             if self._last_frame and now - self._last_frame > 5.0:
                 self._last_frame = 0.0
                 print(f"[video:{self.port}] 5 s 无新图像", flush=True)

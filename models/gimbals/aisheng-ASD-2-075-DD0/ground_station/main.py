@@ -48,15 +48,19 @@ JOYSTICK_RADIUS = 44
 JOYSTICK_Y = DISPLAY_H + 145
 BUTTON_ROWS = (
     (("解锁", "unlock"), ("电锁", "lock"), ("归中", "recenter"),
-     ("取消锁定", "cancel"), ("自动锁定", "auto"), ("关闭自动", "auto_off")),
+     ("取消锁定", "cancel"), ("自动锁定", "auto"), ("关闭自动", "auto_off"),
+     ("发送指定角", "send_angle")),
     (("广角", "wide"), ("长焦", "tele"), ("变倍+", "zoom_in"),
-     ("变倍-", "zoom_out"), ("停止", "stop")),
+     ("变倍-", "zoom_out"), ("Yaw归零", "zero_yaw"),
+     ("Pitch归零", "zero_pitch"), ("停止", "stop")),
 )
 BUTTON_ROWS_EN = (
     (("UNLOCK", "unlock"), ("LOCK", "lock"), ("HOME", "recenter"),
-     ("CANCEL", "cancel"), ("AUTO", "auto"), ("AUTO OFF", "auto_off")),
+     ("CANCEL", "cancel"), ("AUTO", "auto"), ("AUTO OFF", "auto_off"),
+     ("SEND ANGLE", "send_angle")),
     (("WIDE", "wide"), ("TELE", "tele"), ("ZOOM+", "zoom_in"),
-     ("ZOOM-", "zoom_out"), ("STOP", "stop")),
+     ("ZOOM-", "zoom_out"), ("YAW ZERO", "zero_yaw"),
+     ("PITCH ZERO", "zero_pitch"), ("STOP", "stop")),
 )
 FONT_CANDIDATES = (
     "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
@@ -116,11 +120,13 @@ def tele_to_wide(u: float, v: float) -> tuple[float, float]:
 
 
 class VideoReceiver:
-    def __init__(self, port: int, name: str):
+    def __init__(self, port: int, name: str, active: bool = True):
         self.port = port
         self.name = name
+        self.active = active
         self.latest: np.ndarray | None = None
         self.count = 0
+        self.seq = 0
         self.last_mono = 0.0
         self.closing = False
         launch = (
@@ -129,13 +135,20 @@ class VideoReceiver:
             "encoding-name=H264,payload=96 "
             "! rtpjitterbuffer latency=0 drop-on-latency=true "
             "! rtph264depay ! h264parse ! nvh264dec "
+            "! videoscale ! video/x-raw,width=1280,height=720 "
             "! videoconvert ! video/x-raw,format=BGR "
             "! appsink name=sink max-buffers=1 drop=true sync=false"
         )
         self.pipeline = Gst.parse_launch(launch)
         self.appsink = self.pipeline.get_by_name("sink")
-        self.pipeline.set_state(Gst.State.PLAYING)
+        self.pipeline.set_state(Gst.State.PLAYING if active else Gst.State.PAUSED)
         threading.Thread(target=self._pull_loop, daemon=True).start()
+
+    def set_active(self, active: bool) -> None:
+        if active == self.active:
+            return
+        self.active = active
+        self.pipeline.set_state(Gst.State.PLAYING if active else Gst.State.PAUSED)
 
     def _pull_loop(self):
         while not self.closing:
@@ -159,6 +172,7 @@ class VideoReceiver:
             if self.count == 0:
                 print(f"[video:{self.name}] 首帧 {width}x{height}", flush=True)
             self.count += 1
+            self.seq += 1
             self.last_mono = time.monotonic()
 
     def get(self):
@@ -260,8 +274,8 @@ class ManualController:
 class GCS:
     def __init__(self, args):
         self.args = args
-        self.wide = VideoReceiver(args.wide_port, "wide")
-        self.tele = VideoReceiver(args.tele_port, "tele")
+        self.wide = VideoReceiver(args.wide_port, "wide", active=args.lens == "wide")
+        self.tele = VideoReceiver(args.tele_port, "tele", active=args.lens == "tele")
         self.client = TelemetryClient(args.host, args.control_port, args.telemetry_port)
         self.manual = ManualController(self.client)
         self.active = args.lens
@@ -273,10 +287,15 @@ class GCS:
         self.last_rate_time = time.monotonic()
         self.last_tlm_count = 0
         self.last_video_count = 0
+        self.last_log_time = time.monotonic()
+        self.display_count = 0
+        self.display_rate = 0.0
+        self.last_source_seq = -1
         self.running = True
         self.view_crop = (0, 0, WIDTH, HEIGHT)
         self.view_scale_x = DISPLAY_W / WIDTH
         self.view_scale_y = DISPLAY_H / HEIGHT
+        self.source_size = (WIDTH, HEIGHT)
         self.snapshot_saved = False
         self.buttons = []
         self.hover = None
@@ -287,6 +306,9 @@ class GCS:
         self.font_path = next(
             (path for path in FONT_CANDIDATES if Path(path).is_file()), "")
         self.font_cache = {}
+        self.telemetry_overlay = None
+        self.telemetry_overlay_time = 0.0
+        self.panel_labels = self._build_panel_labels()
 
     def _font(self, size: int):
         if not _HAVE_PIL:
@@ -314,13 +336,64 @@ class GCS:
     def _labels(self, rows):
         return rows if _HAVE_PIL else BUTTON_ROWS_EN
 
+    @staticmethod
+    def _composite_rgba(image, overlay, x=0, y=0):
+        height, width = overlay.shape[:2]
+        roi = image[y:y + height, x:x + width]
+        alpha = overlay[:, :, 3]
+        mask = alpha > 0
+        if not mask.any():
+            return image
+        weight = alpha[mask].astype(np.uint16)
+        inverse = 255 - weight
+        for channel in range(3):
+            source = overlay[:, :, channel][mask].astype(np.uint16)
+            target = roi[:, :, channel]
+            target[mask] = ((target[mask].astype(np.uint16) * inverse
+                             + source * weight) // 255).astype(np.uint8)
+        return image
+
+    def _build_panel_labels(self):
+        if not _HAVE_PIL:
+            return None
+        image = Image.new("RGBA", (DISPLAY_W, PANEL_H), (0, 0, 0, 0))
+        draw = ImageDraw.Draw(image)
+        font = self._font(18)
+        for label, _action, rect in self._panel_buttons():
+            bbox = draw.textbbox((0, 0), label, font=font)
+            tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
+            draw.text((rect[0] + (rect[2] - tw) / 2 - bbox[0],
+                       rect[1] - DISPLAY_H + (rect[3] - th) / 2 - bbox[1]),
+                      label, font=font, fill=(255, 255, 255, 255),
+                      stroke_width=1, stroke_fill=(0, 0, 0, 255))
+        cy = JOYSTICK_Y - DISPLAY_H
+        draw.text((DISPLAY_W // 2 - JOYSTICK_RADIUS,
+                   cy + JOYSTICK_RADIUS + 8), "YAW / PITCH",
+                  font=font, fill=(230, 230, 230, 255),
+                  stroke_width=1, stroke_fill=(0, 0, 0, 255))
+        draw.text((DISPLAY_W // 2 - 150, cy + JOYSTICK_RADIUS + 30),
+                  "左负 / 右正，上正 / 下负；松开停止",
+                  font=self._font(14), fill=(190, 190, 190, 255),
+                  stroke_width=1, stroke_fill=(0, 0, 0, 255))
+        draw.text((12, PANEL_H - 22),
+                  "顶部滑条设角后点发送指定角 | 双击视频自动解锁并点选 | 空格停止 | Q 退出",
+                  font=self._font(15), fill=(230, 230, 230, 255),
+                  stroke_width=1, stroke_fill=(0, 0, 0, 255))
+        return np.array(image)
+
+    def _build_telemetry_overlay(self, lines, colors):
+        image = Image.new("RGBA", (760, 320), (0, 0, 0, 0))
+        draw = ImageDraw.Draw(image)
+        font = self._font(18)
+        for index, (text, color) in enumerate(zip(lines, colors)):
+            draw.text((12, 8 + index * 23), text, font=font,
+                      fill=(color[2], color[1], color[0], 255),
+                      stroke_width=1, stroke_fill=(0, 0, 0, 255))
+        return np.array(image)
+
     def _on_trackbar(self, _value):
-        if not self.trackbar_ready:
-            return
-        yaw = cv2.getTrackbarPos("Yaw", WINDOW) - 60
-        pitch = cv2.getTrackbarPos("Pitch", WINDOW) - 80
-        self.client.send(proto.CMD_SPECIFIED_ANGLE,
-                         p1=int(yaw * 100), p2=int(pitch * 100))
+        # 指定角只在点击“发送指定角”时下发，拖动滑条不连续改变框架。
+        return
 
     def _wide_to_tele(self, u: float, v: float) -> tuple[float, float]:
         return wide_to_tele(u, v)
@@ -329,18 +402,20 @@ class GCS:
         return tele_to_wide(u, v)
 
     def _view_geometry(self, source, frame: proto.TelemetryFrame | None):
+        source_h, source_w = source.shape[:2]
         zoom_bits = (frame.status_control2 & 0x3) if frame is not None else 1
         zoom = {1: 1, 2: 2, 3: 4}.get(zoom_bits, 1)
         if self.active == "wide" and zoom > 1:
-            crop_w = WIDTH // zoom
-            crop_h = HEIGHT // zoom
-            x0 = (WIDTH - crop_w) // 2
-            y0 = (HEIGHT - crop_h) // 2
+            crop_w = max(1, source_w // zoom)
+            crop_h = max(1, source_h // zoom)
+            x0 = (source_w - crop_w) // 2
+            y0 = (source_h - crop_h) // 2
         else:
-            x0, y0, crop_w, crop_h = 0, 0, WIDTH, HEIGHT
+            x0, y0, crop_w, crop_h = 0, 0, source_w, source_h
         self.view_crop = (x0, y0, crop_w, crop_h)
         self.view_scale_x = DISPLAY_W / crop_w
         self.view_scale_y = DISPLAY_H / crop_h
+        self.source_size = (source_w, source_h)
         crop = source[y0:y0 + crop_h, x0:x0 + crop_w]
         return cv2.resize(crop, (DISPLAY_W, DISPLAY_H),
                           interpolation=cv2.INTER_AREA)
@@ -366,6 +441,11 @@ class GCS:
         self.joystick = False
         self.joystick_values = (0.0, 0.0)
 
+    def _unlock_if_locked(self):
+        frame = self.client.latest
+        if frame is not None and ((frame.status_control >> 5) & 0x7) == 1:
+            self.client.send(proto.CMD_FRAME_UNLOCK)
+
     def _activate(self, action):
         self._release_joystick()
         if action == "unlock":
@@ -375,6 +455,7 @@ class GCS:
             self.client.send(proto.CMD_FRAME_LOCK)
             self.last_cmd = "已发送：电锁"
         elif action == "recenter":
+            self._unlock_if_locked()
             self.client.send(proto.CMD_RECENTER)
             self.last_cmd = "已发送：归中"
         elif action == "cancel":
@@ -388,10 +469,16 @@ class GCS:
             self.last_cmd = "已发送：关闭自动锁定"
         elif action == "wide":
             self.active = "wide"
+            self.last_source_seq = -1
+            self.wide.set_active(True)
+            self.tele.set_active(False)
             self.client.send(proto.CMD_DETECTOR_SWITCH, p1=1)
             self.last_cmd = "已发送：广角镜头"
         elif action == "tele":
             self.active = "tele"
+            self.last_source_seq = -1
+            self.wide.set_active(False)
+            self.tele.set_active(True)
             self.client.send(proto.CMD_DETECTOR_SWITCH, p1=2)
             self.last_cmd = "已发送：长焦镜头"
         elif action == "zoom_in":
@@ -400,6 +487,26 @@ class GCS:
         elif action == "zoom_out":
             self.client.send(proto.CMD_ZOOM_OUT)
             self.last_cmd = "已发送：变倍-"
+        elif action == "send_angle":
+            self._unlock_if_locked()
+            yaw = cv2.getTrackbarPos("Yaw x0.1", WINDOW) / 10.0 - 60.0
+            pitch = cv2.getTrackbarPos("Pitch x0.1", WINDOW) / 10.0 - 80.0
+            self.client.send(proto.CMD_SPECIFIED_ANGLE,
+                             p1=int(round(yaw * 100)), p2=int(round(pitch * 100)))
+            self.last_cmd = f"指定角：yaw {yaw:.1f}  pitch {pitch:.1f}"
+        elif action in ("zero_yaw", "zero_pitch"):
+            frame = self.client.latest
+            if frame is None:
+                self.last_cmd = "无遥测，无法归零单轴"
+                return
+            self._unlock_if_locked()
+            yaw = 0.0 if action == "zero_yaw" else frame.yaw_deg
+            pitch = 0.0 if action == "zero_pitch" else frame.pitch_deg
+            self.client.send(proto.CMD_SPECIFIED_ANGLE,
+                             p1=int(round(yaw * 100)), p2=int(round(pitch * 100)))
+            self.last_cmd = (f"Yaw归零：pitch {pitch:+.1f}"
+                             if action == "zero_yaw" else
+                             f"Pitch归零：yaw {yaw:+.1f}")
         elif action == "stop":
             self.manual.stop()
             self.client.send(proto.CMD_CANCEL_LOCK)
@@ -448,10 +555,14 @@ class GCS:
             self.last_cmd = f"镜头切换中：显示 {self.active}，插件 {plugin_lens}"
             return
         x0, y0, _cw, _ch = self.view_crop
+        source = (self.wide if self.active == "wide" else self.tele).get()
+        source_w = source.shape[1] if source is not None else WIDTH
+        source_h = source.shape[0] if source is not None else HEIGHT
         u = x0 + x / self.view_scale_x
         v = y0 + y / self.view_scale_y
-        if not (0 <= u < WIDTH and 0 <= v < HEIGHT):
+        if not (0 <= u < source_w and 0 <= v < source_h):
             return
+        self._unlock_if_locked()
         self.client.send(proto.CMD_POINT_LOCK, p1=int(round(u)), p2=int(round(v)))
         self.last_cmd = f"双击锁定：{self.active} ({u:.0f},{v:.0f})"
 
@@ -566,8 +677,10 @@ class GCS:
                 lines.append("遥测超时" if _HAVE_PIL else "TELEMETRY STALE")
                 colors.append((0, 0, 255))
             if tracking and frame.gate_w > 0 and plugin_lens == self.active:
-                cx, cy = float(frame.gate_x), float(frame.gate_y)
-                gw, gh = float(frame.gate_w), float(frame.gate_h)
+                cx = float(frame.gate_x)
+                cy = float(frame.gate_y)
+                gw = float(frame.gate_w)
+                gh = float(frame.gate_h)
                 vx, vy = self._source_to_view(cx, cy)
                 vw = gw * self.view_scale_x
                 vh = gh * self.view_scale_y
@@ -584,21 +697,24 @@ class GCS:
             colors.append((255, 255, 0))
         else:
             if self.trackbar_ready:
-                yaw_cmd = cv2.getTrackbarPos("Yaw", WINDOW) - 60
-                pitch_cmd = cv2.getTrackbarPos("Pitch", WINDOW) - 80
+                yaw_cmd = cv2.getTrackbarPos("Yaw x0.1", WINDOW) / 10.0 - 60.0
+                pitch_cmd = cv2.getTrackbarPos("Pitch x0.1", WINDOW) / 10.0 - 80.0
             else:
-                yaw_cmd = pitch_cmd = 0
-            lines.append(f"指定角: yaw {yaw_cmd:+d}  pitch {pitch_cmd:+d} °"
+                yaw_cmd = pitch_cmd = 0.0
+            lines.append(f"指定角: yaw {yaw_cmd:+.1f}  pitch {pitch_cmd:+.1f} °"
                          if _HAVE_PIL else
-                         f"CMD yaw {yaw_cmd:+d} pitch {pitch_cmd:+d} deg")
+                         f"CMD yaw {yaw_cmd:+.1f} pitch {pitch_cmd:+.1f} deg")
             colors.append((255, 255, 0))
         if self.last_cmd:
             lines.append(self.last_cmd)
             colors.append((0, 255, 0))
         if _HAVE_PIL:
-            items = [(text, 12, 8 + index * 23, color, 18)
-                     for index, (text, color) in enumerate(zip(lines, colors))]
-            return self._texts(image, items)
+            now = time.monotonic()
+            if (self.telemetry_overlay is None
+                    or now - self.telemetry_overlay_time >= 0.2):
+                self.telemetry_overlay = self._build_telemetry_overlay(lines, colors)
+                self.telemetry_overlay_time = now
+            return self._composite_rgba(image, self.telemetry_overlay)
         y = 26
         for text, color in zip(lines, colors):
             self._draw_text(image, text, 12, y, color, 0.55)
@@ -607,13 +723,13 @@ class GCS:
 
     def _panel(self, image, frame: proto.TelemetryFrame | None):
         panel = np.full((PANEL_H, DISPLAY_W, 3), 28, dtype=np.uint8)
-        canvas = np.vstack((image, panel))
         buttons = self._panel_buttons()
         self.buttons = buttons
         servo = (frame.status_control >> 5) & 0x7 if frame else -1
         auto = bool(frame.autonomous) if frame else False
         for label, action, rect in buttons:
             x, y, width, height = rect
+            y -= DISPLAY_H
             active = ((action == "wide" and self.active == "wide")
                       or (action == "tele" and self.active == "tele")
                       or (action == "auto" and auto)
@@ -625,51 +741,32 @@ class GCS:
                 bg = (110, 110, 110) if not active else (0, 150, 0)
             if self.pressed is not None and self.pressed[0] == label:
                 bg = (0, 150, 0)
-            cv2.rectangle(canvas, (x, y), (x + width, y + height), bg, -1)
-            cv2.rectangle(canvas, (x, y), (x + width, y + height),
+            cv2.rectangle(panel, (x, y), (x + width, y + height), bg, -1)
+            cv2.rectangle(panel, (x, y), (x + width, y + height),
                           (200, 200, 200), 1)
-        cx, cy = DISPLAY_W // 2, JOYSTICK_Y
-        cv2.circle(canvas, (cx, cy), JOYSTICK_RADIUS, (150, 150, 150), 1, cv2.LINE_AA)
-        cv2.line(canvas, (cx - JOYSTICK_RADIUS, cy),
+        cx, cy = DISPLAY_W // 2, JOYSTICK_Y - DISPLAY_H
+        cv2.circle(panel, (cx, cy), JOYSTICK_RADIUS, (150, 150, 150), 1, cv2.LINE_AA)
+        cv2.line(panel, (cx - JOYSTICK_RADIUS, cy),
                  (cx + JOYSTICK_RADIUS, cy), (80, 80, 80), 1)
-        cv2.line(canvas, (cx, cy - JOYSTICK_RADIUS),
+        cv2.line(panel, (cx, cy - JOYSTICK_RADIUS),
                  (cx, cy + JOYSTICK_RADIUS), (80, 80, 80), 1)
         x, y = self.joystick_values if self.joystick else (0.0, 0.0)
-        cv2.circle(canvas, (int(cx + x * JOYSTICK_RADIUS),
-                            int(cy - y * JOYSTICK_RADIUS)),
+        cv2.circle(panel, (int(cx + x * JOYSTICK_RADIUS),
+                           int(cy - y * JOYSTICK_RADIUS)),
                    11, (0, 200, 255), -1, cv2.LINE_AA)
-        if _HAVE_PIL:
-            items = [
-                ("YAW / PITCH", cx - JOYSTICK_RADIUS, cy + JOYSTICK_RADIUS + 8,
-                 (230, 230, 230), 18),
-                ("左负 / 右正，上正 / 下负；松开停止", cx - 150,
-                 cy + JOYSTICK_RADIUS + 30, (190, 190, 190), 14),
-                ("双击视频点选锁定 | 方向键/WASD 手动 | 空格停止 | Q 退出",
-                 12, DISPLAY_H + PANEL_H - 22, (230, 230, 230), 15),
-            ]
-            canvas = self._texts(canvas, items)
-            # 按钮文字居中
-            pil = Image.fromarray(cv2.cvtColor(canvas, cv2.COLOR_BGR2RGB))
-            draw = ImageDraw.Draw(pil)
-            for label, _action, rect in buttons:
-                font = self._font(18)
-                bbox = draw.textbbox((0, 0), label, font=font)
-                tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
-                draw.text((rect[0] + (rect[2] - tw) / 2 - bbox[0],
-                           rect[1] + (rect[3] - th) / 2 - bbox[1]),
-                          label, font=font, fill=(255, 255, 255))
-            canvas = cv2.cvtColor(np.asarray(pil), cv2.COLOR_RGB2BGR)
+        if self.panel_labels is not None:
+            self._composite_rgba(panel, self.panel_labels)
         else:
             for label, _action, rect in buttons:
-                cv2.putText(canvas, label, (rect[0] + 6, rect[1] + 23),
+                cv2.putText(panel, label, (rect[0] + 6, rect[1] - DISPLAY_H + 23),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.45,
                             (255, 255, 255), 1, cv2.LINE_AA)
-            cv2.putText(canvas, "YAW / PITCH", (cx - 60, cy + JOYSTICK_RADIUS + 20),
+            cv2.putText(panel, "YAW / PITCH", (cx - 60, cy + JOYSTICK_RADIUS + 20),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, (230, 230, 230), 1, cv2.LINE_AA)
-            cv2.putText(canvas, "double-click video to lock | arrows/WASD manual | space stop | Q quit",
-                        (12, DISPLAY_H + PANEL_H - 12), cv2.FONT_HERSHEY_SIMPLEX,
+            cv2.putText(panel, "set angle on sliders then SEND ANGLE | double-click to lock | space stop | Q quit",
+                        (12, PANEL_H - 12), cv2.FONT_HERSHEY_SIMPLEX,
                         0.45, (230, 230, 230), 1, cv2.LINE_AA)
-        return canvas
+        return np.vstack((image, panel))
 
     def run(self):
         cv2.namedWindow(WINDOW, cv2.WINDOW_AUTOSIZE)
@@ -677,8 +774,8 @@ class GCS:
             cv2.setWindowProperty(WINDOW, cv2.WND_PROP_TOPMOST, 1)
         except cv2.error:
             pass
-        cv2.createTrackbar("Yaw", WINDOW, 60, 120, self._on_trackbar)
-        cv2.createTrackbar("Pitch", WINDOW, 80, 110, self._on_trackbar)
+        cv2.createTrackbar("Yaw x0.1", WINDOW, 600, 1200, self._on_trackbar)
+        cv2.createTrackbar("Pitch x0.1", WINDOW, 800, 1100, self._on_trackbar)
         cv2.setMouseCallback(WINDOW, self._on_mouse)
         self.trackbar_ready = True
         if not self.args.no_lens_switch:
@@ -689,35 +786,47 @@ class GCS:
                 receiver = self.wide if self.active == "wide" else self.tele
                 source = receiver.get()
                 frame = self.client.latest
-                if source is None:
-                    display = np.zeros((DISPLAY_H, DISPLAY_W, 3), dtype=np.uint8)
-                    self.view_crop = (0, 0, WIDTH, HEIGHT)
-                    self.view_scale_x = DISPLAY_W / WIDTH
-                    self.view_scale_y = DISPLAY_H / HEIGHT
-                    self._draw_text(display, f"NO VIDEO ({self.active.upper()})",
-                                    12, 60, (0, 0, 255), 0.8)
-                else:
-                    display = self._view_geometry(source, frame)
-                display = self._overlay(display, frame)
-                display = self._panel(display, frame)
-                plugin_lens = "tele" if frame and (frame.status_control2 & 0x10) else "wide"
-                if (self.args.snapshot and not self.snapshot_saved
-                        and source is not None and frame is not None
-                        and plugin_lens == self.active
-                        and self.video_rate > 0 and self.tlm_rate > 0):
-                    Path(self.args.snapshot).parent.mkdir(parents=True, exist_ok=True)
-                    cv2.imwrite(self.args.snapshot, display)
-                    print(f"已保存上位机截图：{self.args.snapshot}", flush=True)
-                    self.snapshot_saved = True
-                cv2.imshow(WINDOW, display)
+                new_frame = receiver.seq != self.last_source_seq
+                if new_frame:
+                    self.last_source_seq = receiver.seq
+                    if source is None:
+                        display = np.zeros((DISPLAY_H, DISPLAY_W, 3), dtype=np.uint8)
+                        self.view_crop = (0, 0, WIDTH, HEIGHT)
+                        self.view_scale_x = DISPLAY_W / WIDTH
+                        self.view_scale_y = DISPLAY_H / HEIGHT
+                        self.source_size = (WIDTH, HEIGHT)
+                        self._draw_text(display, f"NO VIDEO ({self.active.upper()})",
+                                        12, 60, (0, 0, 255), 0.8)
+                    else:
+                        display = self._view_geometry(source, frame)
+                    display = self._overlay(display, frame)
+                    display = self._panel(display, frame)
+                    plugin_lens = "tele" if frame and (frame.status_control2 & 0x10) else "wide"
+                    if (self.args.snapshot and not self.snapshot_saved
+                            and source is not None and frame is not None
+                            and plugin_lens == self.active
+                            and self.video_rate >= 10 and self.tlm_rate >= 10):
+                        Path(self.args.snapshot).parent.mkdir(parents=True, exist_ok=True)
+                        cv2.imwrite(self.args.snapshot, display)
+                        print(f"已保存上位机截图：{self.args.snapshot}", flush=True)
+                        self.snapshot_saved = True
+                    cv2.imshow(WINDOW, display)
+                    self.display_count += 1
                 now = time.monotonic()
                 if now - self.last_rate_time >= 1.0:
                     self.tlm_rate = (self.client.count - self.last_tlm_count) / (now - self.last_rate_time)
                     self.video_rate = (receiver.count - self.last_video_count) / (now - self.last_rate_time)
+                    self.display_rate = self.display_count / (now - self.last_rate_time)
                     self.last_tlm_count = self.client.count
                     self.last_video_count = receiver.count
+                    self.display_count = 0
                     self.last_rate_time = now
-                key = cv2.waitKey(30) & 0xFF
+                    self.telemetry_overlay = None
+                if now - self.last_log_time >= 5.0:
+                    print(f"速率：遥测 {self.tlm_rate:.1f} Hz，解码 {self.video_rate:.1f} fps，"
+                          f"显示 {self.display_rate:.1f} fps", flush=True)
+                    self.last_log_time = now
+                key = cv2.waitKey(5) & 0xFF
                 if key != 255:
                     self._handle_key(key)
         except KeyboardInterrupt:

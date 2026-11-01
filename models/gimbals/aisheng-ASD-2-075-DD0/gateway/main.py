@@ -10,7 +10,9 @@ import argparse
 import json
 import math
 from pathlib import Path
+import signal
 import socket
+import subprocess
 import sys
 import threading
 import time
@@ -83,23 +85,19 @@ class Gateway:
         self.image_topic = args.image_topic or f"{args.topic_prefix}/camera"
         self.tele_image_topic = (
             args.tele_image_topic or f"{args.topic_prefix}/camera_tele")
-        self.video_senders = []
-        self.glib_loop = None
+        self.video_processes = []
         if args.video:
-            from gi.repository import GLib
-            from gateway.video_tx import VideoSender
-            self.glib_loop = GLib.MainLoop()
-            threading.Thread(target=self.glib_loop.run, daemon=True).start()
-            self.video_senders = [
-                VideoSender(self.node, self.image_topic,
-                            args.video_host, args.wide_video_port,
-                            width=1920, height=1080, fps=30,
-                            bitrate_kbps=args.bitrate),
-                VideoSender(self.node, self.tele_image_topic,
-                            args.video_host, args.tele_video_port,
-                            width=1920, height=1080, fps=30,
-                            bitrate_kbps=args.bitrate),
-            ]
+            for topic, port in ((self.image_topic, args.wide_video_port),
+                                (self.tele_image_topic, args.tele_video_port)):
+                command = [
+                    sys.executable, "-m", "gateway.video_worker",
+                    "--topic", topic, "--host", args.video_host,
+                    "--port", str(port), "--width", str(args.video_width),
+                    "--height", str(args.video_height), "--fps", str(args.video_fps),
+                    "--bitrate", str(args.bitrate),
+                ]
+                self.video_processes.append(
+                    subprocess.Popen(command, cwd=str(ROOT)))
             print(f"RTP 视频：广角 {args.video_host}:{args.wide_video_port}，"
                   f"长焦 {args.video_host}:{args.tele_video_port}", flush=True)
 
@@ -570,6 +568,8 @@ class Gateway:
             threads.append(threading.Thread(target=self._px4_loop, daemon=True))
         for thread in threads:
             thread.start()
+        for signum in (signal.SIGINT, signal.SIGTERM):
+            signal.signal(signum, lambda *_args: setattr(self, "running", False))
         print(f"网关启动：控制 UDP {self.args.control_host}:{self.args.control_port}，"
               f"遥测 -> {self.args.telemetry_host}:{self.args.telemetry_port}", flush=True)
         try:
@@ -583,10 +583,13 @@ class Gateway:
             pass
         finally:
             self.running = False
-            for sender in self.video_senders:
-                sender.close()
-            if self.glib_loop is not None:
-                self.glib_loop.quit()
+            for process in self.video_processes:
+                process.terminate()
+            for process in self.video_processes:
+                try:
+                    process.wait(timeout=2.0)
+                except subprocess.TimeoutExpired:
+                    process.kill()
             self.control_sock.close()
             self.telemetry_sock.close()
             if self.px4_sender is not None:
@@ -617,6 +620,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--video-host", default="127.0.0.1")
     parser.add_argument("--wide-video-port", type=int, default=7001)
     parser.add_argument("--tele-video-port", type=int, default=7002)
+    parser.add_argument("--video-width", type=int, default=1920,
+                        help="编码宽度；需与相机输出一致")
+    parser.add_argument("--video-height", type=int, default=1080,
+                        help="编码高度；需与相机输出一致")
+    parser.add_argument("--video-fps", type=int, default=30,
+                        help="编码帧率（默认：30）")
     parser.add_argument("--bitrate", type=int, default=8000)
     parser.add_argument("--verbose", action="store_true")
     return parser.parse_args()

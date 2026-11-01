@@ -5,7 +5,7 @@
 - 复制 `two_axis_pod` 的壳体、球头和两轴机械结构，原 `two_axis_pod` 不动；
 - 内部机械零位朝上、整机绕 Y 轴 +90° 安装后的前视两轴运动；
 - 每轴 60°/s、yaw ±60°、pitch −80°～+30° 的运动范围和限位；
-- 广角 38°×22°、长焦 12.7°×7° 双路 1920×1080 视频；
+- 广角 38°×22°、长焦 12.7°×7° 双路相机；模型为 1920×1080，演示默认以 1280×720@30 输出；
 - 标准 45 字节控制帧 / 104 字节遥测帧，UDP 100 Hz；
 - 可选 50 Hz 19 字段 PX4 JSON 转发，供 `dyt_udp_bridge` 发布 `dyt_aisheng_telemetry`；
 - 上位机 RTP 双路视频、遥测显示、双击点选锁定、自动锁定最近中心飞机、取消锁定、电锁/解锁、归中、指定框架角和手动转动。
@@ -125,6 +125,10 @@ bash models/gimbals/aisheng-ASD-2-075-DD0/tests/run_demo.sh --move
 bash models/gimbals/aisheng-ASD-2-075-DD0/tests/run_demo.sh --headless \
   --snapshot /tmp/aisheng_gcs_ui.png
 
+# 覆盖演示视频分辨率（默认 1280x720@30）
+AISHENG_VIDEO_WIDTH=1920 AISHENG_VIDEO_HEIGHT=1080 \
+  bash models/gimbals/aisheng-ASD-2-075-DD0/tests/run_demo.sh --headless
+
 # 仅外观/转动预览，并自动做 30 s 两轴扫掠
 bash models/gimbals/aisheng-ASD-2-075-DD0/tests/run_preview.sh
 
@@ -137,13 +141,14 @@ bash models/gimbals/aisheng-ASD-2-075-DD0/tests/run_los25.sh
 
 上位机界面参考两轴吊舱地面站：视频下方是命令按钮和 yaw/pitch 虚拟摇杆，视频左上角显示中文遥测，顶部滑条用于指定框架角。
 
-- 底部按钮：`解锁`、`电锁`、`归中`、`取消锁定`、`自动锁定`、`关闭自动`、`广角`、`长焦`、`变倍+`、`变倍-`、`停止`；
+- 底部按钮：`解锁`、`电锁`、`归中`、`取消锁定`、`自动锁定`、`关闭自动`、`发送指定角`、`广角`、`长焦`、`变倍+`、`变倍-`、`Yaw归零`、`Pitch归零`、`停止`；
 - 底部虚拟摇杆：左负 yaw、右正 yaw，上正 pitch、下负 pitch，每轴最大 20°/s，松开鼠标停止；键盘 `W/A/S/D` 或方向键为 60°/s 点动；
-- 双击视频画面点选锁定；
+- 双击视频画面：若当前电锁，先自动解锁，再按点击位置点选锁定；
 - 快捷键：`U` 解锁，`L` 电锁，`R`/`H` 归中，`C` 取消锁定，`O` 自动锁定，`P` 关闭自动锁定，`1` 广角，`2` 长焦，`Z` 变倍+，`Shift+Z` 变倍-，空格停止，`Q` 或 Esc 退出；
-- `Yaw`/`Pitch` 滑条发送指定框架角。
+- 顶部 `Yaw x0.1`/`Pitch x0.1` 滑条设置指定框架角，范围 −60.0°～+60.0°、−80.0°～+30.0°，步进 0.1°；点击 `发送指定角` 才下发，拖动滑条不连续改变框架。
+- `Yaw归零`/`Pitch归零` 只把对应轴置零，另一轴保持当前机械角；电锁状态下会先自动解锁。
 
-上位机视频显示 1280×720，窗口下方增加 240 px 控制面板；Yaw 滑条范围 −60°～+60°，Pitch 滑条范围 −80°～+30°。锁定框、遥测、镜头切换提示和命令提示叠加在视频上。
+上位机视频显示 1280×720，窗口下方增加 240 px 控制面板；锁定框、遥测、镜头切换提示和命令提示叠加在视频上。
 
 无界面自检（需要网关和 Gazebo 已启动）：
 
@@ -227,6 +232,7 @@ export GZ_PARTITION=<启动脚本打印的分区>
 - `common/protocol.py`：标准 45/104 字节帧编解码、校验和、比例尺和限幅。
 - `gateway/main.py`：二进制 UDP 网关、命令映射、点选/自动锁定、100 Hz 遥测。
 - `gateway/px4_forward.py`：内部 JSON → 19 字段 PX4 艾晟 JSON，含 UDP 发送器。
+- `gateway/video_worker.py`：单路相机独立编码进程；网关为广角/长焦各启动一个，避免两路 1080p 图像争用 Python GIL。
 - `gateway/video_tx.py`：Gazebo 图像 → NVENC H.264 → RTP over UDP。
 - `ground_station/main.py`：RTP 双路视频、中文遥测、双击锁定、自动锁定、命令按钮、虚拟摇杆、指定角滑条和无界面自检。
 - `ground_station/config.ini`：上位机网络、视频端口、启动镜头和镜头切换开关配置。
@@ -247,7 +253,7 @@ export GZ_PARTITION=<启动脚本打印的分区>
 - `tests/test_protocol.py`：协议编解码单元测试。
 - `tests/test_coordinates.py`：广角/长焦像素换算单元测试。
 - `tests/test_px4_forward.py`：19 字段转换、限幅、无效目标和 UDP 回环测试。
-- `tests/test_gcs_ui.py`：底部按钮布局、命中测试和虚拟摇杆死区/限幅测试。
+- `tests/test_gcs_ui.py`：按钮布局/命中、摇杆死区、命令映射、双击点选和单轴归零测试。
 
 ## 当前验证
 
@@ -264,8 +270,8 @@ export GZ_PARTITION=<启动脚本打印的分区>
 - 长焦原生点选锁定已验证：`camera.active=tele`、`tracking.state=TRACK`、跟踪框约 90×70 px，目标居中，失调角约 0。
 - 框架最大转速 60°/s 已确认；yaw 正指令使机械角正向增加，pitch 负指令使机械角负向增加。`check_limits.py` 回环检查**框架角速度**峰值 60°/s，四个方向均未越过 yaw ±60°、pitch −80°～+30°。
 - 规格书的“视线角速度 ±25°/s”与标准协议表的“±20°/s”存在字段范围差异：插件内部 `target_los` 保留实际值，标准遥测按协议字段限幅 ±20；25°/s 跟踪验收已通过，标准帧仍按协议发送 ±20。
-- 无界面上位机自检可检查遥测、双路视频和解锁状态；当前 CPU 渲染环境遥测约 46～50 Hz，会显示低于 80 Hz 目标的警告，但按最低 40 Hz 判定通过。
-- 上位机操作界面已按两轴吊舱地面站补充底部命令按钮、yaw/pitch 虚拟摇杆和中文遥测；按钮布局/命中、摇杆死区和按钮命令 5 项单元测试通过，实际界面截图见 `docs/gcs_ui.png`。
+- 无界面上位机自检可检查遥测、双路视频和解锁状态；当前 1280×720 演示下遥测 100 Hz、双路 30 fps，达到 30 fps 目标。
+- 上位机操作界面已按两轴吊舱地面站补充底部命令按钮、yaw/pitch 虚拟摇杆、单轴归零、指定角和中文遥测；按钮布局/命中、摇杆死区、按钮命令、双击自动解锁点选、单轴归零和指定角 8 项单元测试通过，实际界面截图见 `docs/gcs_ui.png`。
 - 19 字段 PX4 JSON 已回环验证：字段数 19、50 Hz、无效目标置零、gyro/LOS 限幅 ±20°/s、`los_omega_*` 不限幅；02 场景导引头路径已把该 JSON 送入 `dyt_udp_bridge`，PX4 `dyt_aisheng_telemetry` 可读到对应字段。
 - 动态装配 `assembledmodels/rocket_aisheng_seeker/` 已验证 5.00 kg、airframe 4024、100 Hz 插件遥测、双相机话题和 PX4 机体生成；独立飞行验收见该装配目录。
 - 尚未验证：更高机动/连续满速/极限限位碰撞、视频 SEI、多客户端控制。

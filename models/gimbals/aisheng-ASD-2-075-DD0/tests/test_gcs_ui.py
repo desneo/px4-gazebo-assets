@@ -16,10 +16,11 @@ SPEC.loader.exec_module(GCS)
 class GcsUiTest(unittest.TestCase):
     def test_button_layout_fits_panel(self):
         buttons = GCS.button_layout()
-        self.assertEqual(len(buttons), 11)
+        self.assertEqual(len(buttons), 14)
         self.assertEqual([action for _, action, _ in buttons], [
             "unlock", "lock", "recenter", "cancel", "auto", "auto_off",
-            "wide", "tele", "zoom_in", "zoom_out", "stop",
+            "send_angle", "wide", "tele", "zoom_in", "zoom_out",
+            "zero_yaw", "zero_pitch", "stop",
         ])
         for _label, _action, (x, y, width, height) in buttons:
             self.assertGreaterEqual(x, 0)
@@ -62,8 +63,13 @@ class GcsUiTest(unittest.TestCase):
             def stop(self):
                 self.stopped += 1
         station = GCS.GCS.__new__(GCS.GCS)
+        class Video:
+            def set_active(self, _active):
+                pass
         station.client = Client()
         station.manual = Manual()
+        station.wide = Video()
+        station.tele = Video()
         station.active = "wide"
         station.joystick = False
         station.joystick_values = (0.0, 0.0)
@@ -77,10 +83,102 @@ class GcsUiTest(unittest.TestCase):
         self.assertEqual(station.manual.stopped, 1)
         self.assertEqual(station.client.sent[-1][0], GCS.proto.CMD_CANCEL_LOCK)
 
+    def test_double_click_unlocks_and_point_locks_in_protocol_pixels(self):
+        import numpy as np
+        class Client:
+            def __init__(self):
+                self.sent = []
+                self.latest = GCS.proto.TelemetryFrame(
+                    status_control=1 << 5, status_control2=0x01)
+            def send(self, command, **kwargs):
+                self.sent.append((command, kwargs))
+        class Video:
+            def get(self):
+                return np.zeros((720, 1280, 3), dtype=np.uint8)
+        station = GCS.GCS.__new__(GCS.GCS)
+        station.client = Client()
+        station.wide = Video()
+        station.tele = Video()
+        station.active = "wide"
+        station.buttons = []
+        station.joystick = False
+        station.joystick_values = (0.0, 0.0)
+        station.view_crop = (0, 0, 1280, 720)
+        station.view_scale_x = 1.0
+        station.view_scale_y = 1.0
+        station.source_size = (1280, 720)
+        station.last_cmd = ""
+        GCS.GCS._on_mouse(station, GCS.cv2.EVENT_LBUTTONDBLCLK, 640, 360, 0, None)
+        self.assertEqual(station.client.sent[0][0], GCS.proto.CMD_FRAME_UNLOCK)
+        self.assertEqual(station.client.sent[1], (
+            GCS.proto.CMD_POINT_LOCK, {"p1": 640, "p2": 360}))
+
+    def test_send_angle_uses_trackbar_values_only_on_button(self):
+        from unittest import mock
+        class Client:
+            def __init__(self):
+                self.sent = []
+                self.latest = GCS.proto.TelemetryFrame(status_control=4 << 5)
+            def send(self, command, **kwargs):
+                self.sent.append((command, kwargs))
+        class Manual:
+            def stop(self):
+                pass
+        class Video:
+            def set_active(self, _active):
+                pass
+        station = GCS.GCS.__new__(GCS.GCS)
+        station.client = Client()
+        station.manual = Manual()
+        station.wide = Video()
+        station.tele = Video()
+        station.active = "wide"
+        station.joystick = False
+        station.joystick_values = (0.0, 0.0)
+        station.last_cmd = ""
+        station.trackbar_ready = True
+        def position(name, _window):
+            return 123 if name == "Yaw x0.1" else 900
+        with mock.patch.object(GCS.cv2, "getTrackbarPos", side_effect=position):
+            station._activate("send_angle")
+        self.assertEqual(station.client.sent[-1], (
+            GCS.proto.CMD_SPECIFIED_ANGLE, {"p1": -4770, "p2": 1000}))
+        self.assertIn("yaw -47.7", station.last_cmd)
+
+    def test_single_axis_zero_keeps_the_other_axis(self):
+        class Client:
+            def __init__(self):
+                self.sent = []
+                self.latest = GCS.proto.TelemetryFrame(
+                    status_control=4 << 5, yaw_deg=10.0, pitch_deg=20.0)
+            def send(self, command, **kwargs):
+                self.sent.append((command, kwargs))
+        class Manual:
+            def stop(self):
+                pass
+        class Video:
+            def set_active(self, _active):
+                pass
+        station = GCS.GCS.__new__(GCS.GCS)
+        station.client = Client()
+        station.manual = Manual()
+        station.wide = Video()
+        station.tele = Video()
+        station.active = "wide"
+        station.joystick = False
+        station.joystick_values = (0.0, 0.0)
+        station.last_cmd = ""
+        station._activate("zero_yaw")
+        self.assertEqual(station.client.sent[-1], (
+            GCS.proto.CMD_SPECIFIED_ANGLE, {"p1": 0, "p2": 2000}))
+        station._activate("zero_pitch")
+        self.assertEqual(station.client.sent[-1], (
+            GCS.proto.CMD_SPECIFIED_ANGLE, {"p1": 1000, "p2": 0}))
+
     def test_labels_follow_pillow_availability(self):
         rows = GCS.BUTTON_ROWS if GCS._HAVE_PIL else GCS.BUTTON_ROWS_EN
         labels = [label for row in rows for label, _ in row]
-        self.assertEqual(len(labels), 11)
+        self.assertEqual(len(labels), 14)
         self.assertEqual(labels[0], "解锁" if GCS._HAVE_PIL else "UNLOCK")
 
 

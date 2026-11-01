@@ -196,7 +196,9 @@ class GCS:
         self.last_tlm_count = 0
         self.last_video_count = 0
         self.running = True
-        self.display_scale = DISPLAY_W / WIDTH
+        self.view_crop = (0, 0, WIDTH, HEIGHT)
+        self.view_scale_x = DISPLAY_W / WIDTH
+        self.view_scale_y = DISPLAY_H / HEIGHT
         self.snapshot_saved = False
 
     def _on_trackbar(self, _value):
@@ -213,11 +215,33 @@ class GCS:
     def _tele_to_wide(self, u: float, v: float) -> tuple[float, float]:
         return tele_to_wide(u, v)
 
+    def _view_geometry(self, source, frame: proto.TelemetryFrame | None):
+        zoom_bits = (frame.status_control2 & 0x3) if frame is not None else 1
+        zoom = {1: 1, 2: 2, 3: 4}.get(zoom_bits, 1)
+        if self.active == "wide" and zoom > 1:
+            crop_w = WIDTH // zoom
+            crop_h = HEIGHT // zoom
+            x0 = (WIDTH - crop_w) // 2
+            y0 = (HEIGHT - crop_h) // 2
+        else:
+            x0, y0, crop_w, crop_h = 0, 0, WIDTH, HEIGHT
+        self.view_crop = (x0, y0, crop_w, crop_h)
+        self.view_scale_x = DISPLAY_W / crop_w
+        self.view_scale_y = DISPLAY_H / crop_h
+        crop = source[y0:y0 + crop_h, x0:x0 + crop_w]
+        return cv2.resize(crop, (DISPLAY_W, DISPLAY_H),
+                          interpolation=cv2.INTER_AREA)
+
+    def _source_to_view(self, u: float, v: float) -> tuple[float, float]:
+        x0, y0, _cw, _ch = self.view_crop
+        return (u - x0) * self.view_scale_x, (v - y0) * self.view_scale_y
+
     def _on_mouse(self, event, x, y, _flags, _param):
         if event != cv2.EVENT_LBUTTONDBLCLK:
             return
-        u = x / self.display_scale
-        v = y / self.display_scale
+        x0, y0, _cw, _ch = self.view_crop
+        u = x0 + x / self.view_scale_x
+        v = y0 + y / self.view_scale_y
         if not (0 <= u < WIDTH and 0 <= v < HEIGHT):
             return
         if self.active == "tele":
@@ -302,10 +326,13 @@ class GCS:
                 cx, cy = self._wide_to_tele(cx, cy)
                 gw *= F_TELE / F_WIDE
                 gh *= F_TELE / F_WIDE
-            x0 = int((cx - gw / 2.0) * self.display_scale)
-            y0 = int((cy - gh / 2.0) * self.display_scale)
-            x1 = int((cx + gw / 2.0) * self.display_scale)
-            y1 = int((cy + gh / 2.0) * self.display_scale)
+            vx, vy = self._source_to_view(cx, cy)
+            vw = gw * self.view_scale_x
+            vh = gh * self.view_scale_y
+            x0 = int(vx - vw / 2.0)
+            y0 = int(vy - vh / 2.0)
+            x1 = int(vx + vw / 2.0)
+            y1 = int(vy + vh / 2.0)
             cv2.rectangle(image, (x0, y0), (x1, y1), (0, 255, 0), 2)
         yaw_cmd = cv2.getTrackbarPos("Yaw", WINDOW) - 60
         pitch_cmd = cv2.getTrackbarPos("Pitch", WINDOW) - 80
@@ -325,14 +352,16 @@ class GCS:
             while self.running:
                 receiver = self.wide if self.active == "wide" else self.tele
                 source = receiver.get()
+                frame = self.client.latest
                 if source is None:
                     display = np.zeros((DISPLAY_H, DISPLAY_W, 3), dtype=np.uint8)
+                    self.view_crop = (0, 0, WIDTH, HEIGHT)
+                    self.view_scale_x = DISPLAY_W / WIDTH
+                    self.view_scale_y = DISPLAY_H / HEIGHT
                     self._draw_text(display, f"NO VIDEO ({self.active.upper()})",
                                     12, 60, (0, 0, 255), 0.8)
                 else:
-                    display = cv2.resize(source, (DISPLAY_W, DISPLAY_H),
-                                         interpolation=cv2.INTER_AREA)
-                frame = self.client.latest
+                    display = self._view_geometry(source, frame)
                 self._overlay(display, frame)
                 if (self.args.snapshot and not self.snapshot_saved
                         and source is not None and frame is not None):

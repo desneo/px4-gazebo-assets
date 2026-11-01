@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""ASD-2-075-DD0 上位机：RTP 双路视频 + 二进制遥测/控制。"""
+"""ASD-2-075-DD0 上位机：RTP 双路视频、二进制遥测/控制、按钮与虚拟摇杆。"""
 from __future__ import annotations
 
 import argparse
@@ -13,6 +13,13 @@ import time
 
 import cv2
 import numpy as np
+
+try:
+    from PIL import Image, ImageDraw, ImageFont
+    _HAVE_PIL = True
+except Exception:  # noqa: BLE001 - 无 Pillow 时退回 OpenCV 英文标签
+    Image = ImageDraw = ImageFont = None
+    _HAVE_PIL = False
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -32,6 +39,68 @@ DISPLAY_W = 1280
 DISPLAY_H = 720
 F_WIDE = WIDTH / (2.0 * math.tan(math.radians(38.0 / 2.0)))
 F_TELE = WIDTH / (2.0 * math.tan(math.radians(12.7 / 2.0)))
+
+PANEL_H = 240
+BUTTON_W = 140
+BUTTON_H = 34
+BUTTON_GAP = 8
+JOYSTICK_RADIUS = 44
+JOYSTICK_Y = DISPLAY_H + 145
+BUTTON_ROWS = (
+    (("解锁", "unlock"), ("电锁", "lock"), ("归中", "recenter"),
+     ("取消锁定", "cancel"), ("自动锁定", "auto"), ("关闭自动", "auto_off")),
+    (("广角", "wide"), ("长焦", "tele"), ("变倍+", "zoom_in"),
+     ("变倍-", "zoom_out"), ("停止", "stop")),
+)
+BUTTON_ROWS_EN = (
+    (("UNLOCK", "unlock"), ("LOCK", "lock"), ("HOME", "recenter"),
+     ("CANCEL", "cancel"), ("AUTO", "auto"), ("AUTO OFF", "auto_off")),
+    (("WIDE", "wide"), ("TELE", "tele"), ("ZOOM+", "zoom_in"),
+     ("ZOOM-", "zoom_out"), ("STOP", "stop")),
+)
+FONT_CANDIDATES = (
+    "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+    "/usr/share/fonts/opentype/noto/NotoSansCJKsc-Regular.otf",
+    "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
+    "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc",
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+)
+
+
+def button_layout(display_w: int = DISPLAY_W, display_h: int = DISPLAY_H,
+                  rows=BUTTON_ROWS):
+    """返回底部面板按钮的 (标签, 动作, 矩形) 列表。"""
+    result = []
+    for row_index, row in enumerate(rows):
+        width = min(BUTTON_W, max(40, (display_w - (len(row) + 1) * BUTTON_GAP) // len(row)))
+        total = len(row) * width + (len(row) - 1) * BUTTON_GAP
+        x0 = (display_w - total) // 2
+        y = display_h + 8 + row_index * (BUTTON_H + BUTTON_GAP)
+        for index, (label, action) in enumerate(row):
+            x = x0 + index * (width + BUTTON_GAP)
+            result.append((label, action, (x, y, width, BUTTON_H)))
+    return result
+
+
+def joystick_axes(x: float, y: float, cx: float = DISPLAY_W / 2.0,
+                  cy: float = JOYSTICK_Y, radius: float = JOYSTICK_RADIUS):
+    """把鼠标位置转换为带 8% 死区的归一化 yaw/pitch，范围 -1～1。"""
+    dx = (x - cx) / radius
+    dy = (cy - y) / radius
+    length = math.hypot(dx, dy)
+    if length > 1.0:
+        dx, dy = dx / length, dy / length
+    def response(value):
+        return math.copysign(max(0.0, (abs(value) - 0.08) / 0.92), value)
+    return response(dx), response(dy)
+
+
+def hit_button(x: int, y: int, buttons):
+    for label, action, rect in buttons:
+        bx, by, bw, bh = rect
+        if bx <= x < bx + bw and by <= y < by + bh:
+            return label, action, rect
+    return None
 
 
 def wide_to_tele(u: float, v: float) -> tuple[float, float]:
@@ -178,6 +247,12 @@ class ManualController:
                 self.active = False
             time.sleep(0.05)
 
+    def stop(self):
+        self.yaw = self.pitch = 0.0
+        self.until = 0.0
+        self.active = False
+        self.client.send(proto.CMD_FRAME_MOVE, p1=0, p2=0)
+
     def close(self):
         self.closing = True
 
@@ -203,6 +278,41 @@ class GCS:
         self.view_scale_x = DISPLAY_W / WIDTH
         self.view_scale_y = DISPLAY_H / HEIGHT
         self.snapshot_saved = False
+        self.buttons = []
+        self.hover = None
+        self.pressed = None
+        self.joystick = False
+        self.joystick_values = (0.0, 0.0)
+        self.last_cmd = ""
+        self.font_path = next(
+            (path for path in FONT_CANDIDATES if Path(path).is_file()), "")
+        self.font_cache = {}
+
+    def _font(self, size: int):
+        if not _HAVE_PIL:
+            return None
+        if size not in self.font_cache:
+            try:
+                self.font_cache[size] = ImageFont.truetype(
+                    self.font_path, size) if self.font_path else ImageFont.load_default()
+            except OSError:
+                self.font_cache[size] = ImageFont.load_default()
+        return self.font_cache[size]
+
+    def _texts(self, image, items):
+        """items: (text, x, y, color, size)；有 Pillow 时支持中文。"""
+        if not _HAVE_PIL or not items:
+            return image
+        pil = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+        draw = ImageDraw.Draw(pil)
+        for text, x, y, color, size in items:
+            draw.text((x, y), text, font=self._font(size),
+                      fill=(color[2], color[1], color[0]),
+                      stroke_width=1, stroke_fill=(0, 0, 0))
+        return cv2.cvtColor(np.asarray(pil), cv2.COLOR_RGB2BGR)
+
+    def _labels(self, rows):
+        return rows if _HAVE_PIL else BUTTON_ROWS_EN
 
     def _on_trackbar(self, _value):
         if not self.trackbar_ready:
@@ -239,13 +349,103 @@ class GCS:
         x0, y0, _cw, _ch = self.view_crop
         return (u - x0) * self.view_scale_x, (v - y0) * self.view_scale_y
 
-    def _on_mouse(self, event, x, y, _flags, _param):
+    def _panel_buttons(self):
+        return button_layout(rows=self._labels(BUTTON_ROWS))
+
+    def _joystick_at(self, x, y):
+        return math.hypot(x - DISPLAY_W / 2.0, y - JOYSTICK_Y) <= JOYSTICK_RADIUS
+
+    def _update_joystick(self, x, y):
+        self.joystick_values = joystick_axes(x, y)
+        yaw, pitch = self.joystick_values
+        self.manual.set_velocity(20.0 * yaw, 20.0 * pitch, hold=0.3)
+
+    def _release_joystick(self):
+        if self.joystick:
+            self.manual.stop()
+        self.joystick = False
+        self.joystick_values = (0.0, 0.0)
+
+    def _activate(self, action):
+        self._release_joystick()
+        if action == "unlock":
+            self.client.send(proto.CMD_FRAME_UNLOCK)
+            self.last_cmd = "已发送：解锁"
+        elif action == "lock":
+            self.client.send(proto.CMD_FRAME_LOCK)
+            self.last_cmd = "已发送：电锁"
+        elif action == "recenter":
+            self.client.send(proto.CMD_RECENTER)
+            self.last_cmd = "已发送：归中"
+        elif action == "cancel":
+            self.client.send(proto.CMD_CANCEL_LOCK)
+            self.last_cmd = "已发送：取消锁定"
+        elif action == "auto":
+            self.client.send(proto.CMD_AUTO_LOCK_ON)
+            self.last_cmd = "已发送：自动锁定"
+        elif action == "auto_off":
+            self.client.send(proto.CMD_AUTO_LOCK_OFF)
+            self.last_cmd = "已发送：关闭自动锁定"
+        elif action == "wide":
+            self.active = "wide"
+            self.client.send(proto.CMD_DETECTOR_SWITCH, p1=1)
+            self.last_cmd = "已发送：广角镜头"
+        elif action == "tele":
+            self.active = "tele"
+            self.client.send(proto.CMD_DETECTOR_SWITCH, p1=2)
+            self.last_cmd = "已发送：长焦镜头"
+        elif action == "zoom_in":
+            self.client.send(proto.CMD_ZOOM_IN)
+            self.last_cmd = "已发送：变倍+"
+        elif action == "zoom_out":
+            self.client.send(proto.CMD_ZOOM_OUT)
+            self.last_cmd = "已发送：变倍-"
+        elif action == "stop":
+            self.manual.stop()
+            self.client.send(proto.CMD_CANCEL_LOCK)
+            self.last_cmd = "已停止：取消跟踪并归零速度"
+
+    def _on_mouse(self, event, x, y, flags, _param):
+        if event == cv2.EVENT_LBUTTONDOWN:
+            hit = hit_button(x, y, self.buttons)
+            if hit is not None:
+                self.pressed = (hit[0], hit[1])
+                return
+            if self._joystick_at(x, y):
+                self.joystick = True
+                self._update_joystick(x, y)
+                return
+            if y >= DISPLAY_H:
+                return
+        elif event == cv2.EVENT_MOUSEMOVE:
+            hit = hit_button(x, y, self.buttons)
+            self.hover = hit[0] if hit is not None else None
+            if self.joystick:
+                if flags & cv2.EVENT_FLAG_LBUTTON:
+                    self._update_joystick(x, y)
+                else:
+                    self._release_joystick()
+            return
+        elif event == cv2.EVENT_LBUTTONUP:
+            if self.pressed is not None:
+                label, action = self.pressed
+                self.pressed = None
+                hit = hit_button(x, y, self.buttons)
+                if hit is not None and hit[0] == label:
+                    self._activate(action)
+                return
+            if self.joystick:
+                self._release_joystick()
+                return
+            return
         if event != cv2.EVENT_LBUTTONDBLCLK:
+            return
+        if y >= DISPLAY_H:
             return
         frame = self.client.latest
         plugin_lens = "tele" if frame and (frame.status_control2 & 0x10) else "wide"
         if plugin_lens != self.active:
-            print(f"镜头切换中：显示 {self.active}，插件 {plugin_lens}", flush=True)
+            self.last_cmd = f"镜头切换中：显示 {self.active}，插件 {plugin_lens}"
             return
         x0, y0, _cw, _ch = self.view_crop
         u = x0 + x / self.view_scale_x
@@ -253,34 +453,35 @@ class GCS:
         if not (0 <= u < WIDTH and 0 <= v < HEIGHT):
             return
         self.client.send(proto.CMD_POINT_LOCK, p1=int(round(u)), p2=int(round(v)))
-        print(f"双击锁定：{self.active} ({u:.0f},{v:.0f})", flush=True)
+        self.last_cmd = f"双击锁定：{self.active} ({u:.0f},{v:.0f})"
 
     def _handle_key(self, key: int):
         if key in (ord("q"), 27):
             self.running = False
             return
+        self._release_joystick()
         if key == ord("u"):
-            self.client.send(proto.CMD_FRAME_UNLOCK)
+            self._activate("unlock")
         elif key == ord("l"):
-            self.client.send(proto.CMD_FRAME_LOCK)
-        elif key == ord("r"):
-            self.client.send(proto.CMD_RECENTER)
+            self._activate("lock")
+        elif key in (ord("r"), ord("h")):
+            self._activate("recenter")
         elif key == ord("c"):
-            self.client.send(proto.CMD_CANCEL_LOCK)
+            self._activate("cancel")
         elif key == ord("o"):
-            self.client.send(proto.CMD_AUTO_LOCK_ON)
+            self._activate("auto")
         elif key == ord("p"):
-            self.client.send(proto.CMD_AUTO_LOCK_OFF)
+            self._activate("auto_off")
         elif key == ord("1"):
-            self.active = "wide"
-            self.client.send(proto.CMD_DETECTOR_SWITCH, p1=1)
+            self._activate("wide")
         elif key == ord("2"):
-            self.active = "tele"
-            self.client.send(proto.CMD_DETECTOR_SWITCH, p1=2)
+            self._activate("tele")
         elif key == ord("z"):
-            self.client.send(proto.CMD_ZOOM_IN)
+            self._activate("zoom_in")
         elif key == ord("Z"):
-            self.client.send(proto.CMD_ZOOM_OUT)
+            self._activate("zoom_out")
+        elif key == ord(" "):
+            self._activate("stop")
         elif key in (ord("w"), 82):
             self.manual_pitch = 60.0
             self.manual.set_velocity(self.manual_yaw, self.manual_pitch)
@@ -303,53 +504,179 @@ class GCS:
     def _overlay(self, image, frame: proto.TelemetryFrame | None):
         cv2.drawMarker(image, (DISPLAY_W // 2, DISPLAY_H // 2),
                        (0, 255, 255), cv2.MARKER_CROSS, 24, 1)
+        lines = []
+        colors = []
         if frame is None:
-            self._draw_text(image, "NO TELEMETRY", 12, 28, (0, 0, 255), 0.7)
-            return
-        servo = (frame.status_control >> 5) & 0x7
-        tracking = bool(frame.work_state & 1)
-        plugin_lens = "tele" if frame.status_control2 & 0x10 else "wide"
-        servo_text = {1: "LOCKED", 4: "FREE", 6: "TRACK"}.get(servo, f"SERVO {servo:03b}")
-        status = f"{servo_text}  {'TRACKING' if tracking else 'IDLE'}  " \
-                 f"{'AUTO' if frame.autonomous else 'MANUAL'}"
-        lens_text = self.active.upper()
-        if plugin_lens != self.active:
-            lens_text += f" -> {plugin_lens.upper()}"
-        lines = [
-            status,
-            f"YAW {frame.yaw_deg:+7.2f}  PITCH {frame.pitch_deg:+7.2f} deg",
-            f"GYRO {frame.gyro_yaw_dps:+6.1f}/{frame.gyro_pitch_dps:+6.1f} dps",
-            f"LOS  {frame.yaw_los_dps:+6.1f}/{frame.pitch_los_dps:+6.1f} dps",
-            f"MISS {frame.yaw_misalignment_deg:+6.2f}/{frame.pitch_misalignment_deg:+6.2f} deg",
-            f"GATE {frame.gate_x:4d},{frame.gate_y:4d}  {frame.gate_w:3d}x{frame.gate_h:3d}",
-            f"TLM {self.tlm_rate:5.1f} Hz  VIDEO {self.video_rate:5.1f} fps",
-            f"LENS {lens_text}  ZOOM {1 << ((frame.status_control2 & 3) - 1) if (frame.status_control2 & 3) else 1}x",
-        ]
+            lines = ["无遥测"] if _HAVE_PIL else ["NO TELEMETRY"]
+            colors = [(0, 0, 255)]
+        else:
+            servo = (frame.status_control >> 5) & 0x7
+            tracking = bool(frame.work_state & 1)
+            plugin_lens = "tele" if frame.status_control2 & 0x10 else "wide"
+            stale = time.monotonic() - self.client.last_mono > 1.0
+            servo_text = {1: "电锁", 4: "自由", 6: "跟踪"}.get(
+                servo, f"伺服{servo:03b}")
+            lens_cn = "广角" if self.active == "wide" else "长焦"
+            plugin_cn = "广角" if plugin_lens == "wide" else "长焦"
+            zoom_bits = frame.status_control2 & 0x3
+            zoom = {1: 1, 2: 2, 3: 4}.get(zoom_bits, 1)
+            if _HAVE_PIL:
+                miss_text = (f"脱靶量: yaw {frame.yaw_misalignment_deg:+.2f}  "
+                             f"pitch {frame.pitch_misalignment_deg:+.2f} °"
+                             if tracking else "脱靶量: 无效（无有效跟踪）")
+                gate_text = (f"波门: ({frame.gate_x},{frame.gate_y})  "
+                             f"{frame.gate_w}x{frame.gate_h}"
+                             if tracking else "波门: 无")
+                lines = [
+                    f"状态: {servo_text}   跟踪: {'是' if tracking else '否'}   "
+                    f"模式: {'自动' if frame.autonomous else '手动'}",
+                    f"机械角: yaw {frame.yaw_deg:+.2f}  pitch {frame.pitch_deg:+.2f} °",
+                    f"陀螺: yaw {frame.gyro_yaw_dps:+.1f}  pitch {frame.gyro_pitch_dps:+.1f} °/s",
+                    f"目标LOS: yaw {frame.yaw_los_dps:+.1f}  pitch {frame.pitch_los_dps:+.1f} °/s",
+                    miss_text,
+                    gate_text,
+                    f"镜头: {lens_cn}   变倍: {zoom}x",
+                    f"遥测 {self.tlm_rate:.1f} Hz   视频 {self.video_rate:.1f} fps",
+                ]
+            else:
+                miss_text = (f"MISS yaw {frame.yaw_misalignment_deg:+.2f} "
+                             f"pitch {frame.pitch_misalignment_deg:+.2f} deg"
+                             if tracking else "MISS invalid")
+                gate_text = (f"GATE ({frame.gate_x},{frame.gate_y}) "
+                             f"{frame.gate_w}x{frame.gate_h}" if tracking else "GATE none")
+                lines = [
+                    f"STATE {servo_text}  TRACK {tracking}  "
+                    f"{'AUTO' if frame.autonomous else 'MANUAL'}",
+                    f"ANGLE yaw {frame.yaw_deg:+.2f} pitch {frame.pitch_deg:+.2f} deg",
+                    f"GYRO yaw {frame.gyro_yaw_dps:+.1f} pitch {frame.gyro_pitch_dps:+.1f} dps",
+                    f"LOS yaw {frame.yaw_los_dps:+.1f} pitch {frame.pitch_los_dps:+.1f} dps",
+                    miss_text,
+                    gate_text,
+                    f"LENS {lens_cn} ZOOM {zoom}x",
+                    f"TLM {self.tlm_rate:.1f} Hz VIDEO {self.video_rate:.1f} fps",
+                ]
+            colors = [(0, 255, 255)] * len(lines)
+            colors[0] = (0, 255, 0) if tracking else (0, 255, 255)
+            if plugin_lens != self.active:
+                lines.append(f"镜头切换中: 显示 {lens_cn} / 插件 {plugin_cn}"
+                             if _HAVE_PIL else
+                             f"LENS SWITCH display {lens_cn} plugin {plugin_cn}")
+                colors.append((0, 165, 255))
+            if stale:
+                lines.append("遥测超时" if _HAVE_PIL else "TELEMETRY STALE")
+                colors.append((0, 0, 255))
+            if tracking and frame.gate_w > 0 and plugin_lens == self.active:
+                cx, cy = float(frame.gate_x), float(frame.gate_y)
+                gw, gh = float(frame.gate_w), float(frame.gate_h)
+                vx, vy = self._source_to_view(cx, cy)
+                vw = gw * self.view_scale_x
+                vh = gh * self.view_scale_y
+                x0 = int(vx - vw / 2.0)
+                y0 = int(vy - vh / 2.0)
+                x1 = int(vx + vw / 2.0)
+                y1 = int(vy + vh / 2.0)
+                cv2.rectangle(image, (x0, y0), (x1, y1), (0, 255, 0), 2)
+        if self.joystick:
+            yaw, pitch = self.joystick_values
+            lines.append(f"摇杆: yaw {20 * yaw:+.1f}  pitch {20 * pitch:+.1f} °/s"
+                         if _HAVE_PIL else
+                         f"JOYSTICK yaw {20 * yaw:+.1f} pitch {20 * pitch:+.1f} dps")
+            colors.append((255, 255, 0))
+        else:
+            if self.trackbar_ready:
+                yaw_cmd = cv2.getTrackbarPos("Yaw", WINDOW) - 60
+                pitch_cmd = cv2.getTrackbarPos("Pitch", WINDOW) - 80
+            else:
+                yaw_cmd = pitch_cmd = 0
+            lines.append(f"指定角: yaw {yaw_cmd:+d}  pitch {pitch_cmd:+d} °"
+                         if _HAVE_PIL else
+                         f"CMD yaw {yaw_cmd:+d} pitch {pitch_cmd:+d} deg")
+            colors.append((255, 255, 0))
+        if self.last_cmd:
+            lines.append(self.last_cmd)
+            colors.append((0, 255, 0))
+        if _HAVE_PIL:
+            items = [(text, 12, 8 + index * 23, color, 18)
+                     for index, (text, color) in enumerate(zip(lines, colors))]
+            return self._texts(image, items)
         y = 26
-        for line in lines:
-            self._draw_text(image, line, 12, y)
+        for text, color in zip(lines, colors):
+            self._draw_text(image, text, 12, y, color, 0.55)
             y += 24
-        if tracking and frame.gate_w > 0 and plugin_lens == self.active:
-            cx, cy = float(frame.gate_x), float(frame.gate_y)
-            gw, gh = float(frame.gate_w), float(frame.gate_h)
-            vx, vy = self._source_to_view(cx, cy)
-            vw = gw * self.view_scale_x
-            vh = gh * self.view_scale_y
-            x0 = int(vx - vw / 2.0)
-            y0 = int(vy - vh / 2.0)
-            x1 = int(vx + vw / 2.0)
-            y1 = int(vy + vh / 2.0)
-            cv2.rectangle(image, (x0, y0), (x1, y1), (0, 255, 0), 2)
-        yaw_cmd = cv2.getTrackbarPos("Yaw", WINDOW) - 60
-        pitch_cmd = cv2.getTrackbarPos("Pitch", WINDOW) - 80
-        self._draw_text(image, f"CMD {yaw_cmd:+d}/{pitch_cmd:+d} deg", 12, y + 4,
-                        (255, 255, 0))
-        legend = ("U unlock  L lock  R recenter  C cancel  O auto  P auto-off  "
-                  "1 wide  2 tele  Z zoom  WASD/arrows manual  Q quit")
-        self._draw_text(image, legend, 12, DISPLAY_H - 16, (255, 255, 255), 0.5)
+        return image
+
+    def _panel(self, image, frame: proto.TelemetryFrame | None):
+        panel = np.full((PANEL_H, DISPLAY_W, 3), 28, dtype=np.uint8)
+        canvas = np.vstack((image, panel))
+        buttons = self._panel_buttons()
+        self.buttons = buttons
+        servo = (frame.status_control >> 5) & 0x7 if frame else -1
+        auto = bool(frame.autonomous) if frame else False
+        for label, action, rect in buttons:
+            x, y, width, height = rect
+            active = ((action == "wide" and self.active == "wide")
+                      or (action == "tele" and self.active == "tele")
+                      or (action == "auto" and auto)
+                      or (action == "lock" and servo == 1))
+            bg = (0, 110, 0) if active else (60, 60, 60)
+            if action == "stop":
+                bg = (0, 0, 120)
+            if self.hover == label:
+                bg = (110, 110, 110) if not active else (0, 150, 0)
+            if self.pressed is not None and self.pressed[0] == label:
+                bg = (0, 150, 0)
+            cv2.rectangle(canvas, (x, y), (x + width, y + height), bg, -1)
+            cv2.rectangle(canvas, (x, y), (x + width, y + height),
+                          (200, 200, 200), 1)
+        cx, cy = DISPLAY_W // 2, JOYSTICK_Y
+        cv2.circle(canvas, (cx, cy), JOYSTICK_RADIUS, (150, 150, 150), 1, cv2.LINE_AA)
+        cv2.line(canvas, (cx - JOYSTICK_RADIUS, cy),
+                 (cx + JOYSTICK_RADIUS, cy), (80, 80, 80), 1)
+        cv2.line(canvas, (cx, cy - JOYSTICK_RADIUS),
+                 (cx, cy + JOYSTICK_RADIUS), (80, 80, 80), 1)
+        x, y = self.joystick_values if self.joystick else (0.0, 0.0)
+        cv2.circle(canvas, (int(cx + x * JOYSTICK_RADIUS),
+                            int(cy - y * JOYSTICK_RADIUS)),
+                   11, (0, 200, 255), -1, cv2.LINE_AA)
+        if _HAVE_PIL:
+            items = [
+                ("YAW / PITCH", cx - JOYSTICK_RADIUS, cy + JOYSTICK_RADIUS + 8,
+                 (230, 230, 230), 18),
+                ("左负 / 右正，上正 / 下负；松开停止", cx - 150,
+                 cy + JOYSTICK_RADIUS + 30, (190, 190, 190), 14),
+                ("双击视频点选锁定 | 方向键/WASD 手动 | 空格停止 | Q 退出",
+                 12, DISPLAY_H + PANEL_H - 22, (230, 230, 230), 15),
+            ]
+            canvas = self._texts(canvas, items)
+            # 按钮文字居中
+            pil = Image.fromarray(cv2.cvtColor(canvas, cv2.COLOR_BGR2RGB))
+            draw = ImageDraw.Draw(pil)
+            for label, _action, rect in buttons:
+                font = self._font(18)
+                bbox = draw.textbbox((0, 0), label, font=font)
+                tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
+                draw.text((rect[0] + (rect[2] - tw) / 2 - bbox[0],
+                           rect[1] + (rect[3] - th) / 2 - bbox[1]),
+                          label, font=font, fill=(255, 255, 255))
+            canvas = cv2.cvtColor(np.asarray(pil), cv2.COLOR_RGB2BGR)
+        else:
+            for label, _action, rect in buttons:
+                cv2.putText(canvas, label, (rect[0] + 6, rect[1] + 23),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.45,
+                            (255, 255, 255), 1, cv2.LINE_AA)
+            cv2.putText(canvas, "YAW / PITCH", (cx - 60, cy + JOYSTICK_RADIUS + 20),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (230, 230, 230), 1, cv2.LINE_AA)
+            cv2.putText(canvas, "double-click video to lock | arrows/WASD manual | space stop | Q quit",
+                        (12, DISPLAY_H + PANEL_H - 12), cv2.FONT_HERSHEY_SIMPLEX,
+                        0.45, (230, 230, 230), 1, cv2.LINE_AA)
+        return canvas
 
     def run(self):
         cv2.namedWindow(WINDOW, cv2.WINDOW_AUTOSIZE)
+        try:
+            cv2.setWindowProperty(WINDOW, cv2.WND_PROP_TOPMOST, 1)
+        except cv2.error:
+            pass
         cv2.createTrackbar("Yaw", WINDOW, 60, 120, self._on_trackbar)
         cv2.createTrackbar("Pitch", WINDOW, 80, 110, self._on_trackbar)
         cv2.setMouseCallback(WINDOW, self._on_mouse)
@@ -371,11 +698,13 @@ class GCS:
                                     12, 60, (0, 0, 255), 0.8)
                 else:
                     display = self._view_geometry(source, frame)
-                self._overlay(display, frame)
+                display = self._overlay(display, frame)
+                display = self._panel(display, frame)
                 plugin_lens = "tele" if frame and (frame.status_control2 & 0x10) else "wide"
                 if (self.args.snapshot and not self.snapshot_saved
                         and source is not None and frame is not None
-                        and plugin_lens == self.active):
+                        and plugin_lens == self.active
+                        and self.video_rate > 0 and self.tlm_rate > 0):
                     Path(self.args.snapshot).parent.mkdir(parents=True, exist_ok=True)
                     cv2.imwrite(self.args.snapshot, display)
                     print(f"已保存上位机截图：{self.args.snapshot}", flush=True)

@@ -8,11 +8,15 @@ RUNDIR="${AISHENG_RUNDIR:-$REPO_DIR/runs/aisheng_seeker_demo}"
 PYTHON="${AISHENG_PYTHON:-$REPO_DIR/.venv-linux/bin/python}"
 HEADLESS=0
 MOVE=0
-for arg in "$@"; do
-  case "$arg" in
-    --headless) HEADLESS=1 ;;
-    --move) MOVE=1 ;;
-    *) echo "用法：bash $0 [--headless] [--move]" >&2; exit 2 ;;
+SNAPSHOT=
+while (($#)); do
+  case "$1" in
+    --headless) HEADLESS=1; shift ;;
+    --move) MOVE=1; shift ;;
+    --snapshot)
+      [[ $# -ge 2 ]] || { echo '--snapshot 需要路径' >&2; exit 2; }
+      SNAPSHOT=$2; shift 2 ;;
+    *) echo "用法：bash $0 [--headless] [--move] [--snapshot PATH]" >&2; exit 2 ;;
   esac
 done
 [[ -x "$PYTHON" ]] || { echo "缺少 Python：$PYTHON" >&2; exit 1; }
@@ -62,7 +66,9 @@ GZ_PARTITION="$GZ_PARTITION" "$PYTHON" "$MODEL_DIR/gateway/main.py" --video --ve
 GATEWAY_PID=$!
 echo "网关 pid=$GATEWAY_PID；日志：$RUNDIR/gateway.log"
 sleep 3
-"$PYTHON" "$MODEL_DIR/ground_station/main.py" >"$RUNDIR/gcs.log" 2>&1 &
+gcs_args=()
+[[ -n "$SNAPSHOT" ]] && gcs_args+=(--snapshot "$SNAPSHOT")
+"$PYTHON" "$MODEL_DIR/ground_station/main.py" "${gcs_args[@]}" >"$RUNDIR/gcs.log" 2>&1 &
 GCS_PID=$!
 echo "上位机 pid=$GCS_PID；日志：$RUNDIR/gcs.log"
 if [[ "$MOVE" -eq 1 ]]; then
@@ -71,7 +77,7 @@ if [[ "$MOVE" -eq 1 ]]; then
   MOVE_PID=$!
   echo "移动目标 pid=$MOVE_PID；日志：$RUNDIR/move_target.log"
 fi
-echo '上位机按键：U 解锁  L 电锁  R 归中  C 取消锁定  O 自动锁定  P 关闭自动锁定'
-echo '            1 广角  2 长焦  Z 变焦  WASD/方向键 手动  Q 退出'
+echo '上位机操作：底部按钮 解锁/电锁/归中/取消锁定/自动锁定/关闭自动/广角/长焦/变倍/停止'
+echo '            底部摇杆 yaw/pitch；WASD/方向键 手动；空格停止；Q 退出'
 echo '双击视频画面锁定目标；Yaw/Pitch 滑条发送指定框架角。'
 wait "$GCS_PID"

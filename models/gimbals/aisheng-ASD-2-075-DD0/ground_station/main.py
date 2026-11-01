@@ -376,7 +376,7 @@ class GCS:
                   font=self._font(14), fill=(190, 190, 190, 255),
                   stroke_width=1, stroke_fill=(0, 0, 0, 255))
         draw.text((12, PANEL_H - 22),
-                  "顶部滑条设角后点发送指定角 | 双击视频自动解锁并点选 | 空格停止 | Q 退出",
+                  "双击锁定 | 滑条设角→发送指定角 | 空格停止 | Q退出",
                   font=self._font(15), fill=(230, 230, 230, 255),
                   stroke_width=1, stroke_fill=(0, 0, 0, 255))
         return np.array(image)

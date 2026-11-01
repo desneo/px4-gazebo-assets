@@ -52,6 +52,7 @@ class Gateway:
         self.goto_target: tuple[float, float] | None = None
         self.lock_after_goto = False
         self.manual_until = 0.0
+        self.manual_active = False
         self.zoom = 1
         self.active_lens = "wide"
         self.rx_telemetry = 0
@@ -253,6 +254,7 @@ class Gateway:
         if cmd == proto.CMD_FRAME_UNLOCK:
             with self.lock:
                 self.locked = False
+                self.manual_active = False
             self._publish({"cmd": "stop"})
             self._log("电锁解除")
         elif cmd == proto.CMD_FRAME_LOCK:
@@ -262,6 +264,7 @@ class Gateway:
                 self.auto_lock = False
                 self.tracking_command = False
                 self.goto_target = None
+                self.manual_active = False
             self._log("框架电锁")
         elif cmd in (proto.CMD_SPECIFIED_ANGLE, proto.CMD_SPECIFIED_ANGLE_LOCK):
             self._goto(frame.p1 / 100.0, frame.p2 / 100.0,
@@ -276,6 +279,7 @@ class Gateway:
                 self.auto_lock = False
                 self.tracking_command = False
                 self.manual_until = 0.0
+                self.manual_active = False
             self._log("框架归中")
         elif cmd == proto.CMD_POINT_LOCK:
             if self.locked:
@@ -288,6 +292,7 @@ class Gateway:
                 return
             with self.lock:
                 self.auto_lock = True
+                self.manual_active = False
             self._try_auto_lock()
             self._log("自动锁定开启")
         elif cmd == proto.CMD_AUTO_LOCK_OFF:
@@ -295,12 +300,14 @@ class Gateway:
             with self.lock:
                 self.auto_lock = False
                 self.tracking_command = False
+                self.manual_active = False
             self._log("自动锁定关闭")
         elif cmd == proto.CMD_CANCEL_LOCK:
             self._publish({"cmd": "stop"})
             with self.lock:
                 self.auto_lock = False
                 self.tracking_command = False
+                self.manual_active = False
             self._log("取消锁定")
         elif cmd == proto.CMD_FRAME_MOVE:
             if self.locked:
@@ -308,13 +315,16 @@ class Gateway:
                 return
             yaw = clamp(frame.p1 / 100.0 * 60.0, -60.0, 60.0)
             pitch = clamp(frame.p2 / 100.0 * 60.0, -60.0, 60.0)
-            self._publish({"cmd": "stop"})
-            self._publish({"cmd": "manual", "yaw": yaw, "pitch": pitch})
             with self.lock:
+                starting = not self.manual_active
+                self.manual_active = True
                 self.goto_target = None
                 self.auto_lock = False
                 self.tracking_command = False
                 self.manual_until = time.monotonic() + 0.5
+            if starting:
+                self._publish({"cmd": "stop"})
+            self._publish({"cmd": "manual", "yaw": yaw, "pitch": pitch})
         elif cmd == proto.CMD_ZOOM_IN:
             with self.lock:
                 self.zoom = min(4, self.zoom * 2)
@@ -333,6 +343,7 @@ class Gateway:
                 self.tracking_command = False
                 self.goto_target = None
                 self.manual_until = 0.0
+                self.manual_active = False
             self._log(f"激活镜头 {lens}")
         else:
             self._log(f"未实现命令 0x{cmd:02X}")
@@ -348,6 +359,7 @@ class Gateway:
             self.auto_lock = False
             self.tracking_command = False
             self.manual_until = 0.0
+            self.manual_active = False
         self._log(f"指定角度 yaw={yaw:.2f} pitch={pitch:.2f}")
 
     def _image_size(self) -> tuple[int, int]:
@@ -413,6 +425,7 @@ class Gateway:
             self.auto_lock = auto
             self.goto_target = None
             self.manual_until = 0.0
+            self.manual_active = False
         self._log(f"{'自动' if auto else '点选'}锁定 {candidate.get('name')} "
                   f"center={center}")
 
@@ -460,6 +473,7 @@ class Gateway:
                 self._publish({"cmd": "manual", "yaw": 0.0, "pitch": 0.0})
                 with self.lock:
                     self.manual_until = 0.0
+                    self.manual_active = False
 
     def _control_timeout_loop(self) -> None:
         while self.running:
@@ -475,6 +489,7 @@ class Gateway:
                     self.auto_lock = False
                     self.goto_target = None
                     self.manual_until = 0.0
+                    self.manual_active = False
                 self._log("控制超时，停止跟踪并保持角度")
 
     def _auto_lock_loop(self) -> None:

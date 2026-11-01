@@ -132,6 +132,15 @@ bash models/gimbals/aisheng-ASD-2-075-DD0/tests/run_preview.sh --no-sweep
 
 上位机视频窗口默认 1280×720，Yaw 滑条范围 −60°～+60°，Pitch 滑条范围 −80°～+30°。锁定框、遥测和命令提示叠加在视频上。
 
+无界面自检（需要网关和 Gazebo 已启动）：
+
+```bash
+.venv-linux/bin/python models/gimbals/aisheng-ASD-2-075-DD0/ground_station/main.py \
+  --selftest 5
+```
+
+自检检查遥测频率、双路视频解码和解锁后的自由状态；低渲染性能机器会显示频率警告但仍按最低 40 Hz 判定。
+
 启动脚本会打印 `GZ_PARTITION`。在另一个终端用同一分区手动发送指令或移动目标：
 
 ```bash
@@ -208,6 +217,7 @@ export GZ_PARTITION=<启动脚本打印的分区>
 - `tests/check_binary.py`：二进制协议/运动回环检查。
 - `tests/check_lock.py`：点选锁定/自动锁定/取消锁定/电锁回环检查。
 - `tests/check_tele.py`：长焦原生点选锁定回环检查。
+- `tests/check_limits.py`：两轴手动速度、限位和峰值速度回环检查。
 - `tests/test_protocol.py`：协议编解码单元测试。
 - `tests/test_coordinates.py`：广角/长焦像素换算单元测试。
 
@@ -223,5 +233,6 @@ export GZ_PARTITION=<启动脚本打印的分区>
 - 广角、长焦 RTP 视频在 7001/7002 端口有持续 H.264 包；上位机能解码显示广角/长焦、遥测、跟踪框和按键提示。
 - 广角 1×/2×/4× 数字变焦已在上位机显示端验证，4× 画面为中心裁剪放大，`docs/zoom4.png` 为实际截图。
 - 长焦原生点选锁定已验证：`camera.active=tele`、`tracking.state=TRACK`、跟踪框约 90×70 px，目标居中，失调角约 0。
-- 60°/s 速度指令的峰值角速度已确认；yaw 正指令使机械角正向增加，pitch 负指令使机械角负向增加。
+- 60°/s 速度指令的峰值角速度已确认；yaw 正指令使机械角正向增加，pitch 负指令使机械角负向增加。`check_limits.py` 回环检查峰值 60°/s，四个方向均未越过 yaw ±60°、pitch −80°～+30°。
+- 无界面上位机自检可检查遥测、双路视频和解锁状态；当前 CPU 渲染环境遥测约 46～50 Hz，会显示低于 80 Hz 目标的警告，但按最低 40 Hz 判定通过。
 - 尚未验证：更高机动/连续满速/极限限位碰撞、视频 SEI、多客户端控制。

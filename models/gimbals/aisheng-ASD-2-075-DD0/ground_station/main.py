@@ -126,6 +126,8 @@ class TelemetryClient:
                 data, _ = self.rx.recvfrom(2048)
             except socket.timeout:
                 continue
+            except OSError:
+                break
             try:
                 frame = proto.decode_telemetry(data)
             except ValueError:
@@ -399,6 +401,54 @@ class GCS:
             cv2.destroyAllWindows()
 
 
+def run_selftest(args) -> int:
+    client = TelemetryClient(args.host, args.control_port, args.telemetry_port)
+    wide = VideoReceiver(args.wide_port, "wide")
+    tele = VideoReceiver(args.tele_port, "tele")
+    ok = True
+    try:
+        deadline = time.monotonic() + args.selftest
+        while time.monotonic() < deadline and client.latest is None:
+            time.sleep(0.1)
+        if client.latest is None:
+            print("自检失败：没有遥测")
+            return 1
+        start = time.monotonic()
+        c0, w0, t0 = client.count, wide.count, tele.count
+        time.sleep(min(3.0, max(1.0, args.selftest)))
+        elapsed = time.monotonic() - start
+        rate = (client.count - c0) / elapsed
+        video_wide = wide.count - w0
+        video_tele = tele.count - t0
+        print(f"遥测 {rate:.1f} Hz，广角视频 {video_wide} 帧，长焦视频 {video_tele} 帧")
+        if rate < args.selftest_min_rate:
+            print(f"自检失败：遥测低于 {args.selftest_min_rate:.0f} Hz")
+            ok = False
+        elif rate < 80.0:
+            print("警告：遥测低于 80 Hz 目标，当前机器渲染负载较高")
+        if video_wide <= 0 or video_tele <= 0:
+            print("自检失败：双路视频没有解码帧")
+            ok = False
+        client.send(proto.CMD_FRAME_UNLOCK)
+        time.sleep(0.5)
+        frame = client.latest
+        servo = (frame.status_control >> 5) & 0x7 if frame else -1
+        print(f"解锁后伺服状态 {servo:03b}" if servo >= 0 else "解锁后无遥测")
+        if servo != 4:
+            print("自检失败：解锁后不是自由状态")
+            ok = False
+        client.send(proto.CMD_SPECIFIED_ANGLE, p1=500, p2=300)
+        time.sleep(1.5)
+        client.send(proto.CMD_RECENTER)
+        time.sleep(0.5)
+        print("自检通过" if ok else "自检失败")
+        return 0 if ok else 1
+    finally:
+        wide.close()
+        tele.close()
+        client.close()
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="ASD-2-075-DD0 上位机")
     parser.add_argument("--host", default="127.0.0.1")
@@ -411,8 +461,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--no-lens-switch", action="store_true",
                         help="启动时不发送镜头切换命令")
     parser.add_argument("--snapshot", default="", help="保存一张上位机显示截图后继续运行")
+    parser.add_argument("--selftest", type=float, default=0.0,
+                        help="无界面自检秒数；>0 时不打开窗口")
+    parser.add_argument("--selftest-min-rate", type=float, default=40.0,
+                        help="自检允许的最低遥测频率 Hz")
     return parser.parse_args()
 
 
 if __name__ == "__main__":
-    GCS(parse_args()).run()
+    args = parse_args()
+    if args.selftest > 0:
+        sys.exit(run_selftest(args))
+    GCS(args).run()

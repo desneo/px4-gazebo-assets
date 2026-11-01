@@ -71,6 +71,7 @@ los_mount = (-sin(pitch), -sin(yaw)cos(pitch), cos(yaw)cos(pitch))
 | 遥测 UDP | 发往 `127.0.0.1:8791` |
 | 广角 RTP | `127.0.0.1:7001` |
 | 长焦 RTP | `127.0.0.1:7002` |
+| PX4 JSON | 默认关闭；`--px4-json-port` 指定后 50 Hz 发往 `127.0.0.1:<port>` |
 | 控制帧 | 45 字节，帧头 `0xAA55`，长度 `0x2D` |
 | 遥测帧 | 104 字节，帧头 `0x55AA`，长度 `0x68` |
 | 遥测周期 | 100 Hz |
@@ -88,6 +89,8 @@ los_mount = (-sin(pitch), -sin(yaw)cos(pitch), cos(yaw)cos(pitch))
 - `0x53` 切换激活镜头（参数 1 广角、2 长焦，仿真映射）。
 
 标准遥测中的陀螺角速度、视线角速度和失调角按协议字段范围限幅 ±20°/s；实际 60°/s 机械转速保留在 Gazebo 插件 JSON 遥测中，不塞进标准字段。
+
+网关可用 `--image-topic`、`--tele-image-topic` 覆盖图像话题，默认 `<topic-prefix>/camera` 和 `<topic-prefix>/camera_tele`。显式指定 `--px4-json-port` 后，网关按 50 Hz 把内部遥测转换为 `dyt_udp_bridge` 期望的 19 字段 JSON，时间戳在发送前生成；默认关闭，不影响独立演示。字段映射、±20°/s 限幅和无效目标置零规则见 `gateway/px4_forward.py`。
 
 自动锁定使用 Gazebo 插件发布的 `truth_candidates`（当前广角相机内已注册飞机投影中心），选择离画面中心最近的一架；点选锁定选择点击位置附近最近的候选。两种锁定都通过内部 `track` 框启动插件的 `sim_truth` 单目标跟踪，不使用 YOLO 或纹理跟踪。自动锁定在目标丢失后会重新选择当前最近中心飞机。
 
@@ -216,6 +219,7 @@ export GZ_PARTITION=<启动脚本打印的分区>
 - `controller/`：复制并改名的两轴控制器，库名 `gz-aisheng-seeker-controller`，机械速度硬上限 60°/s；遥测增加 `truth_candidates` 和图像宽高；原 `two_axis_pod` 控制器不变。
 - `common/protocol.py`：标准 45/104 字节帧编解码、校验和、比例尺和限幅。
 - `gateway/main.py`：二进制 UDP 网关、命令映射、点选/自动锁定、100 Hz 遥测。
+- `gateway/px4_forward.py`：内部 JSON → 19 字段 PX4 艾晟 JSON，含 UDP 发送器。
 - `gateway/video_tx.py`：Gazebo 图像 → NVENC H.264 → RTP over UDP。
 - `ground_station/main.py`：RTP 双路视频、遥测显示、双击锁定、自动锁定、滑条、手动控制和无界面自检。
 - `ground_station/config.ini`：上位机网络、视频端口、启动镜头和镜头切换开关配置。
@@ -235,6 +239,7 @@ export GZ_PARTITION=<启动脚本打印的分区>
 - `controller/src/target_motion.cc`：演示目标运动插件，按物理步设置目标位姿。
 - `tests/test_protocol.py`：协议编解码单元测试。
 - `tests/test_coordinates.py`：广角/长焦像素换算单元测试。
+- `tests/test_px4_forward.py`：19 字段转换、限幅、无效目标和 UDP 回环测试。
 
 ## 当前验证
 
@@ -252,4 +257,6 @@ export GZ_PARTITION=<启动脚本打印的分区>
 - 框架最大转速 60°/s 已确认；yaw 正指令使机械角正向增加，pitch 负指令使机械角负向增加。`check_limits.py` 回环检查**框架角速度**峰值 60°/s，四个方向均未越过 yaw ±60°、pitch −80°～+30°。
 - 规格书的“视线角速度 ±25°/s”与标准协议表的“±20°/s”存在字段范围差异：插件内部 `target_los` 保留实际值，标准遥测按协议字段限幅 ±20；25°/s 跟踪验收已通过，标准帧仍按协议发送 ±20。
 - 无界面上位机自检可检查遥测、双路视频和解锁状态；当前 CPU 渲染环境遥测约 46～50 Hz，会显示低于 80 Hz 目标的警告，但按最低 40 Hz 判定通过。
+- 19 字段 PX4 JSON 已回环验证：字段数 19、50 Hz、无效目标置零、gyro/LOS 限幅 ±20°/s、`los_omega_*` 不限幅；02 场景导引头路径已把该 JSON 送入 `dyt_udp_bridge`，PX4 `dyt_aisheng_telemetry` 可读到对应字段。
+- 动态装配 `assembledmodels/rocket_aisheng_seeker/` 已验证 5.00 kg、airframe 4024、100 Hz 插件遥测、双相机话题和 PX4 机体生成；独立飞行验收见该装配目录。
 - 尚未验证：更高机动/连续满速/极限限位碰撞、视频 SEI、多客户端控制。

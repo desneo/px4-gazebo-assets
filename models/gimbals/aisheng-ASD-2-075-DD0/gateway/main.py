@@ -2,6 +2,7 @@
 """ASD-2-075-DD0 标准二进制 UDP 网关。
 
 控制帧 45 字节、遥测帧 104 字节；Gazebo 插件仍使用内部 JSON 话题。
+可选把内部遥测转换为 PX4 dyt_udp_bridge 的 19 字段 JSON。
 """
 from __future__ import annotations
 
@@ -63,10 +64,25 @@ class Gateway:
         self.last_result_error = 0.0
         self.last_discrete = None
         self.last_discrete_time = 0.0
+        self.px4_tx = 0
+        self.px4_errors = 0
+        self.px4_sender = None
+        if args.px4_json_port:
+            if (not math.isfinite(args.px4_json_rate)
+                    or args.px4_json_rate <= 0):
+                raise ValueError("PX4 JSON 频率必须为有限正数")
+            from gateway.px4_forward import Px4JsonSender
+            self.px4_sender = Px4JsonSender(
+                args.px4_json_host, args.px4_json_port)
+            print(f"PX4 JSON：{args.px4_json_host}:{args.px4_json_port}，"
+                  f"{args.px4_json_rate:g} Hz", flush=True)
         self.node.subscribe(
             StringMsg, f"{args.topic_prefix}/telemetry", self._on_telemetry)
         self.node.subscribe(
             StringMsg, f"{args.topic_prefix}/command_result", self._on_result)
+        self.image_topic = args.image_topic or f"{args.topic_prefix}/camera"
+        self.tele_image_topic = (
+            args.tele_image_topic or f"{args.topic_prefix}/camera_tele")
         self.video_senders = []
         self.glib_loop = None
         if args.video:
@@ -75,11 +91,11 @@ class Gateway:
             self.glib_loop = GLib.MainLoop()
             threading.Thread(target=self.glib_loop.run, daemon=True).start()
             self.video_senders = [
-                VideoSender(self.node, f"{args.topic_prefix}/camera",
+                VideoSender(self.node, self.image_topic,
                             args.video_host, args.wide_video_port,
                             width=1920, height=1080, fps=30,
                             bitrate_kbps=args.bitrate),
-                VideoSender(self.node, f"{args.topic_prefix}/camera_tele",
+                VideoSender(self.node, self.tele_image_topic,
                             args.video_host, args.tele_video_port,
                             width=1920, height=1080, fps=30,
                             bitrate_kbps=args.bitrate),
@@ -106,8 +122,11 @@ class Gateway:
                 locked = self.locked
                 auto = self.auto_lock
                 tracking = self.tracking_command
+                px4_tx = self.px4_tx
+                px4_errors = self.px4_errors
             print(f"telemetry rx={rx} tx={tx} locked={locked} "
-                  f"auto={auto} tracking_cmd={tracking}", flush=True)
+                  f"auto={auto} tracking_cmd={tracking} "
+                  f"px4_tx={px4_tx} px4_err={px4_errors}", flush=True)
             self.last_status_log = time.monotonic()
 
     def _on_result(self, msg: StringMsg) -> None:
@@ -510,6 +529,32 @@ class Gateway:
                     self.tracking_command = False
             self._try_auto_lock()
 
+    def _px4_loop(self) -> None:
+        period = 1.0 / max(1.0, self.args.px4_json_rate)
+        next_send = time.monotonic()
+        last_error_log = 0.0
+        while self.running:
+            now = time.monotonic()
+            if now < next_send:
+                time.sleep(min(next_send - now, 0.01))
+                continue
+            next_send = max(next_send + period, now)
+            with self.lock:
+                data = self.latest
+                fresh = data and now - self.latest_mono < 0.5
+            if not fresh:
+                continue
+            try:
+                self.px4_sender.send(data)
+                with self.lock:
+                    self.px4_tx += 1
+            except (ValueError, OSError) as exc:
+                with self.lock:
+                    self.px4_errors += 1
+                if self.args.verbose and now - last_error_log >= 2.0:
+                    last_error_log = now
+                    print(f"PX4 JSON 发送失败：{exc}", flush=True)
+
     def _log(self, message: str) -> None:
         if self.args.verbose:
             print(message, flush=True)
@@ -521,6 +566,8 @@ class Gateway:
             threading.Thread(target=self._auto_lock_loop, daemon=True),
             threading.Thread(target=self._control_timeout_loop, daemon=True),
         ]
+        if self.px4_sender is not None:
+            threads.append(threading.Thread(target=self._px4_loop, daemon=True))
         for thread in threads:
             thread.start()
         print(f"网关启动：控制 UDP {self.args.control_host}:{self.args.control_port}，"
@@ -542,6 +589,8 @@ class Gateway:
                 self.glib_loop.quit()
             self.control_sock.close()
             self.telemetry_sock.close()
+            if self.px4_sender is not None:
+                self.px4_sender.close()
 
 
 def parse_args() -> argparse.Namespace:
@@ -551,6 +600,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--telemetry-host", default="127.0.0.1")
     parser.add_argument("--telemetry-port", type=int, default=8791)
     parser.add_argument("--topic-prefix", default="/aisheng_seeker")
+    parser.add_argument("--image-topic", default="",
+                        help="广角图像话题；默认 <topic-prefix>/camera")
+    parser.add_argument("--tele-image-topic", default="",
+                        help="长焦图像话题；默认 <topic-prefix>/camera_tele")
+    parser.add_argument("--px4-json-host", default="127.0.0.1")
+    parser.add_argument("--px4-json-port", type=int, default=0,
+                        help="19 字段 PX4 JSON 目标端口；0 关闭转发")
+    parser.add_argument("--px4-json-rate", type=float, default=50.0,
+                        help="PX4 JSON 发送频率 Hz（默认：50）")
     parser.add_argument("--click-radius", type=float, default=80.0,
                         help="双击命中真值候选的最大像素距离")
     parser.add_argument("--track-box-w", type=float, default=80.0)

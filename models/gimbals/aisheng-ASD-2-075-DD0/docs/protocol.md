@@ -112,6 +112,15 @@ UDP 不保证到达、顺序或唯一性。网关丢弃帧头、长度或校验�
 - 目标丢失超过 2.5 s 进入 LOST；自动锁定模式重新选择当前最近中心候选，手动锁定不自动换锁。
 - 切换广角/长焦时插件清空旧相机的图像、真值历史和处理帧，重新以新相机内参/光轴建立跟踪；长焦可原生独立跟踪。
 
+## PX4 19 字段 JSON
+
+网关默认不发送 PX4 JSON；指定 `--px4-json-port` 后，以 50 Hz 将内部遥测转换为 `dyt_udp_bridge` 的 19 字段格式。字段为 `timestamp`、`track_status`、`pitch_angle`、`yaw_angle`、`pitch_misalignment`、`yaw_misalignment`、`tracking_confidence`、`target_confidence`、`gyro_pitch_rate`、`gyro_yaw_rate`、`pitch_los_rate`、`yaw_los_rate`、`los_omega_n/e/d`、`tracking_gate_w/h`、`gate_x/y`。
+
+- `timestamp` 在 UDP 发送前生成，为 Unix 毫秒；PX4 uORB 自身时间戳仍为本机 hrt。
+- `gyro_*`、`pitch_los_rate`、`yaw_los_rate` 按 ±20°/s 限幅；`los_omega_n/e/d` 取独立 `omega_ned_dps`，不按 ±20 限幅。
+- 目标无效时 `track_status=0`，脱靶量、波门和中心置 0；机械角和 gyro 仍发送。
+- `gate_x/y` 取最终跟踪框中心的 half-up 整数像素；`tracking_gate_w/h` 保留浮点宽度/高度。
+
 ## 视频
 
 - 发送端：Gazebo RGB 图像 → `videoconvert` → `nvcudah264enc` 低延迟 CBR → `rtph264pay pt=96 config-interval=1 mtu=1400` → `udpsink`。

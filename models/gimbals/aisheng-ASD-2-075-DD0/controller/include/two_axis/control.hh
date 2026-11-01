@@ -51,7 +51,8 @@ public:
   bool ResetAxis(const std::string &, const JointSample &);
   std::array<double, 2> Step(
     double, bool, const cv::Mat &, int, int, const JointSample &,
-    double = -1, std::int64_t = -1, const TruthObservation * = nullptr);
+    double = -1, std::int64_t = -1, const TruthObservation * = nullptr,
+    std::array<double, 2> feedforward_dps = {0.0, 0.0});
   const TargetMiss &target_miss()const
   {
     return miss_;

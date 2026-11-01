@@ -192,7 +192,7 @@ std::pair<bool, std::string> GimbalControl::StartTruthTracking(
 std::array<double, 2> GimbalControl::Step(
   double now, bool fresh, const cv::Mat &im, int w, int h,
   const JointSample &j, double watch, std::int64_t frame_seq,
-  const TruthObservation *truth)
+  const TruthObservation *truth, std::array<double, 2> feedforward_dps)
 {
   if (!std::isfinite(j.yaw) || !std::isfinite(j.pitch) || !std::isfinite(j.yaw_vel) || !std::isfinite(j.pitch_vel))
   {
@@ -318,6 +318,8 @@ std::array<double, 2> GimbalControl::Step(
     if (valid_ && watch - frame_time_ < cfg_.frame_stop_timeout_s)
     {
       raw = ImageRates(j.pitch, cfg_.kp * image_error_[0], cfg_.kp * image_error_[1]);
+      raw[0] += feedforward_dps[0];
+      raw[1] += feedforward_dps[1];
       const auto stabilization = StabilizationRates(j.yaw, j.pitch, cfg_.mount_angular_velocity);
       raw[0] += stabilization[0];
       raw[1] += stabilization[1];

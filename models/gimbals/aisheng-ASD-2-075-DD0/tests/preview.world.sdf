@@ -963,7 +963,7 @@
         <telemetry_config>model://aisheng-ASD-2-075-DD0/controller/service/telemetry.json</telemetry_config>
         <max_rate_dps>60</max_rate_dps>
         <max_acc_dps2>160</max_acc_dps2>
-        <kp>6</kp>
+        <servo_kp>4</servo_kp>
         <yaw_min_deg>-60</yaw_min_deg>
         <yaw_max_deg>60</yaw_max_deg>
         <pitch_min_deg>-80</pitch_min_deg>

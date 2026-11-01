@@ -94,7 +94,7 @@ def main() -> None:
             ok = False
     if max(p[0] for p in peaks.values()) < 20.0 and max(p[1] for p in peaks.values()) < 20.0:
         ok = False
-    print("限位/速度检查通过" if ok else "限位/速度检查失败")
+    print("框架限位/框架转速检查通过" if ok else "框架限位/框架转速检查失败")
     send(proto.CMD_RECENTER)
     time.sleep(0.5)
     send(proto.CMD_FRAME_LOCK)

@@ -118,6 +118,9 @@ bash models/gimbals/aisheng-ASD-2-075-DD0/tests/run_preview.sh
 
 # 只看模型，不自动扫掠
 bash models/gimbals/aisheng-ASD-2-075-DD0/tests/run_preview.sh --no-sweep
+
+# 25°/s 视线角速度验收（自动启动动态目标世界和网关）
+bash models/gimbals/aisheng-ASD-2-075-DD0/tests/run_los25.sh
 ```
 
 上位机按键：
@@ -226,6 +229,10 @@ export GZ_PARTITION=<启动脚本打印的分区>
 - `tests/check_lock.py`：点选锁定/自动锁定/取消锁定/电锁回环检查。
 - `tests/check_tele.py`：长焦原生点选锁定回环检查。
 - `tests/check_limits.py`：两轴手动速度、限位和峰值速度回环检查。
+- `tests/check_los25.py`：25°/s 视线角速度跟踪验收。
+- `tests/run_los25.sh`：启动 `los25.world.sdf`、网关并执行 25°/s 验收。
+- `tests/los25.world.sdf`：由生成器输出的动态目标世界，目标运动插件平滑移动 `target_aircraft`。
+- `controller/src/target_motion.cc`：演示目标运动插件，按物理步设置目标位姿。
 - `tests/test_protocol.py`：协议编解码单元测试。
 - `tests/test_coordinates.py`：广角/长焦像素换算单元测试。
 
@@ -236,11 +243,13 @@ export GZ_PARTITION=<启动脚本打印的分区>
 - 点选锁定 `target_aircraft` 成功，跟踪框约 90×70 px；导引头 yaw/pitch 自动转到目标居中，静态目标失调角收敛到 0。
 - 自动锁定选择离画面中心最近的 `target_aircraft`；取消锁定、关闭自动锁定和框架电锁均回传正确伺服状态。
 - 用 `tests/move_target.py` 的默认航线（3.7 m 距离，y ±0.30 m、z ±0.12 m）移动目标时，129/129 个稳态采样保持 TRACK，峰值失调角 1.97°。
+- `tests/los25.world.sdf` 的目标运动插件以约 26.7°/s 峰值平滑移动目标；25°/s 验收 100/100 稳态 TRACK，内部 `target_los` 峰值 26.21°/s，标准帧 LOS 按协议限幅到 20.00°/s，最大失调角 0.18°。跟踪使用目标 LOS 角速度前馈，前馈限幅 ±30°/s。
 - 自动锁定跟踪中把目标移出视场，插件进入 LOST；目标移回后自动锁定重新选择并恢复 TRACK。
 - 上位机 10 Hz 心跳；停止心跳 2 s 后网关停止跟踪并保持角度，控制超时保护已回环验证。
 - 广角、长焦 RTP 视频在 7001/7002 端口有持续 H.264 包；上位机能解码显示广角/长焦、遥测、跟踪框和按键提示。
 - 广角 1×/2×/4× 数字变焦已在上位机显示端验证，4× 画面为中心裁剪放大，`docs/zoom4.png` 为实际截图。
 - 长焦原生点选锁定已验证：`camera.active=tele`、`tracking.state=TRACK`、跟踪框约 90×70 px，目标居中，失调角约 0。
-- 60°/s 速度指令的峰值角速度已确认；yaw 正指令使机械角正向增加，pitch 负指令使机械角负向增加。`check_limits.py` 回环检查峰值 60°/s，四个方向均未越过 yaw ±60°、pitch −80°～+30°。
+- 框架最大转速 60°/s 已确认；yaw 正指令使机械角正向增加，pitch 负指令使机械角负向增加。`check_limits.py` 回环检查**框架角速度**峰值 60°/s，四个方向均未越过 yaw ±60°、pitch −80°～+30°。
+- 规格书的“视线角速度 ±25°/s”与标准协议表的“±20°/s”存在字段范围差异：插件内部 `target_los` 保留实际值，标准遥测按协议字段限幅 ±20；25°/s 跟踪验收已通过，标准帧仍按协议发送 ±20。
 - 无界面上位机自检可检查遥测、双路视频和解锁状态；当前 CPU 渲染环境遥测约 46～50 Hz，会显示低于 80 Hz 目标的警告，但按最低 40 Hz 判定通过。
 - 尚未验证：更高机动/连续满速/极限限位碰撞、视频 SEI、多客户端控制。

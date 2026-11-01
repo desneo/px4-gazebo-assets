@@ -273,6 +273,21 @@ def generate_preview_world(model):
     ET.ElementTree(sdf).write(ROOT / 'tests/preview.world.sdf',
                               encoding='utf-8', xml_declaration=True)
 
+    los_sdf = copy.deepcopy(sdf)
+    los_world = los_sdf.find('world')
+    motion = elem(los_world, 'plugin', filename='gz-aisheng-target-motion',
+                  name='aisheng::TargetMotion')
+    for key, value in [
+            ('target_name', 'target_aircraft'),
+            ('center_x', '3.7'), ('center_y', '0.55'), ('center_z', '1.5'),
+            ('amp_y', '0.55'), ('amp_z', '0'),
+            ('period_y', '2.0'), ('period_z', '8.0'),
+            ('phase_y', '0'), ('phase_z', '0')]:
+        elem(motion, key, value)
+    ET.indent(los_sdf, space='  ')
+    ET.ElementTree(los_sdf).write(ROOT / 'tests/los25.world.sdf',
+                                  encoding='utf-8', xml_declaration=True)
+
 
 def generate():
     c = json.loads((ROOT / 'parameters.json').read_text())
@@ -317,7 +332,7 @@ def generate():
         control_rate=100, tracking_backend='sim_truth',
         telemetry_config=MODEL_URI + '/controller/service/telemetry.json',
         max_rate_dps=c['max_rate_dps'], max_acc_dps2=c['max_acc_dps2'],
-        kp=c.get('kp', 4),
+        servo_kp=c.get('servo_kp', 4),
         yaw_min_deg=c['yaw_limits_deg'][0], yaw_max_deg=c['yaw_limits_deg'][1],
         pitch_min_deg=c['pitch_limits_deg'][0], pitch_max_deg=c['pitch_limits_deg'][1])
     for key, value in settings.items():

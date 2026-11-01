@@ -15,8 +15,12 @@ add_library(gz-aisheng-seeker-controller SHARED src/gimbal_controller.cc ${CONTR
 target_include_directories(gz-aisheng-seeker-controller PRIVATE include ${SHARED_CONTROLLER}/include ${OpenCV_INCLUDE_DIRS})
 target_link_libraries(gz-aisheng-seeker-controller PRIVATE gz-sim8::core gz-transport13::core gz-msgs10::core gz-plugin2::core ${OpenCV_LIBRARIES})
 set_target_properties(gz-aisheng-seeker-controller PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+add_library(gz-aisheng-target-motion SHARED src/target_motion.cc)
+target_link_libraries(gz-aisheng-target-motion PRIVATE gz-sim8::core gz-plugin2::core)
+set_target_properties(gz-aisheng-target-motion PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 include(GNUInstallDirs)
-install(TARGETS gz-aisheng-seeker-controller LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
+install(TARGETS gz-aisheng-seeker-controller gz-aisheng-target-motion
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
 include(CTest)
 if(BUILD_TESTING)
  add_executable(two-axis-control-test tests/control_test.cc ${CONTROL_SOURCES})

@@ -1190,8 +1190,15 @@ void GimbalController::PreUpdate(const gz::sim::UpdateInfo &_info,
             processedSeq);
       }
     }
+    std::array<double, 2> feedforward{0.0, 0.0};
+    if (targetLos_.valid && targetLos_.yaw_rate_dps && targetLos_.pitch_rate_dps)
+    {
+      feedforward[0] = std::clamp(*targetLos_.yaw_rate_dps, -30.0, 30.0);
+      feedforward[1] = std::clamp(*targetLos_.pitch_rate_dps, -30.0, 30.0);
+    }
     cmd = this->control_.Step(now, newFrame && !useImg.empty(), useImg, useW,
-                              useH, js, watchdogNow, processedSeq, truth);
+                              useH, js, watchdogNow, processedSeq, truth,
+                              feedforward);
     if (this->control_.mode() != Mode::TRACK)
     {
       boundTruthEntity_ = gz::sim::kNullEntity;

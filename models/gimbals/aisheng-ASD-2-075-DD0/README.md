@@ -141,6 +141,13 @@ bash models/gimbals/aisheng-ASD-2-075-DD0/tests/run_preview.sh --no-sweep
 
 自检检查遥测频率、双路视频解码和解锁后的自由状态；低渲染性能机器会显示频率警告但仍按最低 40 Hz 判定。
 
+上位机默认读取 `ground_station/config.ini`，命令行参数可覆盖。保存当前连接/视频/镜头配置：
+
+```bash
+.venv-linux/bin/python models/gimbals/aisheng-ASD-2-075-DD0/ground_station/main.py \
+  --host 127.0.0.1 --control-port 8790 --save-config
+```
+
 启动脚本会打印 `GZ_PARTITION`。在另一个终端用同一分区手动发送指令或移动目标：
 
 ```bash
@@ -207,7 +214,8 @@ export GZ_PARTITION=<启动脚本打印的分区>
 - `common/protocol.py`：标准 45/104 字节帧编解码、校验和、比例尺和限幅。
 - `gateway/main.py`：二进制 UDP 网关、命令映射、点选/自动锁定、100 Hz 遥测。
 - `gateway/video_tx.py`：Gazebo 图像 → NVENC H.264 → RTP over UDP。
-- `ground_station/main.py`：RTP 双路视频、遥测显示、双击锁定、自动锁定、滑条和手动控制。
+- `ground_station/main.py`：RTP 双路视频、遥测显示、双击锁定、自动锁定、滑条、手动控制和无界面自检。
+- `ground_station/config.ini`：上位机网络、视频端口、启动镜头和镜头切换开关配置。
 - `tests/run_demo.sh`：完整演示入口。
 - `tests/run_preview.sh`：仅外观/转动预览入口。
 - `tests/sweep.py`：自动两轴速度扫掠。

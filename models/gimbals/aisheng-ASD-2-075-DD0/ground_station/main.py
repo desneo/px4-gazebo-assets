@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import configparser
 import math
 from pathlib import Path
 import socket
@@ -450,26 +451,81 @@ def run_selftest(args) -> int:
 
 
 def parse_args() -> argparse.Namespace:
+    pre = argparse.ArgumentParser(add_help=False)
+    pre.add_argument("--config", default=str(ROOT / "ground_station" / "config.ini"))
+    pre_args, _ = pre.parse_known_args()
+    config = configparser.ConfigParser()
+    config.read(pre_args.config, encoding="utf-8")
+
+    def get(section, key, default):
+        return config.get(section, key, fallback=default)
+
+    def getint(section, key, default):
+        try:
+            return config.getint(section, key, fallback=default)
+        except ValueError:
+            return default
+
+    def getbool(section, key, default):
+        try:
+            return config.getboolean(section, key, fallback=default)
+        except ValueError:
+            return default
+
     parser = argparse.ArgumentParser(description="ASD-2-075-DD0 上位机")
-    parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument("--control-port", type=int, default=8790)
-    parser.add_argument("--telemetry-port", type=int, default=8791)
-    parser.add_argument("--wide-port", type=int, default=7001)
-    parser.add_argument("--tele-port", type=int, default=7002)
-    parser.add_argument("--lens", choices=("wide", "tele"), default="wide",
+    parser.add_argument("--config", default=pre_args.config)
+    parser.add_argument("--host", default=get("network", "host", "127.0.0.1"))
+    parser.add_argument("--control-port", type=int,
+                        default=getint("network", "control_port", 8790))
+    parser.add_argument("--telemetry-port", type=int,
+                        default=getint("network", "telemetry_port", 8791))
+    parser.add_argument("--wide-port", type=int,
+                        default=getint("video", "wide_port", 7001))
+    parser.add_argument("--tele-port", type=int,
+                        default=getint("video", "tele_port", 7002))
+    parser.add_argument("--lens", choices=("wide", "tele"),
+                        default=get("session", "lens", "wide"),
                         help="启动时激活的镜头")
     parser.add_argument("--no-lens-switch", action="store_true",
+                        default=getbool("session", "no_lens_switch", False),
                         help="启动时不发送镜头切换命令")
     parser.add_argument("--snapshot", default="", help="保存一张上位机显示截图后继续运行")
     parser.add_argument("--selftest", type=float, default=0.0,
                         help="无界面自检秒数；>0 时不打开窗口")
     parser.add_argument("--selftest-min-rate", type=float, default=40.0,
                         help="自检允许的最低遥测频率 Hz")
+    parser.add_argument("--save-config", action="store_true",
+                        help="把当前连接/视频/镜头配置写回 --config 后退出")
     return parser.parse_args()
+
+
+def save_config(args: argparse.Namespace) -> None:
+    config = configparser.ConfigParser()
+    config["network"] = {
+        "host": args.host,
+        "control_port": str(args.control_port),
+        "telemetry_port": str(args.telemetry_port),
+    }
+    config["video"] = {
+        "wide_port": str(args.wide_port),
+        "tele_port": str(args.tele_port),
+    }
+    config["session"] = {
+        "lens": args.lens,
+        "no_lens_switch": "true" if args.no_lens_switch else "false",
+    }
+    path = Path(args.config)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8") as handle:
+        config.write(handle)
+    print(f"配置已保存：{path}", flush=True)
 
 
 if __name__ == "__main__":
     args = parse_args()
+    if args.save_config:
+        save_config(args)
+        sys.exit(0)
     if args.selftest > 0:
         sys.exit(run_selftest(args))
     GCS(args).run()

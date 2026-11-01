@@ -3,6 +3,7 @@ __pycache__/
 *.pyc
 runs/
 assembledmodels/rocket_two_axis_pod/runtime/
+assembledmodels/rocket_aisheng_seeker/runtime/
 
 # spec-kit 产物不入库
 .specify/

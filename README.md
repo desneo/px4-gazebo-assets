@@ -26,7 +26,7 @@ px4-gazebo-assets/
 │       └── delta_wing_display/ # 小摩托外观所用的平滑三角翼独立美术展示
 ├── assembledmodels/           # 由基础 model 组合的复杂模型
 │   ├── rocket_two_axis_pod/   # 590 mm 火箭机与顶部两轴吊舱的造型与动态装配
-│   └── rocket_aisheng_seeker/ # 590 mm 火箭机与顶部艾晟导引头的静态装配预览
+│   └── rocket_aisheng_seeker/ # 590 mm 火箭机与顶部艾晟导引头的静态与动态装配
 ├── assemblies/                # 已有固定支架三轴吊舱装配
 ├── worlds/                    # 静态环境定义、专用资源和说明
 └── scenarios/                 # 大型综合测试场景的配置、启动和辅助脚本(组件自己用的测试跟model放一起)
@@ -67,7 +67,7 @@ px4-gazebo-assets/
 - 两轴立装吊舱：见[组件说明](models/gimbals/two_axis_pod/README.md)、[安装与运动学](models/gimbals/two_axis_pod/docs/mounting.md)和[验证说明](models/gimbals/two_axis_pod/docs/validation.md)。Ø84 mm 底部圆环与地面平行，导引头整体向上高 91 mm。外轴绕水平 +X 转动，范围 ±60°；内轴绕随动 −Y 转动，范围 −80°～+30°。原始零位光轴朝安装 +Z，负内轴角转向安装 +X，运动链为 `Rx(yaw) Ry(-pitch)`，控制协议为 v8 / `motion_head_joint_right_positive`。圆环、外罩和轴承座固定，两轴相交于球心；精确几何源及关节定义随组件保存在 `cad/`。组件使用单类 YOLO11 飞机模型和多目标轨迹确认；自动锁定选择画面中心最近的已确认飞机，手动框选绑定框内飞机。默认 `sim_truth` 后端在锁定后持续投影同一实体，目标在视野内即保持有效，并显示四边各扩展5 px的绿色跟踪框；显式配置 `tracking_backend=csrt` 才使用CSRT。关闭视觉、检测、自动锁定和手动框选互斥。视频强制硬件编解码，Linux 地面站使用 NVDEC，Windows 地面站显式请求并校验 D3D11 硬件解码，不可用时均直接报错。网关支持多机共用 RTSP 8555，按 `/two_axis_pod_<aircraft_id>` 路径末尾的飞机 ID 区分；网关与地面站配置相同 ID，默认 1。地面站提供仅含19个字段的艾晟 JSON 发送，其中`gate_x/gate_y`为原图左上原点、右/下为正的跟踪框中心整数像素坐标，`tracking_gate_w/tracking_gate_h`为最终跟踪框像素宽高，`gyro_*_rate` 为机械关节相对转速，`*_los_rate` 为目标相对载机固定名义重心的 NED 方位角/仰角变化率（右正/上正），角度导数无效时外发0/0；`los_omega_n/e/d` 为原始NED三维视线角速度向量，单位°/s、不限幅，向量无效时外发0/0/0。Windows 专用入口使用隔离 Python 虚拟环境，安装与启动见[地面站说明](models/gimbals/two_axis_pod/ground_station/README.md#windows-专用版本)。
 - 火箭穿越机：见[模型说明](models/vehicles/rocket_racing_quad/README.md)与[测试说明](models/vehicles/rocket_racing_quad/tests/README.md)。当前平底、四主翼与四小尾翼外形高0.590 m，整机质量4.76 kg、固定名义重心z=+0.030 m，外形已获人工确认。PX4限制为水平加速度15 m/s²、向上12 m/s²、向下6 m/s²，自动/最大jerk为30/40 m/s³；飞行验收采用8 s速度设定爬升。当前配置已通过30 s悬停、200 km/h连续30.000 s巡航、300 km/h连续10.000 s冲刺及落地停机，采用固定名义重心Gazebo真值；质量/惯性几何核验表明数学可行，未作实物标定。原始记录和15项源指纹见[验证结果](models/vehicles/rocket_racing_quad/docs/validation.md)。
 - 火箭机与顶部两轴吊舱：`assembledmodels/rocket_two_axis_pod/`静态装配高590 mm，吊舱安装面z=0.289 m、肩部起点z=0.277 m、最高点z=+0.380 m，静态SDF含24个visual、无碰撞体，组合外形待人工确认。动态组合质量5.00 kg，固定零关节名义重心 `(-0.000176261396,-3.426e-9,0.044398504845) m` FLU，CA/EKF派生与真值测量支持已实现，继承相同加速度、jerk和8 s速度设定爬升配置；归档中49项源指纹的5.00 kg组合已通过30 s悬停、200 km/h连续30.000 s巡航、300 km/h连续10.016 s冲刺及落地停机；入口与结果见[装配说明](assembledmodels/rocket_two_axis_pod/README.md)。
-- 火箭机与顶部艾晟导引头静态装配：`assembledmodels/rocket_aisheng_seeker/`为独立静态预览，590 mm火箭机顶部以底座平面安装ASD-2-075-DD0导引头，安装面z=0.289 m、最高点z=0.380 m，含26个visual、无碰撞体、无关节/插件；原火箭机、两轴吊舱和导引头基础模型均未修改。入口与评审图见[装配说明](assembledmodels/rocket_aisheng_seeker/README.md)。
+- 火箭机与顶部艾晟导引头装配：`assembledmodels/rocket_aisheng_seeker/`为独立装配，590 mm火箭机顶部以底座平面安装ASD-2-075-DD0导引头，安装面z=0.289 m、最高点z=0.380 m。静态模型含26个visual、无碰撞体、无关节/插件；动态装配质量5.00 kg、PX4 airframe 4024、双相机、真实两轴关节和`mount_dynamic=true`，默认话题`/rocket_aisheng_seeker/*`，02场景可生成`/uav_<id>/pod/*`。原火箭机、两轴吊舱和导引头基础模型均未修改。入口与评审图见[装配说明](assembledmodels/rocket_aisheng_seeker/README.md)。
 
 空目录中的 `.gitkeep` 用于让 Git 保存目录；添加实际文件后可以移除。
 

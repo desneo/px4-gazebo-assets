@@ -1,0 +1,167 @@
+{
+  "schema_version": 1,
+  "passed": true,
+  "settings": {
+    "hover_settle_s": 5.0,
+    "spectral_band_hz": [
+      5.0,
+      35.0
+    ],
+    "spectral_window_s": 4.0,
+    "attitude_trend_window_s": 0.5,
+    "rate_error_rms_limit_dps": 2.0,
+    "rate_error_p95_limit_dps": 4.0,
+    "rate_error_max_limit_dps": 10.0,
+    "rate_hf_rms_limit_dps": 0.5,
+    "attitude_p95_limit_deg": 0.1,
+    "attitude_peak_to_peak_limit_deg": 0.5,
+    "allocator_unachieved_ratio_limit": 0.01,
+    "allocator_unachieved_continuous_limit_s": 0.1,
+    "unallocated_torque_p99_limit": 0.002,
+    "motor_floor_threshold": 0.001,
+    "motor_floor_ratio_limit": 0.01,
+    "camera_los_required": true,
+    "camera_los_p95_limit_px": 6.0,
+    "camera_los_max_limit_px": 15.0
+  },
+  "hover": {
+    "ulog_time_s": [
+      30.564,
+      55.564
+    ],
+    "gazebo_time_s": [
+      30.556,
+      55.568
+    ],
+    "skipped_initial_s": 5.0
+  },
+  "axes": {
+    "roll": {
+      "rate_error_rms_dps": 0.06634644118449404,
+      "rate_error_p95_dps": 0.13471847776655566,
+      "rate_error_max_dps": 0.23794936991275054,
+      "spectral_band": {
+        "sample_hz": 100.0000000000199,
+        "rms_dps": 0.04714178665072688,
+        "peak_hz": 7.000000000001393,
+        "peak_psd_dps2_hz": 0.0004321290204884832
+      },
+      "attitude_detrended_p95_deg": 0.007454402764740569,
+      "attitude_detrended_peak_to_peak_deg": 0.028761548413915067,
+      "checks": {
+        "rate_error_rms": true,
+        "rate_error_p95": true,
+        "rate_error_max": true,
+        "rate_hf_rms": true,
+        "attitude_p95": true,
+        "attitude_peak_to_peak": true
+      },
+      "passed": true
+    },
+    "pitch": {
+      "rate_error_rms_dps": 0.14900630155891345,
+      "rate_error_p95_dps": 0.2932620694207253,
+      "rate_error_max_dps": 0.44496125123758284,
+      "spectral_band": {
+        "sample_hz": 100.0000000000199,
+        "rms_dps": 0.04382405754965231,
+        "peak_hz": 8.250000000001641,
+        "peak_psd_dps2_hz": 0.0002884472898359189
+      },
+      "attitude_detrended_p95_deg": 0.012359412675990776,
+      "attitude_detrended_peak_to_peak_deg": 0.05057477540148611,
+      "checks": {
+        "rate_error_rms": true,
+        "rate_error_p95": true,
+        "rate_error_max": true,
+        "rate_hf_rms": true,
+        "attitude_p95": true,
+        "attitude_peak_to_peak": true
+      },
+      "passed": true
+    }
+  },
+  "allocator": {
+    "unachieved_ratio": 0.0,
+    "longest_unachieved_s": 0.0,
+    "axes": {
+      "roll": {
+        "unallocated_torque_p99": 1.1210795491933829e-08
+      },
+      "pitch": {
+        "unallocated_torque_p99": 1.6356352716684345e-08
+      }
+    },
+    "checks": {
+      "unachieved_ratio": true,
+      "longest_unachieved": true,
+      "unallocated_roll": true,
+      "unallocated_pitch": true
+    },
+    "passed": true
+  },
+  "motors": {
+    "floor_threshold": 0.001,
+    "motors": [
+      {
+        "index": 0,
+        "floor_ratio": 0.0,
+        "passed": true
+      },
+      {
+        "index": 1,
+        "floor_ratio": 0.0,
+        "passed": true
+      },
+      {
+        "index": 2,
+        "floor_ratio": 0.0,
+        "passed": true
+      },
+      {
+        "index": 3,
+        "floor_ratio": 0.0,
+        "passed": true
+      }
+    ],
+    "passed": true
+  },
+  "camera_los": {
+    "available": true,
+    "required": true,
+    "passed": true,
+    "source": "seeker telemetry camera.quat_world",
+    "modes": [
+      "IDLE"
+    ],
+    "total_valid_rows": 2502,
+    "invalid_rows": 0,
+    "image": {
+      "width": 1920,
+      "height": 1080,
+      "horizontal_fov_deg": 38.00000000000887
+    },
+    "p95_radial_px": 0.6673009021280794,
+    "max_radial_px": 1.5822622757346168,
+    "horizontal_peak_to_peak_px": 1.492455553016344,
+    "vertical_peak_to_peak_px": 2.339058410306775,
+    "limits": {
+      "p95_radial_px": 6.0,
+      "max_radial_px": 15.0
+    }
+  },
+  "inputs": {
+    "ulog": {
+      "path": "/tmp/rocket-aisheng-seeker-flight.d8Ieir/rootfs/log/2026-11-01/13_24_19.ulg",
+      "sha256": "b11dad796aaec30bc6f256cb9cd10acb36a7756d4eec2d2d87707875b588b2cd"
+    },
+    "flight_report": {
+      "path": "/tmp/opencode/aisheng_flight2.json",
+      "sha256": "d5f61a13c6af1874131ba3e6a449949313efdf4ea728fbac0908f2f2f65a3153"
+    },
+    "config": {
+      "path": "/tmp/rocket-aisheng-seeker-flight.d8Ieir/models/rocket_aisheng_seeker/parameters.json",
+      "sha256": "70fdbc5cdd437886150fa58af85c63cbba7a34736355efc5d6c27aeb6f6036c9"
+    }
+  }
+}

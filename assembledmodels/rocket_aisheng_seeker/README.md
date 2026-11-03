@@ -71,7 +71,7 @@ bash assembledmodels/rocket_aisheng_seeker/tests/run_flight_check.sh headless
 bash scenarios/02_rocket_two_axis_pod/start.sh --aircraft-model rocket_aisheng_seeker
 ```
 
-场景默认仍使用 `rocket_two_axis_pod`，不指定参数时行为不变。选择导引头后，场景使用本目录生成器、导引头控制器、二进制 UDP/RTP 网关和导引头地面站；首机控制 UDP 8770、二进制遥测 8800、PX4 JSON 9000、广角 RTP 7001、长焦 RTP 7002。网关把内部遥测转换为 `dyt_udp_bridge` 期望的 19 字段 JSON，以 50 Hz 发往本机对应端口。
+场景默认使用 `rocket_two_axis_pod`。选择 `rocket_aisheng_seeker` 后，场景使用本目录生成器、导引头控制器、二进制 UDP/RTSP 网关、导引头地面站和专用 `aisheng_udp_bridge`。首机控制与遥测共用 UDP 8001，网关把标准遥测回给有效控制/心跳报文的源端点；RTSP 8554、内部 RTP 7001。地面站收到标准帧后解析完整 37 字段 JSON，点击“发送艾晟报文”后发往 PX4 9000；多机端口按编号递增。原两轴组合机使用自身 `dyt_udp_bridge` 和接口。
 
 ## 重新生成与检查
 

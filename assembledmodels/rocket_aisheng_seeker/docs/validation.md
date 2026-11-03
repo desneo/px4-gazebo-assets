@@ -19,10 +19,9 @@
 ## 02 场景导引头路径
 
 - `start.sh --aircraft-model rocket_aisheng_seeker` 使用导引头生成器、控制器、二进制 UDP/RTP 网关和导引头上位机；默认 `rocket_two_axis_pod` 路径保持原命令和 RTSP 接口。
-- 首机接口：控制 8770、二进制遥测 8800、PX4 JSON 9000、广角 RTP 7001、长焦 RTP 7002；`interfaces.tsv` 写入对应关系。
-- 网关从 `/uav_1/pod/telemetry` 接收 100 Hz 插件遥测，向 `127.0.0.1:9000` 发送 50 Hz 19 字段 JSON；`dyt_udp_bridge` 启动并监听该端口。
-- PX4 `listener dyt_aisheng_telemetry` 可读到 19 字段映射结果，包括 `pitch_angle/yaw_angle`、`gyro_*`、`pitch_los_rate/yaw_los_rate`、`los_omega_n/e/d` 和 `gate_x/y`。
-- 导引头上位机在场景内自检通过：遥测 100.0 Hz，广角/长焦 RTP 均收到 1920×1080 首帧，解锁后伺服状态正常。
+- 首机控制与遥测共用 UDP 8001，RTSP 8554、内部 RTP 7001；`interfaces.tsv` 保存控制端点、专用桥接收端口和视频 URL。
+- 网关从 `/uav_1/pod/telemetry` 接收插件遥测，并把 104 字节标准帧回传到地面站控制/心跳源端点。地面站报文面板解析并转发 37 字段 JSON 到 PX4 9000，`aisheng_udp_bridge` 发布 `dyt_aisheng_telemetry`。
+- 生产编解码、地面站实际转发和专用 PX4 实例的 `listener` 回环通过，包含四目标数组、原始 int32 经纬度、设备毫秒和缺失 LOS 向量 `NaN`。场景启动接线由组合机型自动选择。
 
 ## 完整飞行
 

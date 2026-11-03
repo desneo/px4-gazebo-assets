@@ -6,8 +6,8 @@
 
 | 项目 | 默认值 |
 |---|---|
-| 控制帧目的端口 | `8790`（网关监听） |
-| 遥测帧目的端口 | `8791`（上位机监听） |
+| 控制帧目的端口 | `8001`（网关监听，控制与回传共用） |
+| 遥测帧目的端口 | 最近有效控制/心跳报文的源 IP 和临时源端口 |
 | 广角 RTP | `7001` |
 | 长焦 RTP | `7002` |
 | 控制帧 | 45 字节，一帧一个 UDP 数据报 |
@@ -16,7 +16,7 @@
 | 字节序 | 小端 |
 | 校验 | 字节 4 起求和取低 8 位；控制帧 4～44，遥测帧 4～103 |
 
-UDP 不保证到达、顺序或唯一性。网关丢弃帧头、长度或校验和错误的帧；标准协议没有 ACK，上位机按遥测状态判断命令效果。上位机以 `0x00` 无效指令 10 Hz 发送心跳；网关超过 2 s 没有有效控制帧时停止跟踪和自动锁定并保持当前角度。离散命令在 200 ms 内重复帧只执行一次，`0xB1` 连续速度流不去重。遥测目标 100 Hz；演示默认 1920×1080 单路当前镜头，当前环境可保持 30 fps 和 100 Hz；同时订阅/编码两路 1080p 会因 Gazebo 渲染和 Python 图像订阅下降，网关不补发旧样本。
+UDP 不保证到达、顺序或唯一性。网关丢弃帧头、长度或校验和错误的帧；标准协议没有 ACK，上位机按遥测状态判断命令效果。上位机以同一 UDP socket 发送控制并接收回包，以 `0x00` 无效指令 10 Hz 发送心跳；网关超过 2 s 没有有效控制帧时停止跟踪和自动锁定并保持当前角度。离散命令在 200 ms 内重复帧只执行一次，`0xB1` 连续速度流不去重。遥测目标 100 Hz；演示默认 1920×1080 单路当前镜头，当前环境可保持 30 fps 和 100 Hz；同时订阅/编码两路 1080p 会因 Gazebo 渲染和 Python 图像订阅下降，网关不补发旧样本。
 
 ## 控制帧 45 字节
 
@@ -110,17 +110,23 @@ UDP 不保证到达、顺序或唯一性。网关丢弃帧头、长度或校验�
 - 自动锁定：网关在当前活动镜头的可见候选里选离画面中心最近者，向插件发送 `track` 框；插件绑定实体后只投影该实体，不因其他飞机经过换锁。
 - 跟踪框由插件按初始框和深度缩放，四边各扩展 5 px 并裁剪到画面边界。
 - 目标丢失超过 2.5 s 进入 LOST；自动锁定模式重新选择当前最近中心候选，手动锁定不自动换锁。
-- 切换广角/长焦时插件清空旧相机的图像、真值历史和处理帧，重新以新相机内参/光轴建立跟踪；长焦可原生独立跟踪。
+- 手动发送 `0x53` 切换广角/长焦时停止跟踪，清空旧镜头的图像、真值历史和处理帧；长焦可原生独立跟踪。
+- 长焦有效锁定框按 1920×1080 原图判断：宽度 >500 px **或**高度 >300 px 自动切广角；等于阈值不触发。切换保留锁定模式，等待广角新帧后恢复：`sim_truth` 保留同一实体和深度基准，`csrt` 按焦距重投影 ROI 并重新建立模板。
+- 自动切广角时，网关把广角数字变焦恢复为 1×，保持手动/自动锁定意图，更新遥测第 77 字节的镜头位及变倍位，并切换同一 RTSP URL 的视频源。上位机收到镜头确认后同步显示并重建接收器。
 
-## PX4 19 字段 JSON
+## 地面站完整 JSON 转发
 
-网关默认不发送 PX4 JSON；指定 `--px4-json-port` 后，以 50 Hz 将内部遥测转换为 `dyt_udp_bridge` 的 19 字段格式。字段为 `timestamp`、`track_status`、`pitch_angle`、`yaw_angle`、`pitch_misalignment`、`yaw_misalignment`、`tracking_confidence`、`target_confidence`、`gyro_pitch_rate`、`gyro_yaw_rate`、`pitch_los_rate`、`yaw_los_rate`、`los_omega_n/e/d`、`tracking_gate_w/h`、`gate_x/y`。
+上位机直接解析收到的 104 字节标准遥测，点击报文面板按钮后转发到指定 IP/端口。字段名与类型以 PX4 `msg/DytAishengTelemetry.msg` 为准，除三个 `los_omega_*` 外共 37 项；全部项必须存在，不再按简化字段集合转发。
 
-- `timestamp` 在 UDP 发送前生成，为 Unix 毫秒；PX4 uORB 自身时间戳仍为本机 hrt。
-- `gyro_*`、`pitch_los_rate`、`yaw_los_rate` 按 ±20°/s 限幅；`los_omega_n/e/d` 取独立 `omega_ned_dps`，不按 ±20 限幅。
-- 目标无效时 `track_status=0`，脱靶量、波门和中心置 0；机械角和 gyro 仍发送。
-- `gate_x/y` 取最终跟踪框中心的 half-up 整数像素；`tracking_gate_w/h` 保留浮点宽度/高度。
-- `--json-telemetry-port` 可把同一 19 字段 JSON 另发一份给上位机（默认演示 8792），供“发送艾晟报文”手动转发到用户指定 IP/端口。
+- `self_check/work_status/status/status2` 保留原始状态字节，`track_status` 取 `work_status` bit0。
+- `target_type/target_confidence/target_lon/target_lat/target_alt` 均为四元素数组；不存在的目标槽位按设备原报文保留。
+- `target_lon/target_lat` 保留原始 int32，单位 1e-7°；其他物理量按标准比例换算。`tracking_gate_w/h` 和 `gate_x/y` 保留标准帧整数像素值。
+- `timestamp` 是地面站收到该帧时的本机 monotonic 微秒；`device_timestamp` 是设备上电后 uint32 毫秒，保持独立。PX4 专用桥发布 uORB 时，用本机 `hrt_absolute_time()` 重新生成 `timestamp`，不混用不同设备时钟。
+- 标准帧没有 `los_omega_n/e/d`，转发 JSON 不发送；专用桥在 uORB 中将三项设为 `NaN`，表示未提供。
+- 转发使用同一帧的字段快照；每个新采样最多发送一次，最高 50 Hz，样本超过 1 s 不再发送。
+- `[forward]` 配置报文面板目的地址，命令行 `--forward-host/--forward-port` 可覆盖。默认不开始转发，需点击“发送艾晟报文”。
+
+02 场景为 `rocket_aisheng_seeker` 自动启动专用 `aisheng_udp_bridge`，监听 `9000+i`（`i` 从 0 起），GCS 命令预置对应转发地址；`rocket_two_axis_pod` 继续使用原 `dyt_udp_bridge` 和原字段格式。
 
 ## 视频
 

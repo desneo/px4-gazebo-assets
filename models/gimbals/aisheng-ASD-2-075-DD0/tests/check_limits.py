@@ -19,7 +19,7 @@ from gz.transport13 import Node  # noqa: E402
 
 def main() -> None:
     tx = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    dest = ("127.0.0.1", 8790)
+    dest = ("127.0.0.1", 8001)
     latest = {}
     running = True
     node = Node()

@@ -7,7 +7,7 @@
 - 每轴 60°/s、yaw ±60°、pitch −80°～+30° 的运动范围和限位；
 - 广角 38°×22°、长焦 12.7°×7° 双路 1920×1080 相机；同一时刻只订阅、编码和显示当前镜头；
 - 标准 45 字节控制帧 / 104 字节遥测帧，UDP 100 Hz；
-- 可选 50 Hz 19 字段 PX4 JSON 转发，供 `dyt_udp_bridge` 发布 `dyt_aisheng_telemetry`；
+- 地面站从标准遥测解析全部 37 个转发字段，供专用 `aisheng_udp_bridge` 发布 `dyt_aisheng_telemetry`；
 - 上位机单路 RTSP 视频、遥测显示、双击点选/最近目标锁定、自动锁定、取消锁定、电锁/解锁、归中、单轴归零、输入框指定框架角、艾晟报文转发和手动转动。
 
 当前不实现目标检测/识别、视频 SEI、红外、激光测距、地理跟踪、OSD、存储、除雾、图像增强、IP 设置和陀螺校准；演示目标飞机默认静态，可用 `tests/move_target.py` 或 `run_demo.sh --move` 运动；数字变焦已在上位机显示端实现。
@@ -34,7 +34,7 @@
 
 ![上位机操作界面](docs/gcs_ui.png)
 
-视频下方为命令按钮和 yaw/pitch 虚拟摇杆；左上角显示中文遥测、脱靶量和波门状态。
+视频下方为命令按钮和 yaw/pitch 虚拟摇杆；左上角显示中文遥测、脱靶量和波门状态。界面图由真实仿真视频帧与遥测离线重绘，速率显示为离线初始值。
 
 ## 模型来源与边界
 
@@ -64,6 +64,7 @@ los_mount = (-sin(pitch), -sin(yaw)cos(pitch), cos(yaw)cos(pitch))
 - 两路传感器都在 `camera_link` 上；控制器只订阅当前镜头图像，网关只编码当前镜头，经本地 RTP 送入 RTSP 服务；上位机通过固定 RTSP URL 用 NVDEC 解码显示。
 - 图像话题：`/aisheng_seeker/camera`、`/aisheng_seeker/camera_tele`；外部观察相机话题 `/aisheng_seeker/overview`。
 - 上位机可切换广角/长焦显示；网关同时通知插件切换活动相机。双击/自动锁定使用当前活动镜头的像素和真值候选，跟踪控制使用该镜头的内参和光轴，长焦可原生独立跟踪。
+- 长焦锁定期间，1920×1080 原图跟踪框宽度严格大于 500 px **或**高度严格大于 300 px 时，控制器自动切换广角；等于阈值时保持长焦。切换时等待广角新帧并按焦距换算跟踪框：`sim_truth` 保留同一目标实体和深度基准，`csrt` 在重投影后的同一目标区域重建模板。网关同步遥测镜头位与同一 RTSP URL 的视频源，并把广角数字变焦恢复为 1×；上位机跟随镜头遥测重建视频接收。
 - 变焦 +/- 更新遥测状态位；上位机按 1×/2×/4× 对广角画面做中心裁剪和缩放，RTSP 流本身仍为全视场。
 
 ## 标准二进制 UDP 与视频
@@ -72,12 +73,10 @@ los_mount = (-sin(pitch), -sin(yaw)cos(pitch), cos(yaw)cos(pitch))
 
 | 项目 | 默认值 |
 |---|---|
-| 控制 UDP | `0.0.0.0:8790` |
-| 遥测 UDP | 发往 `127.0.0.1:8791` |
+| 控制/遥测 UDP | 网关默认 `0.0.0.0:8001`；地面站一个临时 socket 双向收发 |
 | RTSP URL | `rtsp://127.0.0.1:8554/aisheng_seeker`（广角/长焦共用） |
 | 内部 RTP | `127.0.0.1:7001`（仅 RTSP 服务读取） |
-| PX4 JSON | 默认关闭；`--px4-json-port` 指定后 50 Hz 发往 `127.0.0.1:<port>` |
-| GCS JSON 遥测 | 演示 50 Hz 发往 `127.0.0.1:8792`，供上位机手动转发 |
+| 地面站 JSON 转发 | 点击“发送艾晟报文”后发往指定 IP/端口，默认 `127.0.0.1:9000` |
 | 控制帧 | 45 字节，帧头 `0xAA55`，长度 `0x2D` |
 | 遥测帧 | 104 字节，帧头 `0x55AA`，长度 `0x68` |
 | 遥测周期 | 100 Hz |
@@ -96,7 +95,7 @@ los_mount = (-sin(pitch), -sin(yaw)cos(pitch), cos(yaw)cos(pitch))
 
 标准遥测中的陀螺角速度、视线角速度和失调角按协议字段范围限幅 ±20°/s；实际 60°/s 机械转速保留在 Gazebo 插件 JSON 遥测中，不塞进标准字段。
 
-网关可用 `--image-topic`、`--tele-image-topic` 覆盖图像话题，默认 `<topic-prefix>/camera` 和 `<topic-prefix>/camera_tele`。显式指定 `--px4-json-port` 后，网关按 50 Hz 把内部遥测转换为 `dyt_udp_bridge` 期望的 19 字段 JSON，时间戳在发送前生成；默认关闭，不影响独立演示。字段映射、±20°/s 限幅和无效目标置零规则见 `gateway/px4_forward.py`。
+网关可用 `--image-topic`、`--tele-image-topic` 覆盖图像话题，默认 `<topic-prefix>/camera` 和 `<topic-prefix>/camera_tele`。网关只回传 104 字节标准遥测：校验合法控制/心跳报文后记录源 IP 和源端口，并从控制 socket 回传；2 s 无有效报文后停止回传。地面站使用同一个临时 socket 发出心跳并接收遥测，解析后供显示和 JSON 转发共用，字段与时间约定见[协议与接口](docs/protocol.md)。
 
 自动锁定使用 Gazebo 插件发布的 `truth_candidates`（当前广角相机内已注册飞机投影中心），选择离画面中心最近的一架；点选锁定选择点击位置附近最近的候选。两种锁定都通过内部 `track` 框启动插件的 `sim_truth` 单目标跟踪，不使用 YOLO 或纹理跟踪。自动锁定在目标丢失后会重新选择当前最近中心飞机。
 
@@ -119,6 +118,9 @@ bash models/gimbals/aisheng-ASD-2-075-DD0/tests/run_demo.sh
 # 不打开 Gazebo GUI，只保留上位机视频/遥测
 bash models/gimbals/aisheng-ASD-2-075-DD0/tests/run_demo.sh --headless
 
+# 仅关闭地面站；仿真、网关与视频服务继续运行
+bash models/gimbals/aisheng-ASD-2-075-DD0/ground_station/stop.sh
+
 # 同时让 target_aircraft 按默认航线运动
 bash models/gimbals/aisheng-ASD-2-075-DD0/tests/run_demo.sh --move
 
@@ -136,18 +138,22 @@ bash models/gimbals/aisheng-ASD-2-075-DD0/tests/run_preview.sh --no-sweep
 bash models/gimbals/aisheng-ASD-2-075-DD0/tests/run_los25.sh
 ```
 
+`ground_station/config.ini` 的 `control_port=8001` 是地面站的控制目的端口，`run_demo.sh` 启动的网关跟随该值；地面站本地端口自动分配。`[forward]` 保存报文面板默认目的地址，也可用 `--forward-host`、`--forward-port` 指定，点击发送按钮后才转发。命令行参数优先于配置文件。02 场景按组合机型选择桥：`rocket_aisheng_seeker` 使用专用 `aisheng_udp_bridge`，`rocket_two_axis_pod` 使用自身 `dyt_udp_bridge`。
+
+`ground_station/stop.sh` 仅匹配当前用户、本模型路径的 Python 地面站进程，支持 `--dry-run` 查看将停止的 PID。通过 `run_demo.sh` 启动时，关闭地面站后仿真、网关和视频服务继续运行；在原启动终端按 `Ctrl+C` 停止整套演示。
+
 上位机界面参考两轴吊舱地面站：视频下方是命令按钮、yaw/pitch 输入框和虚拟摇杆，视频左上角显示中文遥测，右上角是艾晟报文转发面板。
 
 - 底部按钮：`解锁`、`电锁`、`归中`、`取消锁定`、`自动锁定`、`关闭自动`、`发送指定角`、`广角`、`长焦`、`变倍+`、`变倍-`、`Yaw归零`、`Pitch归零`、`停止`；
-- 底部虚拟摇杆：左负 yaw、右正 yaw，上正 pitch、下负 pitch，每轴最大 20°/s，松开鼠标停止；键盘 `W/A/S/D` 或方向键为 60°/s 点动；
+- 底部虚拟摇杆：左负 yaw、右正 yaw，上正 pitch、下负 pitch，每轴最大 20°/s，按住保持转动，无需持续移动鼠标；松开鼠标立即停止；键盘 `W/A/S/D` 或方向键为 60°/s 点动；
 - 双击视频画面：若当前电锁，先自动解锁；点击附近有目标时精确点选，附近没有目标时锁定画面内最近目标；
 - 视频左上角分行显示四个角速度：陀螺仪俯仰/偏航角速度、俯仰/偏航视线角速度，单位 °/s，显示值按协议限幅 ±20°/s；
 - 快捷键：`U` 解锁，`L` 电锁，`R`/`H` 归中，`C` 取消锁定，`O` 自动锁定，`P` 关闭自动锁定，`1` 广角，`2` 长焦，`Z` 变倍+，`Shift+Z` 变倍-，空格停止，`Q` 或 Esc 退出；
 - 底部 `Yaw`/`Pitch` 输入框设置指定框架角，旁边显示限位 `−60.0～+60.0`、`−80.0～+30.0`；点击 `发送指定角` 才下发。输入框支持 `Enter` 发送、`Tab` 切换、`Esc` 取消。
 - `Yaw归零`/`Pitch归零` 只把对应轴置零，另一轴保持当前机械角；电锁状态下会先自动解锁。
-- 右上角“艾晟报文”面板：输入 IP/端口，点击 `发送艾晟报文`/`停止发送`，按 50 Hz 转发网关提供的完整 19 字段 JSON；`los_omega_n/e/d` 来自内部遥测，不用二进制字段近似。
+- 右上角“艾晟报文”面板：输入 IP/端口，点击 `发送艾晟报文`/`停止发送`；从收到的标准遥测解析 37 个字段，每个新采样最多转发一次、最高 50 Hz，超过 1 s 的旧样本不发送。`los_omega_n/e/d` 不在标准帧中，JSON 不发送这三项。
 
-上位机视频显示 960×540（RTSP 源为 1920×1080），窗口下方增加 300 px 控制面板；锁定框、遥测、镜头切换提示和命令提示叠加在视频上。
+上位机视频显示 960×540（RTSP 源为 1920×1080），窗口下方为 300 px 控制面板。遥测使用固定标签/数值列，报文面板独占右上区域；按钮和输入框标签按字体包围盒对齐。锁定框、遥测和命令提示在独立图像副本上绘制，视频停帧时界面仍以 30 Hz 刷新。
 
 无界面自检（需要网关和 Gazebo 已启动）：
 
@@ -162,7 +168,7 @@ bash models/gimbals/aisheng-ASD-2-075-DD0/tests/run_los25.sh
 
 ```bash
 .venv-linux/bin/python models/gimbals/aisheng-ASD-2-075-DD0/ground_station/main.py \
-  --host 127.0.0.1 --control-port 8790 --save-config
+  --host 127.0.0.1 --control-port 8001 --save-config
 ```
 
 启动脚本会打印 `GZ_PARTITION`。在另一个终端用同一分区手动发送指令或移动目标：
@@ -230,7 +236,6 @@ export GZ_PARTITION=<启动脚本打印的分区>
 - `controller/`：复制并改名的两轴控制器，库名 `gz-aisheng-seeker-controller`，机械速度硬上限 60°/s；遥测增加 `truth_candidates` 和图像宽高；原 `two_axis_pod` 控制器不变。
 - `common/protocol.py`：标准 45/104 字节帧编解码、校验和、比例尺和限幅。
 - `gateway/main.py`：二进制 UDP 网关、命令映射、点选/自动锁定、100 Hz 遥测。
-- `gateway/px4_forward.py`：内部 JSON → 19 字段 PX4 艾晟 JSON，含 UDP 发送器。
 - `gateway/video_worker.py`：单路相机独立编码进程；网关为广角/长焦各启动一个，避免两路 1080p 图像争用 Python GIL。
 - `gateway/video_tx.py`：Gazebo 图像 → NVENC H.264 → 内部 RTP。
 - `gateway/rtsp_server.py`：内部 RTP → 固定 RTSP URL（广角/长焦共用）。
@@ -252,10 +257,17 @@ export GZ_PARTITION=<启动脚本打印的分区>
 - `controller/src/target_motion.cc`：演示目标运动插件，按物理步设置目标位姿。
 - `tests/test_protocol.py`：协议编解码单元测试。
 - `tests/test_coordinates.py`：广角/长焦像素换算单元测试。
-- `tests/test_px4_forward.py`：19 字段转换、限幅、无效目标和 UDP 回环测试。
-- `tests/test_gcs_ui.py`：按钮布局/命中、摇杆死区、命令映射、双击点选和单轴归零测试。
+- `tests/test_gcs_ui.py`：按钮布局/命中、摇杆死区、命令映射、双击点选、单轴归零、解码帧隔离和叠加颜色测试。
+- `tests/test_gcs_manual.py`：圆盘持续按住、松手停车、键盘点动超时和发送线程顺序测试。
+- `tests/test_full_telemetry.py`：四目标标准帧、完整字段映射、同 socket 来源过滤、迟启动恢复和配置测试。
+- `tests/test_udp_session.py`：网关同端口回传、合法对端更新和会话超时测试。
+- `tests/test_gcs_lens_sync.py`：自动切广角的 UI 同步、手动切换确认和缺失遥测保护测试。
+- `tests/test_lens_switch.py` / `tests/lens_switch_test.cc`：镜头阈值、真值锁定恢复、CSRT 模板重建、网关镜头确认和自动恢复 1× 测试。
 
 ## 当前验证
+
+- 组件回归测试共 40 项通过，包含阈值边界、真值锁定恢复、CSRT 模板重建、镜头确认、自动恢复 1×、UI 绘制、圆盘持续控制、协议及 UDP 回环。
+- 真实 Gazebo 回环中，圆盘持续按住 0.8 s 后仍以约 19.8°/s 转动，松开后角度保持；目标接近触发长焦转广角后仍绑定同一实体并恢复 TRACK，数字变焦从 4× 恢复 1×，已连接 RTSP 接收器重建后收到广角新帧。
 
 - 控制器已构建，演示世界启动后插件发布 `/aisheng_seeker/telemetry`，遥测中 `mount.quat_world` 为绕 Y 轴 +90°，`los_mount` 在模型内部为 +Z，外部相机沿载机 +X 前视。
 - 标准二进制网关回环：遥测 100.3 Hz、校验错误 0；解锁、指定角度、归中、手动框架移动均能改变机械角并回传。
@@ -271,7 +283,7 @@ export GZ_PARTITION=<启动脚本打印的分区>
 - 框架最大转速 60°/s 已确认；yaw 正指令使机械角正向增加，pitch 负指令使机械角负向增加。`check_limits.py` 回环检查**框架角速度**峰值 60°/s，四个方向均未越过 yaw ±60°、pitch −80°～+30°。
 - 规格书的“视线角速度 ±25°/s”与标准协议表的“±20°/s”存在字段范围差异：插件内部 `target_los` 保留实际值，标准遥测按协议字段限幅 ±20；25°/s 跟踪验收已通过，标准帧仍按协议发送 ±20。
 - 无界面上位机自检可检查遥测、当前 RTSP 视频和解锁状态；当前 1920×1080 单路演示下遥测约 100 Hz、视频 29～30 fps。
-- 上位机操作界面已按两轴吊舱地面站补充底部命令按钮、yaw/pitch 虚拟摇杆、单轴归零、输入框指定角、艾晟报文转发和中文遥测；按钮布局/命中、摇杆死区、按钮命令、双击自动解锁点选、单轴归零、指定角和 JSON 转发 9 项单元测试通过，实际界面截图见 `docs/gcs_ui.png`。
-- 19 字段 JSON 已回环验证：字段数 19、50 Hz、无效目标置零、gyro/LOS 限幅 ±20°/s、`los_omega_*` 不限幅；网关可另发一份到 GCS 8792 端口，上位机可手动转发到指定 IP/端口；02 场景导引头路径已把该 JSON 送入 `dyt_udp_bridge`，PX4 `dyt_aisheng_telemetry` 可读到对应字段。
+- 上位机操作界面已按两轴吊舱地面站补充底部命令按钮、yaw/pitch 虚拟摇杆、单轴归零、输入框指定角、艾晟报文转发和中文遥测；界面绘制不修改视频解码缓存，文字与控件对齐，停帧时继续刷新；界面截图见 `docs/gcs_ui.png`。
+- 37 字段完整链路已回环验证：104 字节标准帧 → 地面站解析与实际发送 → 专用 `aisheng_udp_bridge` → `listener dyt_aisheng_telemetry`；四目标数组、原始 int32 经纬度、设备 uint32 毫秒和缺失 LOS 向量标记均保持约定。
 - 动态装配 `assembledmodels/rocket_aisheng_seeker/` 已验证 5.00 kg、airframe 4024、100 Hz 插件遥测、双相机话题和 PX4 机体生成；独立飞行验收见该装配目录。
 - 尚未验证：更高机动/连续满速/极限限位碰撞、视频 SEI、多客户端控制。

@@ -21,7 +21,7 @@ from gz.transport13 import Node  # noqa: E402
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument("--control-port", type=int, default=8790)
+    parser.add_argument("--control-port", type=int, default=8001)
     args = parser.parse_args()
 
     tx = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)

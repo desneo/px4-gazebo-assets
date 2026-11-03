@@ -139,56 +139,89 @@ class GcsUiTest(unittest.TestCase):
             GCS.proto.CMD_SPECIFIED_ANGLE, {"p1": 1230, "p2": -4560}))
         self.assertIn("yaw 12.3", station.last_cmd)
 
-    def test_json_receiver_and_manual_forward(self):
+    def test_binary_telemetry_and_manual_forward_share_control_socket(self):
         import json
         import socket
         import time
-        receiver = GCS.JsonTelemetryReceiver(0)
+        gateway = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        gateway.bind(("127.0.0.1", 0))
+        gateway.settimeout(2.0)
+        out = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        out.bind(("127.0.0.1", 0))
+        out.settimeout(2.0)
+        client = GCS.TelemetryClient("127.0.0.1", gateway.getsockname()[1])
+        station = GCS.GCS.__new__(GCS.GCS)
+        station.client = client
+        station.forward_inputs = {"ip": "127.0.0.1", "port": str(out.getsockname()[1])}
+        station.forward_focus = None
+        station.forward_selected = False
+        station.forward_active = False
+        station.forward_count = 0
+        station.forward_error = ""
+        station.forward_thread = None
+        station.forward_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        station.running = True
+        foreign = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         try:
-            port = receiver.rx.getsockname()[1]
-            message = {
-                "timestamp": 1, "track_status": 0, "pitch_angle": 0.0,
-                "yaw_angle": 0.0, "pitch_misalignment": 0.0,
-                "yaw_misalignment": 0.0, "tracking_confidence": 0.0,
-                "target_confidence": 0.8, "gyro_pitch_rate": 0.0,
-                "gyro_yaw_rate": 0.0, "pitch_los_rate": 0.0,
-                "yaw_los_rate": 0.0, "los_omega_n": 0.0,
-                "los_omega_e": 0.0, "los_omega_d": 0.0,
-                "tracking_gate_w": 0.0, "tracking_gate_h": 0.0,
-                "gate_x": 0, "gate_y": 0,
-            }
-            tx = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            tx.sendto(json.dumps(message).encode(), ("127.0.0.1", port))
+            heartbeat, peer = gateway.recvfrom(2048)
+            self.assertEqual(GCS.proto.decode_control(heartbeat).command, 0)
+            self.assertEqual(client.sock.getsockname(), peer)
+            binary = GCS.proto.encode_telemetry(GCS.proto.TelemetryFrame(
+                work_state=1, gate_x=960, gate_y=540, timestamp_ms=997,
+                target_type=4, target_confidence=0.8,
+                target_lon_deg=119.1058778, target_lat_deg=32.2178573))
+            # 已连接 socket 只接受网关地址回包，拒绝其他来源。
+            foreign.sendto(binary, peer)
+            time.sleep(0.03)
+            self.assertIsNone(client.latest)
+            gateway.sendto(b"invalid", peer)
+            gateway.sendto(binary, peer)
             deadline = time.monotonic() + 1.0
-            while receiver.latest is None and time.monotonic() < deadline:
-                time.sleep(0.01)
-            self.assertEqual(receiver.latest, message)
-            out = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            out.bind(("127.0.0.1", 0))
-            out.settimeout(2.0)
-            station = GCS.GCS.__new__(GCS.GCS)
-            station.json_rx = receiver
-            station.forward_inputs = {"ip": "127.0.0.1", "port": str(out.getsockname()[1])}
-            station.forward_focus = None
-            station.forward_selected = False
-            station.forward_active = False
-            station.forward_count = 0
-            station.forward_error = ""
-            station.forward_thread = None
-            station.forward_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            station.running = True
+            while client.latest is None and time.monotonic() < deadline:
+                time.sleep(0.005)
+            self.assertEqual(client.count, 1)
+            expected_timestamp = client.forward_snapshot[2]["timestamp"]
+            self.assertEqual(client.latest.timestamp_ms, 997)
+            client.send(GCS.proto.CMD_FRAME_UNLOCK)
+            deadline = time.monotonic() + 1.0
+            while time.monotonic() < deadline:
+                data, command_peer = gateway.recvfrom(2048)
+                if GCS.proto.decode_control(data).command == GCS.proto.CMD_FRAME_UNLOCK:
+                    self.assertEqual(command_peer, peer)
+                    break
+            else:
+                self.fail("未从同一端口收到控制命令")
+            self.assertEqual(station.forward_count, 0)
             station._toggle_forward()
             payload, _ = out.recvfrom(8192)
             forwarded = json.loads(payload)
-            self.assertEqual(len(forwarded), 19)
-            self.assertIsInstance(forwarded["timestamp"], int)
-            station.forward_active = False
-            station.forward_thread.join(timeout=1.0)
-            station.forward_sock.close()
-            out.close()
-            tx.close()
+            self.assertEqual(len(forwarded), 37)
+            self.assertEqual(forwarded["timestamp"], expected_timestamp)
+            self.assertEqual(forwarded["device_timestamp"], 997)
+            self.assertEqual(forwarded["target_confidence"], [0.8, 0.0, 0.0, 0.0])
+            self.assertEqual(forwarded["target_lon"], [1191058778, 0, 0, 0])
+            self.assertFalse(any(name.startswith("los_omega_") for name in forwarded))
+            # 同一接收快照只转发一次，时间戳不会在转发线程中被重写。
+            out.settimeout(0.05)
+            with self.assertRaises(socket.timeout):
+                out.recvfrom(8192)
+            gateway.sendto(GCS.proto.encode_telemetry(
+                GCS.proto.TelemetryFrame(timestamp_ms=998)), peer)
+            out.settimeout(2.0)
+            payload, _ = out.recvfrom(8192)
+            second = json.loads(payload)
+            self.assertEqual(second["device_timestamp"], 998)
+            self.assertGreater(second["timestamp"], expected_timestamp)
+            self.assertEqual(station.forward_count, 2)
         finally:
-            receiver.close()
+            station.forward_active = False
+            if station.forward_thread is not None:
+                station.forward_thread.join(timeout=1.0)
+            station.forward_sock.close()
+            foreign.close()
+            out.close()
+            client.close()
+            gateway.close()
 
     def test_single_axis_zero_keeps_the_other_axis(self):
         class Client:
@@ -219,6 +252,26 @@ class GcsUiTest(unittest.TestCase):
         station._activate("zero_pitch")
         self.assertEqual(station.client.sent[-1], (
             GCS.proto.CMD_SPECIFIED_ANGLE, {"p1": 1000, "p2": 0}))
+
+    def test_view_render_does_not_modify_decoded_frame(self):
+        import numpy as np
+        station = GCS.GCS.__new__(GCS.GCS)
+        station.active = "wide"
+        source = np.full((GCS.DISPLAY_H, GCS.DISPLAY_W, 3), 100, dtype=np.uint8)
+        frame = GCS.proto.TelemetryFrame(status_control2=1)
+        display = station._view_geometry(source, frame)
+        GCS.cv2.rectangle(display, (10, 10), (100, 100), (0, 255, 0), 2)
+        self.assertTrue(np.all(source == 100))
+        # 没有新视频时，下一次绘制仍获得干净底图。
+        self.assertTrue(np.all(station._view_geometry(source, frame) == 100))
+
+    def test_rgba_overlay_preserves_color_in_bgr_image(self):
+        import numpy as np
+        image = np.zeros((1, 2, 3), dtype=np.uint8)
+        overlay = np.array([[[255, 20, 10, 255], [0, 0, 255, 0]]], dtype=np.uint8)
+        GCS.GCS._composite_rgba(image, overlay)
+        self.assertEqual(tuple(image[0, 0]), (10, 20, 255))
+        self.assertEqual(tuple(image[0, 1]), (0, 0, 0))
 
     def test_labels_follow_pillow_availability(self):
         rows = GCS.BUTTON_ROWS if GCS._HAVE_PIL else GCS.BUTTON_ROWS_EN

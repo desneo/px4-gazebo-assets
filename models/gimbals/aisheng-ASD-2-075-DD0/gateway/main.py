@@ -2,7 +2,7 @@
 """ASD-2-075-DD0 标准二进制 UDP 网关。
 
 控制帧 45 字节、遥测帧 104 字节；Gazebo 插件仍使用内部 JSON 话题。
-可选把内部遥测转换为 PX4 dyt_udp_bridge 的 19 字段 JSON。
+使用同一 UDP socket 向最近有效控制/心跳报文的源地址回传标准遥测。
 """
 from __future__ import annotations
 
@@ -40,8 +40,7 @@ class Gateway:
         self.control_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.control_sock.bind((args.control_host, args.control_port))
         self.control_sock.settimeout(0.2)
-        self.telemetry_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.telemetry_sock.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 1 << 20)
+        self.control_sock.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 1 << 20)
 
         self.lock = threading.Lock()
         self.running = True
@@ -49,6 +48,8 @@ class Gateway:
         self.latest_mono = 0.0
         self.last_control: proto.ControlFrame | None = None
         self.last_control_mono = 0.0
+        self.telemetry_peer: tuple[str, int] | None = None
+        self.peer_last_mono = 0.0
         self.locked = True
         self.auto_lock = False
         self.tracking_command = False
@@ -58,6 +59,7 @@ class Gateway:
         self.manual_active = False
         self.zoom = 1
         self.active_lens = "wide"
+        self.pending_lens: str | None = None
         self.rx_telemetry = 0
         self.tx_telemetry = 0
         self.rx_control = 0
@@ -66,25 +68,6 @@ class Gateway:
         self.last_result_error = 0.0
         self.last_discrete = None
         self.last_discrete_time = 0.0
-        self.px4_tx = 0
-        self.px4_errors = 0
-        self.json_senders = []
-        if args.px4_json_port or args.json_telemetry_port:
-            if (not math.isfinite(args.px4_json_rate)
-                    or args.px4_json_rate <= 0):
-                raise ValueError("JSON 遥测频率必须为有限正数")
-            from gateway.px4_forward import Px4JsonSender
-            if args.px4_json_port:
-                self.json_senders.append(Px4JsonSender(
-                    args.px4_json_host, args.px4_json_port))
-                print(f"PX4 JSON：{args.px4_json_host}:{args.px4_json_port}，"
-                      f"{args.px4_json_rate:g} Hz", flush=True)
-            if args.json_telemetry_port:
-                self.json_senders.append(Px4JsonSender(
-                    args.json_telemetry_host, args.json_telemetry_port))
-                print(f"GCS JSON 遥测：{args.json_telemetry_host}:"
-                      f"{args.json_telemetry_port}，{args.px4_json_rate:g} Hz",
-                      flush=True)
         self.node.subscribe(
             StringMsg, f"{args.topic_prefix}/telemetry", self._on_telemetry)
         self.node.subscribe(
@@ -148,6 +131,17 @@ class Gateway:
             self.latest = data
             self.latest_mono = time.monotonic()
             self.rx_telemetry += 1
+            reported_lens = data.get("camera", {}).get("active")
+            # 自动退回广角由插件执行；手动切换则等待请求镜头的确认，
+            # 防止切换前仍在途的旧镜头遥测覆盖请求。
+            if reported_lens in ("wide", "tele") and (
+                    self.pending_lens is None
+                    or reported_lens == self.pending_lens):
+                if (reported_lens == "wide" and self.active_lens == "tele"
+                        and self.pending_lens is None):
+                    self.zoom = 1
+                self.active_lens = reported_lens
+                self.pending_lens = None
         frame = self._build_telemetry(data)
         self._send_telemetry(frame)
         if self.args.verbose and time.monotonic() - self.last_status_log >= 2.0:
@@ -157,11 +151,8 @@ class Gateway:
                 locked = self.locked
                 auto = self.auto_lock
                 tracking = self.tracking_command
-                px4_tx = self.px4_tx
-                px4_errors = self.px4_errors
-            print(f"telemetry rx={rx} tx={tx} locked={locked} "
-                  f"auto={auto} tracking_cmd={tracking} "
-                  f"px4_tx={px4_tx} px4_err={px4_errors}", flush=True)
+            print(f"遥测 rx={rx} tx={tx} locked={locked} "
+                  f"auto={auto} tracking_cmd={tracking}", flush=True)
             self.last_status_log = time.monotonic()
 
     def _on_result(self, msg: StringMsg) -> None:
@@ -266,10 +257,13 @@ class Gateway:
         )
 
     def _send_telemetry(self, frame: proto.TelemetryFrame) -> None:
+        with self.lock:
+            peer = self.telemetry_peer
+            fresh = time.monotonic() - self.peer_last_mono <= 2.0
+        if peer is None or not fresh:
+            return
         try:
-            self.telemetry_sock.sendto(
-                proto.encode_telemetry(frame),
-                (self.args.telemetry_host, self.args.telemetry_port))
+            self.control_sock.sendto(proto.encode_telemetry(frame), peer)
             with self.lock:
                 self.tx_telemetry += 1
         except OSError:
@@ -281,13 +275,20 @@ class Gateway:
         self.command_pub.publish(
             StringMsg(data=json.dumps(payload, separators=(",", ":"))))
 
-    def _on_control(self, data: bytes) -> None:
+    def _on_control(self, data: bytes, peer: tuple[str, int] | None = None) -> None:
         try:
             frame = proto.decode_control(data)
         except ValueError as exc:
             if self.args.verbose:
                 print(f"丢弃控制帧：{exc}", flush=True)
             return
+        if peer is not None:
+            with self.lock:
+                changed = self.telemetry_peer != peer
+                self.telemetry_peer = peer
+                self.peer_last_mono = time.monotonic()
+            if changed:
+                self._log(f"遥测回传对端：{peer[0]}:{peer[1]}")
         if frame.command != proto.CMD_FRAME_MOVE:
             key = (frame.command, frame.p1, frame.p2, frame.p3, frame.p4)
             now = time.monotonic()
@@ -389,16 +390,15 @@ class Gateway:
             self._log(f"广角变倍 {self.zoom}x")
         elif cmd == proto.CMD_DETECTOR_SWITCH:
             lens = "wide" if frame.p1 != 2 else "tele"
-            self._publish({"cmd": "stop"})
-            self._publish({"cmd": "set_camera", "sensor": lens})
             with self.lock:
-                self.active_lens = lens
+                self.pending_lens = lens
                 self.auto_lock = False
                 self.tracking_command = False
                 self.goto_target = None
                 self.manual_until = 0.0
                 self.manual_active = False
-            self._switch_video(lens)
+            self._publish({"cmd": "stop"})
+            self._publish({"cmd": "set_camera", "sensor": lens})
             self._log(f"激活镜头 {lens}")
         else:
             self._log(f"未实现命令 0x{cmd:02X}")
@@ -462,6 +462,10 @@ class Gateway:
         with self.lock:
             data = self.latest
             active = self.active_lens
+            pending = self.pending_lens
+        if pending is not None:
+            self._log(f"镜头切换未完成（等待 {pending} 确认）")
+            return
         plugin_active = data.get("camera", {}).get("active") if data else None
         if plugin_active and plugin_active != active:
             self._log(f"镜头切换未完成（插件 {plugin_active} / 请求 {active}）")
@@ -484,6 +488,13 @@ class Gateway:
                   f"center={center}")
 
     # ---------------- 后台循环 ----------------
+    def _video_loop(self) -> None:
+        while self.running:
+            with self.lock:
+                lens = self.active_lens
+            self._switch_video(lens)
+            time.sleep(0.02)
+
     def _goto_loop(self) -> None:
         while self.running:
             time.sleep(0.05)
@@ -564,33 +575,6 @@ class Gateway:
                     self.tracking_command = False
             self._try_auto_lock()
 
-    def _px4_loop(self) -> None:
-        period = 1.0 / max(1.0, self.args.px4_json_rate)
-        next_send = time.monotonic()
-        last_error_log = 0.0
-        while self.running:
-            now = time.monotonic()
-            if now < next_send:
-                time.sleep(min(next_send - now, 0.01))
-                continue
-            next_send = max(next_send + period, now)
-            with self.lock:
-                data = self.latest
-                fresh = data and now - self.latest_mono < 0.5
-            if not fresh:
-                continue
-            try:
-                for sender in self.json_senders:
-                    sender.send(data)
-                with self.lock:
-                    self.px4_tx += 1
-            except (ValueError, OSError) as exc:
-                with self.lock:
-                    self.px4_errors += 1
-                if self.args.verbose and now - last_error_log >= 2.0:
-                    last_error_log = now
-                    print(f"PX4 JSON 发送失败：{exc}", flush=True)
-
     def _log(self, message: str) -> None:
         if self.args.verbose:
             print(message, flush=True)
@@ -602,25 +586,29 @@ class Gateway:
             threading.Thread(target=self._auto_lock_loop, daemon=True),
             threading.Thread(target=self._control_timeout_loop, daemon=True),
         ]
-        if self.json_senders:
-            threads.append(threading.Thread(target=self._px4_loop, daemon=True))
+        video_thread = None
+        if self.args.video:
+            video_thread = threading.Thread(target=self._video_loop, daemon=True)
+            threads.append(video_thread)
         for thread in threads:
             thread.start()
         for signum in (signal.SIGINT, signal.SIGTERM):
             signal.signal(signum, lambda *_args: setattr(self, "running", False))
         print(f"网关启动：控制 UDP {self.args.control_host}:{self.args.control_port}，"
-              f"遥测 -> {self.args.telemetry_host}:{self.args.telemetry_port}", flush=True)
+              "遥测回传至最近有效控制或心跳报文的源 IP/端口", flush=True)
         try:
             while self.running:
                 try:
-                    data, _addr = self.control_sock.recvfrom(2048)
+                    data, peer = self.control_sock.recvfrom(2048)
                 except socket.timeout:
                     continue
-                self._on_control(data)
+                self._on_control(data, peer)
         except KeyboardInterrupt:
             pass
         finally:
             self.running = False
+            if video_thread is not None:
+                video_thread.join()
             self._stop_video()
             if self.rtsp_process is not None:
                 self.rtsp_process.terminate()
@@ -629,30 +617,17 @@ class Gateway:
                 except subprocess.TimeoutExpired:
                     self.rtsp_process.kill()
             self.control_sock.close()
-            self.telemetry_sock.close()
-            for sender in self.json_senders:
-                sender.close()
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="ASD-2-075-DD0 二进制 UDP 网关")
     parser.add_argument("--control-host", default="0.0.0.0")
-    parser.add_argument("--control-port", type=int, default=8790)
-    parser.add_argument("--telemetry-host", default="127.0.0.1")
-    parser.add_argument("--telemetry-port", type=int, default=8791)
+    parser.add_argument("--control-port", type=int, default=8001)
     parser.add_argument("--topic-prefix", default="/aisheng_seeker")
     parser.add_argument("--image-topic", default="",
                         help="广角图像话题；默认 <topic-prefix>/camera")
     parser.add_argument("--tele-image-topic", default="",
                         help="长焦图像话题；默认 <topic-prefix>/camera_tele")
-    parser.add_argument("--px4-json-host", default="127.0.0.1")
-    parser.add_argument("--px4-json-port", type=int, default=0,
-                        help="19 字段 PX4 JSON 目标端口；0 关闭转发")
-    parser.add_argument("--json-telemetry-host", default="127.0.0.1")
-    parser.add_argument("--json-telemetry-port", type=int, default=0,
-                        help="19 字段 JSON 遥测发往 GCS 的端口；0 关闭")
-    parser.add_argument("--px4-json-rate", type=float, default=50.0,
-                        help="PX4 JSON 发送频率 Hz（默认：50）")
     parser.add_argument("--click-radius", type=float, default=80.0,
                         help="双击命中真值候选的最大像素距离")
     parser.add_argument("--track-box-w", type=float, default=80.0)

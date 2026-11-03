@@ -4,10 +4,9 @@
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 import math
 import struct
-from typing import Optional
 
 CONTROL_HEADER = b"\xaa\x55"
 CONTROL_LENGTH = 0x2D
@@ -127,6 +126,17 @@ class ControlFrame:
 
 
 @dataclass
+class TelemetryTarget:
+    """标准帧中的单个目标；经纬度保留 1e-7 deg 原始整数。"""
+
+    type: int = 0
+    confidence: float = 0.0
+    lon: int = 0
+    lat: int = 0
+    alt_m: float = 0.0
+
+
+@dataclass
 class TelemetryFrame:
     self_test: int = 0x01
     work_state: int = 0
@@ -162,6 +172,68 @@ class TelemetryFrame:
     aircraft_heading_deg: float = 0.0
     ip: tuple[int, int] = (8, 2)
     timestamp_ms: int = 0
+    # 未提供时使用上方首目标属性，其余三个目标为零，兼容现有网关。
+    targets: tuple[TelemetryTarget, ...] = ()
+
+
+def telemetry_targets(frame: TelemetryFrame) -> tuple[TelemetryTarget, ...]:
+    if frame.targets:
+        if len(frame.targets) != 4:
+            raise ValueError("标准遥测必须包含四个目标槽位")
+        return frame.targets
+    return (TelemetryTarget(
+        type=frame.target_type, confidence=frame.target_confidence,
+        lon=_scaled(frame.target_lon_deg, 1e7, -2147483648, 2147483647),
+        lat=_scaled(frame.target_lat_deg, 1e7, -2147483648, 2147483647),
+        alt_m=frame.target_alt_m), TelemetryTarget(), TelemetryTarget(), TelemetryTarget())
+
+
+def telemetry_message(frame: TelemetryFrame, timestamp_us: int) -> dict:
+    """按 DytAishengTelemetry.msg 导出可由标准帧获得的全部字段。
+
+    timestamp 为地面站接收时的 monotonic 微秒；device_timestamp 为设备上电毫秒。
+    标准帧没有 los_omega_n/e/d，因此不输出这三个字段。
+    """
+    targets = telemetry_targets(frame)
+    return {
+        "timestamp": timestamp_us,
+        "self_check": frame.self_test,
+        "work_status": frame.work_state,
+        "track_status": frame.work_state & 1,
+        "pitch_angle": frame.pitch_deg,
+        "yaw_angle": frame.yaw_deg,
+        "gate_x": frame.gate_x,
+        "gate_y": frame.gate_y,
+        "gyro_pitch_rate": frame.gyro_pitch_dps,
+        "gyro_yaw_rate": frame.gyro_yaw_dps,
+        "pitch_misalignment": frame.pitch_misalignment_deg,
+        "yaw_misalignment": frame.yaw_misalignment_deg,
+        "tracking_confidence": frame.tracking_confidence,
+        "pitch_los_rate": frame.pitch_los_dps,
+        "yaw_los_rate": frame.yaw_los_dps,
+        "status": frame.status_control,
+        "autonomous": frame.autonomous,
+        "target_type": [target.type for target in targets],
+        "target_confidence": [target.confidence for target in targets],
+        "target_lon": [target.lon for target in targets],
+        "target_lat": [target.lat for target in targets],
+        "target_alt": [target.alt_m for target in targets],
+        "status2": frame.status_control2,
+        "tracking_gate_w": frame.gate_w,
+        "tracking_gate_h": frame.gate_h,
+        "pitch_attitude": frame.pitch_att_deg,
+        "yaw_attitude": frame.yaw_att_deg,
+        "roll_attitude": frame.roll_att_deg,
+        "tracking_target_type": frame.tracking_target_type,
+        "laser_range": frame.laser_distance_m,
+        "laser_update": frame.laser_flags,
+        "aircraft_pitch": frame.aircraft_pitch_deg,
+        "aircraft_roll": frame.aircraft_roll_deg,
+        "aircraft_yaw": frame.aircraft_heading_deg,
+        "ip_segment": frame.ip[0],
+        "ip_node": frame.ip[1],
+        "device_timestamp": frame.timestamp_ms,
+    }
 
 
 def encode_control(frame: ControlFrame) -> bytes:
@@ -232,12 +304,14 @@ def encode_telemetry(frame: TelemetryFrame) -> bytes:
     struct.pack_into("<h", data, 24, _scaled(frame.yaw_los_dps, 100, -2000, 2000))
     data[26] = frame.status_control & 0xFF
     data[27] = frame.autonomous & 0xFF
-    data[28] = frame.target_type & 0xFF
-    data[29] = _scaled(frame.target_confidence, 100, 0, 255)
-    struct.pack_into("<i", data, 30, _scaled(frame.target_lon_deg, 1e7, -2147483648, 2147483647))
-    struct.pack_into("<i", data, 34, _scaled(frame.target_lat_deg, 1e7, -2147483648, 2147483647))
-    struct.pack_into("<H", data, 38, _scaled(frame.target_alt_m, 10, 0, 65535))
-    # 目标 2~4 保持 0
+    for index, target in enumerate(telemetry_targets(frame)):
+        offset = 28 + index * 12
+        data[offset] = target.type & 0xFF
+        data[offset + 1] = _scaled(target.confidence, 100, 0, 255)
+        struct.pack_into("<iiH", data, offset + 2,
+                         _scaled(target.lon, 1, -2147483648, 2147483647),
+                         _scaled(target.lat, 1, -2147483648, 2147483647),
+                         _scaled(target.alt_m, 10, 0, 65535))
     data[76] = frame.status_control2 & 0xFF
     struct.pack_into("<H", data, 77, _scaled(frame.gate_w, 1, 0, 65535))
     struct.pack_into("<H", data, 79, _scaled(frame.gate_h, 1, 0, 65535))
@@ -271,7 +345,14 @@ def decode_telemetry(data: bytes) -> TelemetryFrame:
     gyro_pitch, gyro_yaw = struct.unpack_from("<hh", data, 13)
     pitch_mis, yaw_mis = struct.unpack_from("<hh", data, 17)
     pitch_los, yaw_los = struct.unpack_from("<hh", data, 22)
-    target_lon, target_lat, target_alt = struct.unpack_from("<iiH", data, 30)
+    targets = []
+    for index in range(4):
+        offset = 28 + index * 12
+        lon, lat, altitude = struct.unpack_from("<iiH", data, offset + 2)
+        targets.append(TelemetryTarget(
+            type=data[offset], confidence=data[offset + 1] / 100.0,
+            lon=lon, lat=lat, alt_m=altitude / 10.0))
+    first = targets[0]
     gate_w, gate_h = struct.unpack_from("<HH", data, 77)
     pitch_att, yaw_att, roll_att = struct.unpack_from("<hhh", data, 81)
     laser_distance = struct.unpack_from("<H", data, 88)[0]
@@ -287,9 +368,9 @@ def decode_telemetry(data: bytes) -> TelemetryFrame:
         tracking_confidence=data[21] / 10.0,
         pitch_los_dps=pitch_los / 100.0, yaw_los_dps=yaw_los / 100.0,
         status_control=data[26], autonomous=data[27],
-        target_type=data[28], target_confidence=data[29] / 100.0,
-        target_lon_deg=target_lon / 1e7, target_lat_deg=target_lat / 1e7,
-        target_alt_m=target_alt / 10.0,
+        target_type=first.type, target_confidence=first.confidence,
+        target_lon_deg=first.lon / 1e7, target_lat_deg=first.lat / 1e7,
+        target_alt_m=first.alt_m, targets=tuple(targets),
         status_control2=data[76], gate_w=gate_w, gate_h=gate_h,
         pitch_att_deg=pitch_att / 100.0, yaw_att_deg=yaw_att / 100.0,
         roll_att_deg=roll_att / 100.0, tracking_target_type=data[87],

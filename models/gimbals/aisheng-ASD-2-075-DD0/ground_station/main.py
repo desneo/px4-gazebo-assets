@@ -178,102 +178,74 @@ class VideoReceiver:
 
 
 class TelemetryClient:
-    def __init__(self, host: str, control_port: int, telemetry_port: int):
+    """使用同一个临时 UDP 端口向网关发送控制并接收其回传遥测。"""
+
+    def __init__(self, host: str, control_port: int):
         self.host = host
         self.control_port = control_port
-        self.rx = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.rx.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.rx.bind(("0.0.0.0", telemetry_port))
-        self.rx.settimeout(0.2)
-        self.tx = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.sock.bind(("0.0.0.0", 0))
+        self.sock.connect((host, control_port))
+        self.sock.settimeout(0.2)
         self.latest: proto.TelemetryFrame | None = None
+        # 整体替换快照，使转发线程使用同一报文的序号、接收时间与解析结果。
+        self.forward_snapshot: tuple[int, float, dict] | None = None
         self.count = 0
         self.last_mono = 0.0
         self.closing = False
-        threading.Thread(target=self._rx_loop, daemon=True).start()
-        threading.Thread(target=self._heartbeat_loop, daemon=True).start()
+        self._closed = threading.Event()
+        self._threads = (
+            threading.Thread(target=self._rx_loop, daemon=True),
+            threading.Thread(target=self._heartbeat_loop, daemon=True),
+        )
+        for thread in self._threads:
+            thread.start()
 
     def _heartbeat_loop(self):
         while not self.closing:
             self.send(0x00)
-            time.sleep(0.1)
+            self._closed.wait(0.1)
 
     def _rx_loop(self):
         while not self.closing:
             try:
-                data, _ = self.rx.recvfrom(2048)
+                data = self.sock.recv(2048)
             except socket.timeout:
                 continue
             except OSError:
-                break
+                if self.closing:
+                    break
+                # 网关尚未启动时 UDP 可能收到 ICMP 拒绝；继续等待心跳建立会话。
+                self._closed.wait(0.05)
+                continue
+            received_ns = time.monotonic_ns()
             try:
                 frame = proto.decode_telemetry(data)
             except ValueError:
                 continue
-            self.latest = frame
+            received_mono = received_ns / 1_000_000_000
+            message = proto.telemetry_message(frame, received_ns // 1000)
             self.count += 1
-            self.last_mono = time.monotonic()
+            self.forward_snapshot = (self.count, received_mono, message)
+            self.latest = frame
+            self.last_mono = received_mono
 
     def send(self, command: int, **kwargs):
         try:
-            self.tx.sendto(proto.make_control(command, **kwargs),
-                           (self.host, self.control_port))
-        except OSError as exc:
-            print(f"发送失败：{exc}", flush=True)
-
-    def close(self):
-        self.closing = True
-        self.rx.close()
-        self.tx.close()
-
-
-class JsonTelemetryReceiver:
-    """接收网关发来的 19 字段艾晟 JSON，供 GCS 手动转发。"""
-
-    def __init__(self, port: int):
-        self.port = port
-        self.latest: dict | None = None
-        self.count = 0
-        self.last_mono = 0.0
-        self.closing = False
-        self.error = ""
-        self.rx = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.rx.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        try:
-            self.rx.bind(("0.0.0.0", port))
-        except OSError as exc:
-            self.error = str(exc)
-            self.rx.close()
-            return
-        self.rx.settimeout(0.2)
-        threading.Thread(target=self._rx_loop, daemon=True).start()
-
-    def _rx_loop(self):
-        while not self.closing:
-            try:
-                data, _ = self.rx.recvfrom(8192)
-            except socket.timeout:
-                continue
-            except OSError:
-                break
-            try:
-                message = json.loads(data)
-            except (ValueError, TypeError):
-                continue
-            if not isinstance(message, dict) or len(message) != 19:
-                continue
-            self.latest = message
-            self.count += 1
-            self.last_mono = time.monotonic()
-            if self.count == 1:
-                print("JSON 遥测首包已收到（19 字段）", flush=True)
-
-    def close(self):
-        self.closing = True
-        try:
-            self.rx.close()
-        except OSError:
+            self.sock.send(proto.make_control(command, **kwargs))
+        except ConnectionRefusedError:
+            # 网关启动后，下一个心跳即可恢复；无须重新启动地面站。
             pass
+        except OSError as exc:
+            if not self.closing:
+                print(f"发送失败：{exc}", flush=True)
+
+    def close(self):
+        self.closing = True
+        self._closed.set()
+        self.sock.close()
+        for thread in self._threads:
+            thread.join(timeout=0.5)
 
 
 class ManualController:
@@ -284,48 +256,59 @@ class ManualController:
         self.until = 0.0
         self.active = False
         self.closing = False
-        threading.Thread(target=self._loop, daemon=True).start()
+        self.lock = threading.Lock()
+        self.thread = threading.Thread(target=self._loop, daemon=True)
+        self.thread.start()
 
-    def set_velocity(self, yaw: float, pitch: float, hold: float = 0.25):
-        self.yaw = max(-60.0, min(60.0, yaw))
-        self.pitch = max(-60.0, min(60.0, pitch))
-        self.until = time.monotonic() + hold
-        self.active = True
+    def set_velocity(self, yaw: float, pitch: float, hold: float | None = 0.25):
+        with self.lock:
+            self.yaw = max(-60.0, min(60.0, yaw))
+            self.pitch = max(-60.0, min(60.0, pitch))
+            # 摇杆按住时持续发送，键盘点动仍按 hold 到期停车。
+            self.until = None if hold is None else time.monotonic() + hold
+            self.active = True
 
     def _loop(self):
-        while not self.closing:
-            if time.monotonic() < self.until:
-                self.client.send(
-                    proto.CMD_FRAME_MOVE,
-                    p1=int(round(self.yaw / 60.0 * 100.0)),
-                    p2=int(round(self.pitch / 60.0 * 100.0)))
-            elif self.active:
-                self.client.send(proto.CMD_FRAME_MOVE, p1=0, p2=0)
-                self.active = False
+        while True:
+            with self.lock:
+                if self.closing:
+                    return
+                if self.active:
+                    if self.until is None or time.monotonic() < self.until:
+                        self.client.send(
+                            proto.CMD_FRAME_MOVE,
+                            p1=int(round(self.yaw / 60.0 * 100.0)),
+                            p2=int(round(self.pitch / 60.0 * 100.0)))
+                    else:
+                        self.client.send(proto.CMD_FRAME_MOVE, p1=0, p2=0)
+                        self.active = False
             time.sleep(0.05)
 
     def stop(self):
-        self.yaw = self.pitch = 0.0
-        self.until = 0.0
-        self.active = False
-        self.client.send(proto.CMD_FRAME_MOVE, p1=0, p2=0)
+        with self.lock:
+            self.yaw = self.pitch = 0.0
+            self.until = 0.0
+            self.active = False
+            self.client.send(proto.CMD_FRAME_MOVE, p1=0, p2=0)
 
     def close(self):
-        self.closing = True
+        self.stop()
+        with self.lock:
+            self.closing = True
+        self.thread.join(timeout=0.2)
 
 
 class GCS:
     def __init__(self, args):
         self.args = args
         self.video = VideoReceiver(args.rtsp_url, "active")
-        self.client = TelemetryClient(args.host, args.control_port, args.telemetry_port)
-        self.json_rx = JsonTelemetryReceiver(args.json_telemetry_port)
+        self.client = TelemetryClient(args.host, args.control_port)
         self.manual = ManualController(self.client)
         self.active = args.lens
         self.angle_inputs = {"yaw": "0.0", "pitch": "0.0"}
         self.angle_focus = None
         self.angle_selected = False
-        self.forward_inputs = {"ip": "127.0.0.1", "port": "9000"}
+        self.forward_inputs = {"ip": args.forward_host, "port": str(args.forward_port)}
         self.forward_focus = None
         self.forward_selected = False
         self.forward_active = False
@@ -385,7 +368,7 @@ class GCS:
         for text, x, y, color, size in items:
             draw.text((x, y), text, font=self._font(size),
                       fill=(color[2], color[1], color[0]),
-                      stroke_width=1, stroke_fill=(0, 0, 0))
+                      stroke_width=1, stroke_fill=(0, 0, 0), anchor="lt")
         return cv2.cvtColor(np.asarray(pil), cv2.COLOR_RGB2BGR)
 
     def _labels(self, rows):
@@ -402,11 +385,22 @@ class GCS:
         weight = alpha[mask].astype(np.uint16)
         inverse = 255 - weight
         for channel in range(3):
-            source = overlay[:, :, channel][mask].astype(np.uint16)
+            source = overlay[:, :, 2 - channel][mask].astype(np.uint16)
             target = roi[:, :, channel]
             target[mask] = ((target[mask].astype(np.uint16) * inverse
                              + source * weight) // 255).astype(np.uint8)
         return image
+
+    @staticmethod
+    def _label_in_box(draw, text, box, font, fill, align="center"):
+        """按实际字形边界对齐，统一中文与 Latin 字符的可见基线。"""
+        x, y, width, height = box
+        bbox = draw.textbbox((0, 0), text, font=font, stroke_width=1)
+        tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
+        tx = x + (width - tw) / 2 if align == "center" else x
+        draw.text((round(tx - bbox[0]), round(y + (height - th) / 2 - bbox[1])),
+                  text, font=font, fill=fill,
+                  stroke_width=1, stroke_fill=(0, 0, 0, 255))
 
     def _build_panel_labels(self):
         if not _HAVE_PIL:
@@ -414,48 +408,43 @@ class GCS:
         image = Image.new("RGBA", (DISPLAY_W, PANEL_H), (0, 0, 0, 0))
         draw = ImageDraw.Draw(image)
         font = self._font(18)
-        for label, _action, rect in self._panel_buttons():
-            bbox = draw.textbbox((0, 0), label, font=font)
-            tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
-            draw.text((rect[0] + (rect[2] - tw) / 2 - bbox[0],
-                       rect[1] - DISPLAY_H + (rect[3] - th) / 2 - bbox[1]),
-                      label, font=font, fill=(255, 255, 255, 255),
-                      stroke_width=1, stroke_fill=(0, 0, 0, 255))
-        draw.text((120, INPUT_Y - DISPLAY_H + 8), "Yaw",
-                  font=font, fill=(230, 230, 230, 255),
-                  stroke_width=1, stroke_fill=(0, 0, 0, 255))
-        draw.text((300, INPUT_Y - DISPLAY_H + 9), "限位 -60.0～+60.0",
-                  font=self._font(14), fill=(190, 190, 190, 255),
-                  stroke_width=1, stroke_fill=(0, 0, 0, 255))
-        draw.text((520, INPUT_Y - DISPLAY_H + 8), "Pitch",
-                  font=font, fill=(230, 230, 230, 255),
-                  stroke_width=1, stroke_fill=(0, 0, 0, 255))
-        draw.text((700, INPUT_Y - DISPLAY_H + 9), "限位 -80.0～+30.0",
-                  font=self._font(14), fill=(190, 190, 190, 255),
-                  stroke_width=1, stroke_fill=(0, 0, 0, 255))
+        white, grey = (230, 230, 230, 255), (190, 190, 190, 255)
+        for label, _action, (x, y, width, height) in self._panel_buttons():
+            self._label_in_box(draw, label, (x, y - DISPLAY_H, width, height),
+                               font, (255, 255, 255, 255))
+        for label, box in (("Yaw", (120, INPUT_Y - DISPLAY_H, 50, 32)),
+                           ("Pitch", (520, INPUT_Y - DISPLAY_H, 50, 32))):
+            self._label_in_box(draw, label, box, font, white, "left")
+        for label, x in (("限位 -60.0～+60.0", 300), ("限位 -80.0～+30.0", 700)):
+            self._label_in_box(draw, label, (x, INPUT_Y - DISPLAY_H, 200, 32),
+                               self._font(14), grey, "left")
         cy = JOYSTICK_Y - DISPLAY_H
-        draw.text((DISPLAY_W // 2 - JOYSTICK_RADIUS,
-                   cy + JOYSTICK_RADIUS + 8), "YAW / PITCH",
-                  font=font, fill=(230, 230, 230, 255),
-                  stroke_width=1, stroke_fill=(0, 0, 0, 255))
-        draw.text((DISPLAY_W // 2 - 150, cy + JOYSTICK_RADIUS + 30),
-                  "左负 / 右正，上正 / 下负；松开停止",
-                  font=self._font(14), fill=(190, 190, 190, 255),
-                  stroke_width=1, stroke_fill=(0, 0, 0, 255))
-        draw.text((12, PANEL_H - 22),
-                  "双击锁定 | 空格停止 | Q退出",
-                  font=self._font(15), fill=(230, 230, 230, 255),
-                  stroke_width=1, stroke_fill=(0, 0, 0, 255))
+        self._label_in_box(draw, "YAW / PITCH",
+                           (0, cy + JOYSTICK_RADIUS + 8, DISPLAY_W, 24), font, white)
+        self._label_in_box(draw, "左负 / 右正，上正 / 下负；松开停止",
+                           (0, cy + JOYSTICK_RADIUS + 34, DISPLAY_W, 20),
+                           self._font(14), grey)
+        self._label_in_box(draw, "双击锁定 | 空格停止 | Q退出",
+                           (12, PANEL_H - 23, 300, 20), self._font(15), white, "left")
         return np.array(image)
 
     def _build_telemetry_overlay(self, lines, colors):
-        image = Image.new("RGBA", (760, 320), (0, 0, 0, 0))
+        # 遥测与右侧报文面板各占独立区域，数值列不随标签长度变化。
+        width = self._forward_geometry()["panel"][0] - 8
+        height = min(DISPLAY_H, 16 + len(lines) * 23)
+        image = Image.new("RGBA", (width, height), (12, 16, 20, 190))
         draw = ImageDraw.Draw(image)
-        font = self._font(18)
+        font = self._font(16)
         for index, (text, color) in enumerate(zip(lines, colors)):
-            draw.text((18, 8 + index * 23), text, font=font,
-                      fill=(color[2], color[1], color[0], 255),
-                      stroke_width=1, stroke_fill=(0, 0, 0, 255))
+            label, separator, value = text.partition(": ")
+            fill = (color[2], color[1], color[0], 255)
+            box = (12, 8 + index * 23, width - 24, 23)
+            if separator:
+                self._label_in_box(draw, label + ":", box, font, fill, "left")
+                self._label_in_box(draw, value, (184, box[1], width - 196, 23),
+                                   font, fill, "left")
+            else:
+                self._label_in_box(draw, text, box, font, fill, "left")
         return np.array(image)
 
     def _wide_to_tele(self, u: float, v: float) -> tuple[float, float]:
@@ -481,7 +470,8 @@ class GCS:
         self.source_size = (source_w, source_h)
         crop = source[y0:y0 + crop_h, x0:x0 + crop_w]
         if crop_w == DISPLAY_W and crop_h == DISPLAY_H:
-            return crop
+            # 绘制层不得修改解码器保存的原图；停帧重绘也从干净底图开始。
+            return crop.copy()
         return cv2.resize(crop, (DISPLAY_W, DISPLAY_H),
                           interpolation=cv2.INTER_AREA)
 
@@ -505,10 +495,10 @@ class GCS:
     def _forward_geometry(self):
         x = DISPLAY_W - 440
         return {
-            "panel": (x, 8, 432, 78),
-            "ip": (x + 8, 36, 180, 26),
-            "port": (x + 196, 36, 64, 26),
-            "button": (x + 268, 36, 154, 26),
+            "panel": (x, 8, 432, 108),
+            "ip": (x + 8, 48, 180, 28),
+            "port": (x + 196, 48, 64, 28),
+            "button": (x + 268, 48, 154, 28),
         }
 
     def _forward_at(self, x, y):
@@ -546,22 +536,25 @@ class GCS:
 
     def _forward_loop(self, ip, port):
         destination = (ip, port)
+        last_sequence = None
         while self.forward_active and self.running:
-            message = self.json_rx.latest
-            if (message is not None
-                    and time.monotonic() - self.json_rx.last_mono <= 1.0):
-                payload = dict(message)
-                payload["timestamp"] = time.time_ns() // 1_000_000
-                try:
-                    self.forward_sock.sendto(
-                        json.dumps(payload, separators=(",", ":"),
-                                   allow_nan=False).encode("utf-8"),
-                        destination)
-                    self.forward_count += 1
-                except (OSError, ValueError) as exc:
-                    self.forward_error = str(exc)
-                    break
-            time.sleep(0.02)
+            snapshot = self.client.forward_snapshot
+            if snapshot is not None:
+                sequence, received_mono, message = snapshot
+                if (sequence != last_sequence
+                        and time.monotonic() - received_mono <= 1.0):
+                    try:
+                        self.forward_sock.sendto(
+                            json.dumps(message, separators=(",", ":"),
+                                       allow_nan=False).encode("utf-8"),
+                            destination)
+                        self.forward_count += 1
+                        last_sequence = sequence
+                    except (OSError, ValueError) as exc:
+                        self.forward_error = str(exc)
+                        self.forward_active = False
+                        break
+            time.sleep(0.005)
 
     def _draw_forward_panel(self, image):
         geometry = self._forward_geometry()
@@ -583,27 +576,29 @@ class GCS:
         cv2.rectangle(image, (bx, by), (bx + bw, by + bh), (200, 200, 200), 1)
         status = (f"已发送 {self.forward_count} 包" if self.forward_active
                   else self.forward_error or "未发送")
-        if self.json_rx.error:
-            status = f"JSON 遥测端口错误: {self.json_rx.error}"
         if _HAVE_PIL:
             roi = image[y:y + height, x:x + width]
             items = [
-                ("艾晟报文", 8, 6, (245, 245, 245), 17),
-                ("IP", 8, 20, (190, 190, 190), 12),
-                ("Port", 196, 20, (190, 190, 190), 12),
-                ("停止发送" if self.forward_active else "发送艾晟报文",
-                 272, 41, (255, 255, 255), 15),
-                (status, 8, 60, (190, 190, 190), 12),
+                ("艾晟报文", 8, 8, (245, 245, 245), 17),
+                ("IP", 8, 29, (190, 190, 190), 12),
+                ("Port", 196, 29, (190, 190, 190), 12),
+                (status, 8, 80, (190, 190, 190), 12),
             ]
             roi = self._texts(roi, items)
-            image[y:y + height, x:x + width] = roi
+            pil = Image.fromarray(cv2.cvtColor(roi, cv2.COLOR_BGR2RGB))
+            self._label_in_box(
+                ImageDraw.Draw(pil),
+                "停止发送" if self.forward_active else "发送艾晟报文",
+                (bx - x, by - y, bw, bh), self._font(15), (255, 255, 255, 255))
+            image[y:y + height, x:x + width] = cv2.cvtColor(
+                np.asarray(pil), cv2.COLOR_RGB2BGR)
         else:
             cv2.putText(image, "AISHENG JSON", (x + 8, y + 18),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.45, (245, 245, 245), 1)
             cv2.putText(image, "SEND" if not self.forward_active else "STOP",
                         (bx + 30, by + 19), cv2.FONT_HERSHEY_SIMPLEX,
                         0.5, (255, 255, 255), 1)
-            cv2.putText(image, status, (x + 8, y + 70),
+            cv2.putText(image, status, (x + 8, y + 96),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.4, (190, 190, 190), 1)
         return image
 
@@ -616,7 +611,7 @@ class GCS:
     def _update_joystick(self, x, y):
         self.joystick_values = joystick_axes(x, y)
         yaw, pitch = self.joystick_values
-        self.manual.set_velocity(20.0 * yaw, 20.0 * pitch, hold=0.3)
+        self.manual.set_velocity(20.0 * yaw, 20.0 * pitch, hold=None)
 
     def _release_joystick(self):
         if self.joystick:
@@ -630,6 +625,27 @@ class GCS:
         time.sleep(0.2)
         self.video = VideoReceiver(self.args.rtsp_url, "active")
         self.last_source_seq = -1
+        self.last_video_count = 0
+        self.video_rate = 0.0
+
+    def _sync_lens(self, frame: proto.TelemetryFrame | None) -> bool:
+        """跟随已确认镜头；手动请求仍在等待确认时忽略旧镜头遥测。"""
+        if frame is None:
+            return False
+        plugin_lens = "tele" if frame.status_control2 & 0x10 else "wide"
+        if self.pending_video_restart:
+            if plugin_lens != self.active:
+                return False
+        elif plugin_lens != self.active:
+            self.active = plugin_lens
+            self.last_cmd = ("已同步广角镜头"
+                             if plugin_lens == "wide" else "已同步长焦镜头")
+        else:
+            return False
+        self.telemetry_overlay = None
+        self._recreate_video()
+        self.pending_video_restart = False
+        return True
 
     def _unlock_if_locked(self):
         frame = self.client.latest
@@ -882,8 +898,6 @@ class GCS:
                     scale, color, 1, cv2.LINE_AA)
 
     def _overlay(self, image, frame: proto.TelemetryFrame | None):
-        cv2.drawMarker(image, (DISPLAY_W // 2, DISPLAY_H // 2),
-                       (0, 255, 255), cv2.MARKER_CROSS, 24, 1)
         lines = []
         colors = []
         if frame is None:
@@ -986,11 +1000,13 @@ class GCS:
                 self.telemetry_overlay = self._build_telemetry_overlay(lines, colors)
                 self.telemetry_overlay_time = now
             image = self._composite_rgba(image, self.telemetry_overlay)
-            return self._draw_forward_panel(image)
-        y = 26
-        for text, color in zip(lines, colors):
-            self._draw_text(image, text, 12, y, color, 0.55)
-            y += 24
+        else:
+            y = 26
+            for text, color in zip(lines, colors):
+                self._draw_text(image, text, 12, y, color, 0.55)
+                y += 24
+        cv2.drawMarker(image, (DISPLAY_W // 2, DISPLAY_H // 2),
+                       (0, 255, 255), cv2.MARKER_CROSS, 24, 1)
         return self._draw_forward_panel(image)
 
     def _panel(self, image, frame: proto.TelemetryFrame | None):
@@ -1062,18 +1078,18 @@ class GCS:
             self.pending_video_restart = True
             self.client.send(proto.CMD_DETECTOR_SWITCH,
                              p1=1 if self.active == "wide" else 2)
+        last_display_time = 0.0
         try:
             while self.running:
                 receiver = self.video
                 source = receiver.get()
                 frame = self.client.latest
                 new_frame = receiver.seq != self.last_source_seq
-                plugin_lens_now = "tele" if frame and (frame.status_control2 & 0x10) else "wide"
-                if self.pending_video_restart and plugin_lens_now == self.active:
-                    self._recreate_video()
-                    self.pending_video_restart = False
+                if self._sync_lens(frame):
                     continue
-                if new_frame:
+                # 视频暂停或尚未到帧时，也保持遥测、输入框和按钮响应。
+                if new_frame or time.monotonic() - last_display_time >= 1.0 / 30.0:
+                    last_display_time = time.monotonic()
                     self.last_source_seq = receiver.seq
                     if source is None:
                         display = np.zeros((DISPLAY_H, DISPLAY_W, 3), dtype=np.uint8)
@@ -1126,7 +1142,6 @@ class GCS:
             if self.forward_thread is not None:
                 self.forward_thread.join(timeout=1.0)
             self.forward_sock.close()
-            self.json_rx.close()
             self.manual.close()
             self.video.close()
             self.client.close()
@@ -1134,7 +1149,7 @@ class GCS:
 
 
 def run_selftest(args) -> int:
-    client = TelemetryClient(args.host, args.control_port, args.telemetry_port)
+    client = TelemetryClient(args.host, args.control_port)
     video = VideoReceiver(args.rtsp_url, "active")
     ok = True
     try:
@@ -1204,12 +1219,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--config", default=pre_args.config)
     parser.add_argument("--host", default=get("network", "host", "127.0.0.1"))
     parser.add_argument("--control-port", type=int,
-                        default=getint("network", "control_port", 8790))
-    parser.add_argument("--telemetry-port", type=int,
-                        default=getint("network", "telemetry_port", 8791))
-    parser.add_argument("--json-telemetry-port", type=int,
-                        default=getint("network", "json_telemetry_port", 8792),
-                        help="网关 19 字段 JSON 遥测端口")
+                        default=getint("network", "control_port", 8001))
+    parser.add_argument("--forward-host",
+                        default=get("forward", "host", "127.0.0.1"),
+                        help="发送艾晟报文面板的默认目的 IP，按发送按钮后才转发")
+    parser.add_argument("--forward-port", type=int,
+                        default=getint("forward", "port", 9000),
+                        help="发送艾晟报文面板的默认目的 UDP 端口")
     parser.add_argument("--rtsp-url",
                         default=get("video", "rtsp_url",
                                     "rtsp://127.0.0.1:8554/aisheng_seeker"),
@@ -1235,8 +1251,10 @@ def save_config(args: argparse.Namespace) -> None:
     config["network"] = {
         "host": args.host,
         "control_port": str(args.control_port),
-        "telemetry_port": str(args.telemetry_port),
-        "json_telemetry_port": str(args.json_telemetry_port),
+    }
+    config["forward"] = {
+        "host": args.forward_host,
+        "port": str(args.forward_port),
     }
     config["video"] = {
         "rtsp_url": args.rtsp_url,
@@ -1248,6 +1266,10 @@ def save_config(args: argparse.Namespace) -> None:
     path = Path(args.config)
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8") as handle:
+        handle.write("# 控制与遥测共用地面站自动分配的 UDP 端口；网关回传到发送方。\n")
+        handle.write("# [network] 指定网关地址和控制端口。\n")
+        handle.write("# [forward] 仅设置艾晟报文面板默认目的地址，按发送按钮后才转发。\n")
+        handle.write("# [video] 为共用 RTSP 视频地址；[session] 为启动镜头与切换选项。\n")
         config.write(handle)
     print(f"配置已保存：{path}", flush=True)
 

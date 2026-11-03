@@ -41,6 +41,7 @@
 #include "two_axis/telemetry.hh"
 #include "two_axis/inertial_los.hh"
 #include "two_axis/truth_tracking.hh"
+#include "two_axis/lens_switch.hh"
 #include "gimbal_controller/mini_json.hh"
 
 namespace two_axis
@@ -114,7 +115,7 @@ private:
   void OnImageWide(const gz::msgs::Image &_msg);
   void OnImageTele(const gz::msgs::Image &_msg);
   void OnImageImpl(const gz::msgs::Image &_msg, bool _tele);
-  bool SwitchCamera(bool _tele);
+  bool SwitchCamera(bool _tele, bool _preserveTrack = false);
   void SubscribeCamera(bool _tele);
   void OnCommand(const gz::msgs::StringMsg &_msg);
   void PublishResult(const std::string &_cmd, bool _ok,
@@ -192,6 +193,7 @@ private:
   std::string boundTruthName_;
   Box truthInitialBox_;
   double truthInitialDepth_{0};
+  std::optional<std::array<double, 4>> pendingCameraTrackBox_;
 
   // PostUpdate 只记录真值快照；图像线程和指令线程都不直接读取 ECM。
   std::mutex truthMutex_;
@@ -518,10 +520,12 @@ void GimbalController::OnImageImpl(const gz::msgs::Image &_msg, bool _tele)
       }
     }
   }
+  std::lock_guard<std::mutex> lock(this->imgMutex_);
+  // 镜头切换和清空帧后，已在途的旧镜头回调不能重新写入缓存。
+  if (_tele != activeTele_.load())
+    return;
   if (seq < 0)
     seq = this->imgCounter_ + 1;
-
-  std::lock_guard<std::mutex> lock(this->imgMutex_);
   ++this->imgCounter_;
   this->frame_.valid = true;
   this->frame_.rgb = _msg.data();
@@ -546,30 +550,57 @@ void GimbalController::SubscribeCamera(bool _tele)
     this->node_.Subscribe(imageTopicWide_, &GimbalController::OnImageWide, this);
 }
 
-bool GimbalController::SwitchCamera(bool _tele)
+bool GimbalController::SwitchCamera(bool _tele, bool _preserveTrack)
 {
   if (_tele && sensorEntityTele_ == gz::sim::kNullEntity)
     return false;
+  std::unique_lock<std::mutex> controlLock(this->ctrlMutex_);
+  if (_preserveTrack)
+  {
+    if (this->control_.mode() != Mode::TRACK ||
+        !this->control_.target_valid() || latestWidth_ <= 0 || latestHeight_ <= 0 ||
+        (trackingBackend_ == TrackingBackend::SIM_TRUTH &&
+         boundTruthEntity_ == gz::sim::kNullEntity))
+      return false;
+    // 两个相机光轴一致；保持实体身份和深度基准，按焦距换算初始框。
+    const double ratio = CameraFocalRatio(cameraHfov_,
+      _tele ? cameraHfovTele_ : cameraHfovWide_);
+    if (trackingBackend_ == TrackingBackend::SIM_TRUTH)
+    {
+      truthInitialBox_.w *= ratio;
+      truthInitialBox_.h *= ratio;
+    }
+    else
+      pendingCameraTrackBox_ = ReprojectTrackingBox(
+        this->control_.target_box(), latestWidth_, latestHeight_, ratio);
+    this->control_.WaitForCameraFrame();
+  }
   activeTele_.store(_tele);
   {
     std::lock_guard<std::mutex> imgLock(this->imgMutex_);
     this->frame_ = Frame{};
   }
   {
-    std::lock_guard<std::mutex> lock(this->ctrlMutex_);
-    this->control_.Stop();
+    if (!_preserveTrack)
+    {
+      this->control_.Stop();
+      this->pendingCameraTrackBox_.reset();
+    }
     this->processedFrames_.clear();
     this->latestBgr_.release();
     this->latestWidth_ = 0;
     this->latestHeight_ = 0;
     this->lastProcessedSeq_ = -1;
     this->meanSeq_ = 0;
-    this->boundTruthEntity_ = gz::sim::kNullEntity;
-    this->boundTruthName_.clear();
-    this->truthInitialBox_ = Box{};
-    this->truthInitialDepth_ = 0.0;
-    this->targetLos_ = targetLosEstimator_.Reset("target_unbound");
-    this->targetLosName_.clear();
+    if (!_preserveTrack)
+    {
+      this->boundTruthEntity_ = gz::sim::kNullEntity;
+      this->boundTruthName_.clear();
+      this->truthInitialBox_ = Box{};
+      this->truthInitialDepth_ = 0.0;
+      this->targetLos_ = targetLosEstimator_.Reset("target_unbound");
+      this->targetLosName_.clear();
+    }
   }
   {
     std::lock_guard<std::mutex> truthLock(this->truthMutex_);
@@ -1089,6 +1120,7 @@ void GimbalController::PreUpdate(const gz::sim::UpdateInfo &_info,
 
   // ---- 控制循环 ----
   std::array<double, 2> cmd{0.0, 0.0};
+  bool switchToWide = false;
   const bool ranControl = this->controlSchedule_.Update(now);
   if (ranControl)
   {
@@ -1173,6 +1205,17 @@ void GimbalController::PreUpdate(const gz::sim::UpdateInfo &_info,
     const cv::Mat &useImg = newFrame ? bgr : this->latestBgr_;
     const int useW = newFrame ? bgr.cols : this->latestWidth_;
     const int useH = newFrame ? bgr.rows : this->latestHeight_;
+    if (this->control_.mode() != Mode::TRACK)
+      pendingCameraTrackBox_.reset();
+    if (pendingCameraTrackBox_ && newFrame)
+    {
+      // CSRT 只能在新镜头真实图像上重建，不能沿用长焦模板更新广角帧。
+      const auto result = this->control_.StartTracking(
+        useImg, *pendingCameraTrackBox_, useW, useH);
+      pendingCameraTrackBox_.reset();
+      if (!result.first)
+        this->control_.Stop();
+    }
     const auto steadyNow = std::chrono::steady_clock::now();
     const double watchdogNow = std::chrono::duration<double>(
                                  steadyNow.time_since_epoch()).count();
@@ -1211,6 +1254,9 @@ void GimbalController::PreUpdate(const gz::sim::UpdateInfo &_info,
     cmd = this->control_.Step(now, newFrame && !useImg.empty(), useImg, useW,
                               useH, js, watchdogNow, processedSeq, truth,
                               feedforward);
+    switchToWide = ShouldSwitchToWide(activeTele_.load(),
+        this->control_.mode() == Mode::TRACK && this->control_.target_valid(),
+        this->control_.target_box());
     if (this->control_.mode() != Mode::TRACK)
     {
       boundTruthEntity_ = gz::sim::kNullEntity;
@@ -1220,6 +1266,9 @@ void GimbalController::PreUpdate(const gz::sim::UpdateInfo &_info,
       losBindingReason_ = "target_unbound";
     }
   }
+
+  if (switchToWide && this->SwitchCamera(false, true))
+    cmd = {};
 
   // ---- 写入关节速度指令（每步写入，物理系统在 Update 中应用后清零）----
   if (ranControl)

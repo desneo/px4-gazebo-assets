@@ -44,6 +44,8 @@ public:
   std::pair<bool, std::string> StartTruthTracking(
     const std::array<double, 4> &, int, int);
   void Stop();
+  // 保留目标的锁定模式，清除旧镜头测量，等待新镜头图像。
+  bool WaitForCameraFrame();
   void WatchdogStop();
   void GoHome();
   void ResetFault();

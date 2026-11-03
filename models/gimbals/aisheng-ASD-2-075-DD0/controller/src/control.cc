@@ -99,6 +99,21 @@ void GimbalControl::WatchdogStop()
   Stop();
   message_ = "控制输入超时，已停止";
 }
+bool GimbalControl::WaitForCameraFrame()
+{
+  if (mode_ != Mode::TRACK)
+    return false;
+  state_ = TrackState::INIT;
+  valid_ = false;
+  has_box_ = false;
+  miss_ = {};
+  image_error_ = {};
+  cmd_ = {};
+  frame_time_ = lost_time_ = -1;
+  stable_time_ = -1;
+  stability_ = Stability::UNDETERMINED;
+  return true;
+}
 void GimbalControl::GoHome()
 {
   Stop();

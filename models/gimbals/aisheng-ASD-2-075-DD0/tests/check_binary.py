@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """二进制 UDP 网关回环检查。
 
-前置：预览世界和 gateway/main.py 已启动，网关遥测发往 127.0.0.1:8791。
+前置：预览世界和 gateway/main.py 已启动，使用同一 UDP socket 发送控制/心跳并接收网关回包。
 """
 from __future__ import annotations
 
@@ -19,16 +19,14 @@ from common import protocol as proto  # noqa: E402
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument("--control-port", type=int, default=8790)
-    parser.add_argument("--telemetry-port", type=int, default=8791)
+    parser.add_argument("--control-port", type=int, default=8001)
     parser.add_argument("--duration", type=float, default=5.0)
     args = parser.parse_args()
 
-    rx = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    rx.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    rx.bind(("0.0.0.0", args.telemetry_port))
-    rx.settimeout(0.5)
     tx = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    tx.bind(("0.0.0.0", 0))
+    tx.settimeout(0.5)
+    rx = tx
     dest = (args.host, args.control_port)
 
     def send(command: int, **kwargs) -> None:
@@ -66,6 +64,7 @@ def main() -> None:
     checksum_errors = 0
     last = None
     while time.monotonic() - start < args.duration:
+        send(0x00)
         try:
             data, _ = rx.recvfrom(2048)
         except socket.timeout:
@@ -86,7 +85,6 @@ def main() -> None:
               f"servo={servo:03b} tracking={last.work_state & 1} "
               f"gate=({last.gate_x},{last.gate_y},{last.gate_w},{last.gate_h}) "
               f"timestamp={last.timestamp_ms}")
-    rx.close()
     tx.close()
 
 

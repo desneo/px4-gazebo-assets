@@ -23,6 +23,14 @@ while (($#)); do
 done
 [[ -x "$PYTHON" ]] || { echo "缺少 Python：$PYTHON" >&2; exit 1; }
 
+# 本机演示网关跟随地面站配置中的控制端口。
+CONTROL_PORT="$("$PYTHON" -c '
+import configparser, sys
+config = configparser.ConfigParser()
+config.read(sys.argv[1], encoding="utf-8")
+print(config.getint("network", "control_port", fallback=8001))
+' "$MODEL_DIR/ground_station/config.ini")"
+
 if [[ ! -f "$MODEL_DIR/controller/build/lib/libgz-aisheng-seeker-controller.so" ]]; then
   echo '构建导引头控制器……'
   cmake -S "$MODEL_DIR/controller" -B "$MODEL_DIR/controller/build" \
@@ -70,15 +78,15 @@ fi
 SIM_PID=$!
 echo "Gazebo pid=$SIM_PID"
 sleep 4
-GZ_PARTITION="$GZ_PARTITION" "$PYTHON" "$MODEL_DIR/gateway/main.py" --video \
+GZ_PARTITION="$GZ_PARTITION" "$PYTHON" "$MODEL_DIR/gateway/main.py" --control-port "$CONTROL_PORT" --video \
   --video-width "$VIDEO_WIDTH" --video-height "$VIDEO_HEIGHT" \
   --rtsp-port 8554 --rtsp-mount /aisheng_seeker \
-  --json-telemetry-port 8792 --verbose \
+  --verbose \
   >"$RUNDIR/gateway.log" 2>&1 &
 GATEWAY_PID=$!
 echo "网关 pid=$GATEWAY_PID；日志：$RUNDIR/gateway.log"
 sleep 3
-gcs_args=(--rtsp-url "rtsp://127.0.0.1:8554/aisheng_seeker" --json-telemetry-port 8792)
+gcs_args=(--rtsp-url "rtsp://127.0.0.1:8554/aisheng_seeker" --control-port "$CONTROL_PORT")
 [[ -n "$SNAPSHOT" ]] && gcs_args+=(--snapshot "$SNAPSHOT")
 "$PYTHON" "$MODEL_DIR/ground_station/main.py" "${gcs_args[@]}" >"$RUNDIR/gcs.log" 2>&1 &
 GCS_PID=$!
@@ -92,4 +100,9 @@ fi
 echo '上位机操作：底部按钮 解锁/电锁/归中/取消锁定/自动锁定/关闭自动/发送指定角'
 echo '            广角/长焦/变倍/Yaw归零/Pitch归零/停止；底部摇杆 yaw/pitch'
 echo '底部输入 yaw/pitch 后点击发送指定角；双击视频自动解锁并点选锁定；Q 退出'
-wait "$GCS_PID"
+# 关闭地面站只结束显示与控制客户端；仿真和网关由启动终端管理。
+gcs_status=0
+wait "$GCS_PID" || gcs_status=$?
+GCS_PID=
+echo "地面站已退出（退出码 $gcs_status）；仿真和网关继续运行，按 Ctrl+C 停止整套演示。"
+wait "$SIM_PID"

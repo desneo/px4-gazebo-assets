@@ -24,11 +24,10 @@ from gz.transport13 import Node  # noqa: E402
 
 def main() -> None:
     tx = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    dest = ("127.0.0.1", 8790)
-    rx = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    rx.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    rx.bind(("0.0.0.0", 8791))
-    rx.settimeout(0.2)
+    dest = ("127.0.0.1", 8001)
+    tx.bind(("0.0.0.0", 0))
+    tx.settimeout(0.2)
+    rx = tx
     latest = {}
     standard_los = []
     running = True
@@ -127,7 +126,6 @@ def main() -> None:
           and std_max <= 20.5
           and max(misses, default=0) <= 10.0)
     print("25°/s 视线角速度验收通过" if ok else "25°/s 视线角速度验收失败")
-    rx.close()
     tx.close()
     raise SystemExit(0 if ok else 1)
 

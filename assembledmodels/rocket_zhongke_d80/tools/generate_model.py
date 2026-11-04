@@ -6,6 +6,7 @@ import argparse
 import copy
 import configparser
 import shutil
+import importlib
 import importlib.util
 import json
 import math
@@ -46,25 +47,27 @@ def load_component_module():
 
 
 component = load_component_module()
+component_config = importlib.import_module('common.config')
 
 
-def component_configuration(config_path=None):
+def component_configuration(config_path=None, runtime_overrides=None):
     parser = configparser.ConfigParser(interpolation=None)
     parser.read(ROOT / 'parameters.ini')
     path = Path(config_path) if config_path else Path(parser['component']['parameters_file'])
     if not path.is_absolute():
         path = ROOT / path
-    return component.load_config(path)
+    config = component.load_config(path)
+    return component_config.apply_runtime_overrides(config, runtime_overrides or {})
 
 
-def component_model(config_path=None):
-    c = component_configuration(config_path)
+def component_model(config_path=None, runtime_overrides=None):
+    c = component_configuration(config_path, runtime_overrides)
     parameters = component.to_model_parameters(c)
     _, model = component.create_model(c, parameters, component.load_geometry())
     return c, parameters, model
 
 
-def configuration(config_path=None):
+def configuration(config_path=None, runtime_overrides=None):
     parser = configparser.ConfigParser(interpolation=None, strict=True)
     with (ROOT / 'parameters.ini').open() as stream:
         parser.read_file(stream)
@@ -83,7 +86,7 @@ def configuration(config_path=None):
     for key, value in assembly.items():
         if isinstance(value, (int, float)) and not math.isfinite(value):
             raise ValueError(f'装配配置{key}必须有限')
-    return assembly, source_geometry(), component.to_model_parameters(component_configuration(config_path))
+    return assembly, source_geometry(), component.to_model_parameters(component_configuration(config_path, runtime_overrides))
 
 
 def read_stl(path):

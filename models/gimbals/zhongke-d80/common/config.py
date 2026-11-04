@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import configparser
+import copy
 import hashlib
 import ipaddress
 import json
@@ -32,6 +33,55 @@ SCHEMA = {
     'viewer': {'near_clip_m': float, 'sensitivity': float},
     'demo': {'world_name': str, 'marker_name': str},
 }
+
+
+# 仅运行身份和端点允许通过CLI覆盖，机械、光学等性能仍来自源INI。
+RUNTIME_FIELDS = {
+    'model': ('model', 'name', str),
+    'aircraft_id': ('model', 'aircraft_id', int),
+    'world': ('demo', 'world_name', str),
+    'target_name': ('tracking', 'target_names', list),
+    'udp_bind': ('network', 'udp_bind', str),
+    'udp_port': ('network', 'udp_port', int),
+    'rtsp_bind': ('video', 'rtsp_bind', str),
+    'rtsp_port': ('video', 'rtsp_port', int),
+    'rtsp_mount': ('video', 'rtsp_mount', str),
+}
+
+
+def add_runtime_arguments(parser):
+    """为装配生成器和网关注册相同的显式运行覆盖参数。"""
+    for name, (_, _, kind) in RUNTIME_FIELDS.items():
+        options = dict(default=None)
+        if kind is list:
+            options.update(action='append', help='目标实体名称，可重复指定')
+        else:
+            options['type'] = kind
+        parser.add_argument('--' + name.replace('_', '-'), **options)
+    return parser
+
+
+def runtime_overrides_from_args(args):
+    """未提供的参数不覆盖源INI；目标名单按命令行整体替换。"""
+    overrides = {}
+    for name, (section, key, _) in RUNTIME_FIELDS.items():
+        value = getattr(args, name, None)
+        if value is not None:
+            overrides.setdefault(section, {})[key] = value
+    return overrides
+
+
+def apply_runtime_overrides(config, overrides):
+    """复制源快照，应用运行字段并校验、重新计算派生值和指纹。"""
+    allowed = {}
+    for section, key, _ in RUNTIME_FIELDS.values():
+        allowed.setdefault(section, set()).add(key)
+    effective = copy.deepcopy(config)
+    for section, fields in overrides.items():
+        if section not in allowed or set(fields) - allowed[section]:
+            raise ValueError(f'不支持的中科运行覆盖字段：{section}')
+        effective[section].update(copy.deepcopy(fields))
+    return refresh_derived(effective)
 
 
 def _positive(value, name):

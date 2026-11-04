@@ -16,7 +16,8 @@ import uuid
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
-from common.config import DEFAULT_CONFIG, load_config
+from common.config import (DEFAULT_CONFIG, load_config, add_runtime_arguments,
+    runtime_overrides_from_args, apply_runtime_overrides)
 from common import protocol
 if __package__:
     from .truth_selection import choose_candidate
@@ -400,18 +401,19 @@ class Gateway:
                 self.video.close()
 
 
-def main():
+def main(argv=None):
     parser = argparse.ArgumentParser(description='中科DYT独立二进制UDP网关')
     parser.add_argument('--config', default=str(DEFAULT_CONFIG))
     parser.add_argument('--topic-prefix')
     parser.add_argument('--image-topic')
-    parser.add_argument('--world')
-    parser.add_argument('--model')
+    add_runtime_arguments(parser)
     parser.add_argument('--session')
     parser.add_argument('--no-video', action='store_true')
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     try:
-        Gateway(load_config(args.config), topic_prefix=args.topic_prefix,
+        config = apply_runtime_overrides(load_config(args.config),
+            runtime_overrides_from_args(args))
+        Gateway(config, topic_prefix=args.topic_prefix,
                 image_topic=args.image_topic, video=not args.no_video,
                 world=args.world, model=args.model, session=args.session).run()
     except (ValueError, OSError, ImportError, RuntimeError) as exc:

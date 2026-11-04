@@ -1,5 +1,6 @@
 """统一INI边界、未知配置和规范化快照契约。"""
 import configparser
+import argparse
 from pathlib import Path
 import tempfile
 import unittest
@@ -7,7 +8,8 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from common.config import load_config, to_model_parameters
+from common.config import (load_config, to_model_parameters, add_runtime_arguments,
+    runtime_overrides_from_args, apply_runtime_overrides)
 
 
 class ConfigurationTests(unittest.TestCase):
@@ -60,6 +62,36 @@ class ConfigurationTests(unittest.TestCase):
         self.assertEqual(source['config_hash'], same['config_hash'])
         changed = self.changed('mechanics', 'max_rate_dps', '30')
         self.assertNotEqual(source['config_hash'], changed['config_hash'])
+
+    def test_runtime_cli_is_explicit_and_source_snapshot_is_immutable(self):
+        parser = add_runtime_arguments(argparse.ArgumentParser())
+        self.assertEqual(runtime_overrides_from_args(parser.parse_args([])), {})
+        args = parser.parse_args(['--model', 'rocket_zhongke_d80_2', '--aircraft-id', '2',
+            '--world', 'two_axis_moving_target', '--target-name', 'target_a',
+            '--target-name', 'target_b', '--udp-bind', '0.0.0.0', '--udp-port', '8881',
+            '--rtsp-bind', '127.0.0.1', '--rtsp-port', '8567',
+            '--rtsp-mount', '/zhongke_d80_2'])
+        source = load_config()
+        before = (ROOT / 'parameters.ini').read_bytes()
+        effective = apply_runtime_overrides(source, runtime_overrides_from_args(args))
+        self.assertEqual(effective['model']['name'], 'rocket_zhongke_d80_2')
+        self.assertEqual(effective['model']['aircraft_id'], 2)
+        self.assertEqual(effective['tracking']['target_names'], ['target_a', 'target_b'])
+        self.assertEqual(effective['network']['udp_port'], 8881)
+        self.assertEqual(effective['video']['rtsp_port'], 8567)
+        self.assertEqual(effective['video']['rtsp_mount'], '/zhongke_d80_2')
+        self.assertNotEqual(source['config_hash'], effective['config_hash'])
+        self.assertEqual(source, load_config())
+        self.assertEqual(before, (ROOT / 'parameters.ini').read_bytes())
+        self.assertEqual(effective['config_hash'],
+            apply_runtime_overrides(load_config(), runtime_overrides_from_args(args))['config_hash'])
+
+    def test_runtime_overrides_reject_invalid_values_and_performance_fields(self):
+        for overrides in ({'network': {'udp_port': 0}}, {'model': {'aircraft_id': -1}},
+                {'tracking': {'target_names': ['same', 'same']}},
+                {'video': {'rtsp_mount': 'relative'}}, {'mechanics': {'kp': 1}}):
+            with self.subTest(overrides=overrides), self.assertRaises(ValueError):
+                apply_runtime_overrides(load_config(), overrides)
 
     def test_each_ini_key_has_chinese_comment(self):
         previous = ''

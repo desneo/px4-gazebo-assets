@@ -42,9 +42,10 @@ def set_text(parent, tag, value):
     return element
 
 
-def settings(body_mass_kg=None, airframe_id=None, topic_prefix=None, config_path=None):
-    assembly, _, pod = appearance.configuration(config_path)
-    component_config, _, pod_model = appearance.component_model(config_path)
+def settings(body_mass_kg=None, airframe_id=None, topic_prefix=None, config_path=None,
+             runtime_overrides=None):
+    assembly, _, pod = appearance.configuration(config_path, runtime_overrides)
+    component_config, _, pod_model = appearance.component_model(config_path, runtime_overrides)
     geometry = appearance.source_geometry()
     length, mount_z, _ = appearance.dimensions()
     source = ET.parse(ROCKET / 'model.sdf').getroot()
@@ -296,7 +297,8 @@ def model_snapshot(model):
                 aerodynamics=[native.plugin_values(p) for p in model.findall(f"plugin[@name='{AERO}']")])
 
 
-def generate(output_dir, *, body_mass_kg=None, airframe_id=None, topic_prefix=None, config_path=None):
+def generate(output_dir, *, body_mass_kg=None, airframe_id=None, topic_prefix=None, config_path=None,
+             runtime_overrides=None):
     output = Path(output_dir).resolve()
     if (output == ROOT.resolve() or ROOT.resolve().is_relative_to(output) or
             output.is_relative_to((REPO / 'models').resolve()) or
@@ -304,7 +306,7 @@ def generate(output_dir, *, body_mass_kg=None, airframe_id=None, topic_prefix=No
              not output.is_relative_to((ROOT / 'runtime').resolve()))):
         raise ValueError('动态模型不得覆盖静态装配、其他装配或基础组件目录')
     before = source_fingerprints(config_path)
-    config = settings(body_mass_kg, airframe_id, topic_prefix, config_path)
+    config = settings(body_mass_kg, airframe_id, topic_prefix, config_path, runtime_overrides)
     root = build_model(config)
     world = component_world()
     gravity = math.sqrt(sum(float(value)**2 for value in world.findtext('world/gravity').split()))
@@ -374,13 +376,15 @@ def generate(output_dir, *, body_mass_kg=None, airframe_id=None, topic_prefix=No
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output-dir', type=Path, default=ROOT / 'runtime' / NAME)
-    parser.add_argument('--config', type=Path, help='完整中科INI；身份、性能、目标与网关同源')
+    parser.add_argument('--config', type=Path, help='中科源性能INI；运行字段可用CLI覆盖')
+    appearance.component_config.add_runtime_arguments(parser)
     parser.add_argument('--body-mass-kg', type=float, help='只能与原生机身质量相同，完整继承惯性')
     parser.add_argument('--airframe-id', type=int)
     parser.add_argument('--topic-prefix')
     args = parser.parse_args()
     manifest = generate(args.output_dir, body_mass_kg=args.body_mass_kg,
-                        airframe_id=args.airframe_id, topic_prefix=args.topic_prefix, config_path=args.config)
+                        airframe_id=args.airframe_id, topic_prefix=args.topic_prefix, config_path=args.config,
+                        runtime_overrides=appearance.component_config.runtime_overrides_from_args(args))
     print(f"动态装配：{args.output_dir.resolve()}；质量 {manifest['total_mass_kg']:.6g} kg；PX4 airframe {manifest['airframe_id']}")
 
 

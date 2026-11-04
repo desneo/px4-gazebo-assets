@@ -84,6 +84,13 @@ class ForwardUiTest(unittest.TestCase):
         self.assertIn(f'port = {self.new.getsockname()[1]}',self.config.read_text())
         self.assertIn('# 保留中文说明',self.config.read_text())
 
+    def test_temporary_cli_connection_does_not_save_base_preferences(self):
+        original=self.config.read_bytes()
+        self.ui.args.save_preferences=False
+        self.click('toggle')
+        self.assertTrue(self.forward.snapshot()['active'])
+        self.assertEqual(self.config.read_bytes(),original)
+
     def test_redrawing_forward_panel_does_not_count_or_send_samples(self):
         self.ui.font=None
         self.ui._draw_rate_panel=Mock()

@@ -98,10 +98,55 @@ class StandaloneConfigurationTest(unittest.TestCase):
                     resolve_configuration(parse_arguments(['view',str(self.station)]))
                 self.parser['connection'][key]=original
 
+    def test_runtime_cli_overrides_preferences_and_session_after_shared_validation(self):
+        config=load_config(ROOT/'parameters.ini')
+        manifest=dict(config_path=str(ROOT/'parameters.ini'),config_hash=config['config_hash'],
+            udp_host='127.0.0.3',udp_port=9990,rtsp_url='rtsp://127.0.0.3:9557/session')
+        args=parse_arguments(['--station-config',str(self.station),'--session','explicit',
+            '--udp-host','127.0.0.4','--udp-port','8881',
+            '--rtsp-url','rtsp://127.0.0.4:8567/zhongke_d80_2','--window-title','中科 2'])
+        with patch('scripts.session.load_session',return_value=manifest):
+            cfg,prefs,_=resolve_configuration(args)
+        self.assertEqual(prefs['udp_host'],'127.0.0.4')
+        self.assertEqual(prefs['udp_port'],8881)
+        self.assertEqual(prefs['window_title'],'中科 2')
+        self.assertEqual(cfg['_rtsp_url'],'rtsp://127.0.0.4:8567/zhongke_d80_2')
+        self.assertTrue(args.save_preferences)
+        for flag,value in (('--udp-host','invalid'),('--udp-port','0'),
+                ('--rtsp-url','http://127.0.0.1/video'),('--window-title',' ')):
+            with self.subTest(flag=flag),self.assertRaises(ValueError):
+                resolve_configuration(parse_arguments(['--station-config',str(self.station),flag,value]))
+
+    def test_temporary_cli_connection_uses_defaults_without_saving_preferences(self):
+        default=ROOT/'ground_station/config.ini'
+        before=default.read_bytes()
+        args=parse_arguments(['--udp-port','8880','--rtsp-url',
+            'rtsp://127.0.0.1:8566/zhongke_d80_1','--window-title','中科 1'])
+        with patch('scripts.session.load_session',side_effect=AssertionError('禁止读取会话')):
+            _,prefs,session=resolve_configuration(args)
+        self.assertEqual(prefs['udp_port'],8880)
+        self.assertIsNone(session)
+        self.assertTrue(args.runtime_connection)
+        self.assertFalse(args.save_preferences)
+        self.assertEqual(before,default.read_bytes())
+
     def test_configuration_import_has_no_graphics_or_gazebo_dependency(self):
         code='import sys;sys.path.insert(0,sys.argv[1]);import ground_station.configuration;assert not any(k in sys.modules for k in ("cv2","gi","gz.transport13"))'
         result=subprocess.run([sys.executable,'-c',code,str(ROOT)],capture_output=True,text=True)
         self.assertEqual(result.returncode,0,result.stdout+result.stderr)
+
+    def test_direct_cli_entrypoint_does_not_resolve_or_create_a_manifest(self):
+        import ground_station.ground_station as station_module
+        with patch.object(station_module,'GroundStation') as station, \
+             patch.object(station_module,'client_manifest_path',side_effect=AssertionError('禁止创建清单')), \
+             patch.object(station_module,'_session_fault_log',side_effect=AssertionError('禁止会话日志')), \
+             patch.object(station_module.faulthandler,'enable') as faults, \
+             patch.object(station_module.signal,'signal'):
+            self.assertEqual(station_module.main(['--udp-port','8880',
+                '--rtsp-url','rtsp://127.0.0.1:8566/zhongke_d80_1']),0)
+        station.return_value.run.assert_called_once_with()
+        faults.assert_called_once()
+        self.assertFalse(station.call_args.args[2].save_preferences)
 
     def test_registry_identity_uses_config_path_and_stop_never_looks_up_demo(self):
         first=client_manifest_path(self.station)

@@ -1,4 +1,4 @@
-"""中科火箭装配的源隔离、动力继承、顶部水平安装和逐机INI契约。"""
+"""中科火箭装配的源隔离、动力继承、顶部水平安装和运行CLI契约。"""
 from pathlib import Path
 import hashlib
 import importlib.util
@@ -156,6 +156,50 @@ class AssemblyTests(unittest.TestCase):
             self.assertTrue(airframe.is_file())
             snapshot=json.loads((output/'parameters.json').read_text())
             self.assertEqual(dynamic.native.parameter_values(airframe.read_text()),snapshot['px4']['parameters'])
+
+    def test_two_aircraft_cli_uses_same_effective_configuration_as_gateway(self):
+        source = dynamic.POD / 'parameters.ini'
+        original = source.read_bytes()
+        configs = []
+        with tempfile.TemporaryDirectory(prefix='rocket-zhongke-cli-') as temporary:
+            for aircraft_id in (1, 2):
+                output = Path(temporary) / str(aircraft_id)
+                argv = ['--model', f'rocket_zhongke_d80_{aircraft_id}',
+                        '--aircraft-id', str(aircraft_id), '--world', 'shared_world',
+                        '--target-name', 'xiaomotuo', '--target-name', 'xiaobianfu',
+                        '--udp-bind', '127.0.0.1', '--udp-port', str(8879 + aircraft_id),
+                        '--rtsp-bind', '0.0.0.0', '--rtsp-port', str(8565 + aircraft_id),
+                        '--rtsp-mount', f'/zhongke_d80_{aircraft_id}']
+                parser = __import__('argparse').ArgumentParser()
+                appearance.component_config.add_runtime_arguments(parser)
+                overrides = appearance.component_config.runtime_overrides_from_args(parser.parse_args(argv))
+                # 网关从同一源INI与CLI覆盖加载，不借助场景配置副本。
+                effective = appearance.component_config.apply_runtime_overrides(
+                    appearance.component.load_config(source), overrides)
+                result = subprocess.run([sys.executable, str(ROOT / 'tools/generate_dynamic_model.py'),
+                    '--output-dir', str(output), '--topic-prefix', f'/uav_{aircraft_id}/pod', *argv],
+                    capture_output=True, text=True)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                manifest = json.loads((output / 'manifest.json').read_text())
+                model = ET.parse(output / 'model.sdf').getroot().find('model')
+                plugin = model.find("plugin[@name='zhongke_d80::GimbalController']")
+                self.assertEqual(model.get('name'), dynamic.NAME)
+                self.assertEqual(plugin.findtext('model_name'), effective['model']['name'])
+                self.assertEqual(plugin.findtext('config_hash'), effective['config_hash'])
+                self.assertEqual(manifest['config_hash'], effective['config_hash'])
+                self.assertEqual(manifest['config_path'], str(source.resolve()))
+                self.assertEqual([e.text for e in plugin.findall('sim_truth_target_name')],
+                                 ['xiaomotuo', 'xiaobianfu'])
+                self.assertEqual(plugin.findtext('image_topic'), f'/uav_{aircraft_id}/pod/image')
+                self.assertFalse(list(output.rglob('*.ini')))
+                configs.append(effective)
+        self.assertEqual(source.read_bytes(), original)
+        self.assertNotEqual(configs[0]['config_hash'], configs[1]['config_hash'])
+        self.assertEqual([c['model']['aircraft_id'] for c in configs], [1, 2])
+        self.assertEqual([c['network']['udp_port'] for c in configs], [8880, 8881])
+        self.assertEqual([c['video']['rtsp_port'] for c in configs], [8566, 8567])
+        self.assertEqual([c['video']['rtsp_mount'] for c in configs], ['/zhongke_d80_1', '/zhongke_d80_2'])
+        self.assertTrue(all(c['demo']['world_name'] == 'shared_world' for c in configs))
 
     def test_bad_overrides_and_source_output_are_rejected(self):
         for prefix in ('relative','/uav_1/pod/','/uav 1/pod'):

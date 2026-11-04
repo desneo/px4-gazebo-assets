@@ -45,8 +45,12 @@ def parse_arguments(argv=None):
     parser.add_argument('mode',nargs='?',choices=('view',),help='兼容view config.ini入口')
     parser.add_argument('legacy_config',nargs='?',help='view模式的地面站配置路径')
     parser.add_argument('--station-config',help='地面站连接和显示INI；默认本程序config.ini')
-    parser.add_argument('--session',help='仅显式指定时读取仿真会话；端点以清单为准')
+    parser.add_argument('--session',help='显式读取仿真会话端点；连接CLI可覆盖')
     parser.add_argument('--config',help='独立模式的性能INI覆盖路径')
+    parser.add_argument('--udp-host',help='覆盖远端UDP地址')
+    parser.add_argument('--udp-port',help='覆盖远端UDP端口')
+    parser.add_argument('--rtsp-url',help='覆盖RTSP视频地址')
+    parser.add_argument('--window-title',help='覆盖窗口标题')
     parser.add_argument('--duration',type=float,default=0,help='运行秒数，0持续运行')
     parser.add_argument('--screenshot','--snapshot',dest='screenshot',help='截图绝对路径')
     parser.add_argument('--selftest',action='store_true',help='无窗口检查UDP和NVDEC')
@@ -55,6 +59,9 @@ def parse_arguments(argv=None):
     if args.legacy_config and args.mode!='view':parser.error('配置位置参数须使用view config.ini')
     if args.legacy_config and args.station_config:
         parser.error('view配置路径与--station-config不能同时指定')
+    args.runtime_connection=any(getattr(args,key) is not None for key in
+        ('udp_host','udp_port','rtsp_url','window_title'))
+    args.save_preferences=bool(args.station_config or args.legacy_config or not args.runtime_connection)
     args.station_config=str(Path(args.station_config or args.legacy_config or
                                  DEFAULT_STATION_CONFIG).expanduser().resolve())
     if args.config:args.config=str(Path(args.config).expanduser().resolve())
@@ -62,7 +69,7 @@ def parse_arguments(argv=None):
     return args
 
 
-def station_preferences(path):
+def station_preferences(path, overrides=None):
     path=Path(path).expanduser().resolve()
     parser=configparser.ConfigParser(interpolation=None,strict=True)
     try:
@@ -75,6 +82,8 @@ def station_preferences(path):
             if set(parser[section])-allowed[section]:raise ValueError(f'{section}存在未知配置项')
         connection={key:parser.get('connection',key,fallback=default).strip()
                     for key,default in DEFAULT_CONNECTION.items()}
+        overrides=overrides or {}
+        connection.update({key:value for key,value in overrides.items() if key in connection})
         connection['udp_host']=_ip(connection['udp_host'],'远端UDP地址')
         connection['udp_port']=_port(connection['udp_port'],'远端UDP端口')
         connection['local_bind']=_ip(connection['local_bind'],'本地接收绑定地址')
@@ -87,7 +96,7 @@ def station_preferences(path):
         if not math.isfinite(scale) or not .05<=scale<=2:raise ValueError('显示缩放须在0.05～2.0内')
         decoder=parser.get('video','decoder',fallback='nvdec')
         if decoder!='nvdec':raise ValueError('地面站仅支持nvdec硬件解码')
-        title=parser.get('video','window_title',fallback='中科 D80 地面站').strip()
+        title=overrides.get('window_title',parser.get('video','window_title',fallback='中科 D80 地面站')).strip()
         if not title:raise ValueError('窗口标题不能为空')
         return dict(**connection,station_config=str(path),display_scale=scale,decoder=decoder,
             window_title=title,font_path=parser.get('video','font_path',fallback='/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc'),
@@ -104,19 +113,19 @@ def client_manifest_path(station_config):
 
 
 def resolve_configuration(args):
-    prefs=station_preferences(args.station_config)
     session=None
+    overrides={}
     if args.session:
         from scripts.session import load_session
         session=load_session(args.session)
-        config_path=session['config_path']
-    else:
-        config_path=args.config or prefs['parameters_file']
+        overrides.update({key:session[key] for key in ('udp_host','udp_port','rtsp_url')})
+    overrides.update({key:getattr(args,key) for key in
+        ('udp_host','udp_port','rtsp_url','window_title') if getattr(args,key,None) is not None})
+    prefs=station_preferences(args.station_config,overrides)
+    config_path=session['config_path'] if session else args.config or prefs['parameters_file']
     cfg=load_config(config_path)
     if session:
         if cfg['config_hash']!=session['config_hash']:raise ValueError('地面站性能配置与运行会话不匹配')
-        prefs.update(udp_host=_ip(session['udp_host'],'会话UDP地址'),
-            udp_port=_port(session['udp_port'],'会话UDP端口'),rtsp_url=_rtsp(session['rtsp_url']))
     if ipaddress.ip_address(prefs['udp_host']).version!=ipaddress.ip_address(prefs['local_bind']).version:
         raise ValueError('本地绑定与远端UDP地址的IP版本必须一致')
     if ipaddress.ip_address(prefs['udp_host']).is_unspecified:

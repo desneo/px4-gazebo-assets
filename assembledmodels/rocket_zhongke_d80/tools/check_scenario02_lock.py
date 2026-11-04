@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""在独立02中科运行副本中验收二进制锁定；仅移动本工具创建的视觉夹具。"""
+"""在02中科运行世界中验收二进制锁定；仅移动本工具创建的视觉夹具。"""
 from __future__ import annotations
 
 import argparse
@@ -20,7 +20,8 @@ ROOT = Path(__file__).resolve().parents[1]
 ASSETS = ROOT.parents[1]
 D80 = ASSETS / 'models/gimbals/zhongke-d80'
 sys.path.insert(0, str(D80))
-from common.config import load_config
+from common.config import (add_runtime_arguments, apply_runtime_overrides,
+                           load_config, runtime_overrides_from_args)
 from common import protocol
 from ground_station.binary_client import BinaryClient
 
@@ -80,14 +81,17 @@ class Probe:
         self.created = False
         self.capture_image = None
         self.marker = 'ZHONGKE_LOCK_FIXTURE_' + uuid.uuid4().hex
-        self.cfg = load_config(args.config)
+        self.cfg = apply_runtime_overrides(load_config(args.config), runtime_overrides_from_args(args))
+        args.world = self.cfg['demo']['world_name']
         self.model = self.cfg['model']['name']
         self.name = 'xiaobianfu'
         if self.name not in self.cfg['tracking']['target_names']:
             raise ValueError('本验收需要配置注册目标xiaobianfu')
-        # 明确限制到新增中科组合机与其独立Gazebo分区。
-        if not self.model.startswith('rocket_zhongke_d80_') or 'zhongke' not in args.partition:
-            raise ValueError('只允许新增中科组合机和显式中科分区，禁止操作原场景')
+        # 保留中科实体与专用分区限制，仅额外允许统一02启动器的固定公共分区。
+        shared_partition = args.partition == 'px4_scenario_02_rocket_two_axis_pod'
+        if not self.model.startswith('rocket_zhongke_d80_') or not (
+                'zhongke' in args.partition or shared_partition):
+            raise ValueError('只允许中科组合机和显式中科分区或固定02公共分区')
         os.environ['GZ_PARTITION'] = args.partition
         os.environ['GZ_IP'] = '127.0.0.1'
         from gz.transport13 import Node
@@ -316,8 +320,8 @@ class Probe:
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--config',type=Path,required=True)
-    parser.add_argument('--world',default='geo_32_217857_119_105878')
+    parser.add_argument('--config',type=Path,default=D80 / 'parameters.ini')
+    add_runtime_arguments(parser)
     parser.add_argument('--partition',required=True)
     parser.add_argument('--prefix',default='/uav_1/pod')
     parser.add_argument('--output',type=Path,required=True)

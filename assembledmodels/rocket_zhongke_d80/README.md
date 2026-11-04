@@ -18,11 +18,11 @@
 - `tools/pod_kinematics.py`：从 SDF 读取内部运动链，供预览和几何验收使用。
 - `model.sdf`、`meshes/`：24 个 visual 的静态预览资产，无活动关节、控制插件和碰撞体。
 - `tests/world.sdf`、`tests/closeup.sdf`：整体及近景造型预览。
-- `tests/test_assembly.py`：源隔离、惯性、CG、推力、安装、话题和逐机 INI 契约。
+- `tests/test_assembly.py`：源隔离、惯性、CG、推力、安装、话题和运行 CLI 契约。
 - `tests/source_baseline.json`：基础模型及参考装配的文件指纹，供隔离检查。
 - `runtime/`：本装配的动态生成目录。
 
-中科性能从 `component.parameters_file` 指向的完整 INI 读取，使用基础 `common.config.load_config` 和基础模型生成 API；没有第二套云台性能表。`--config` 可指定场景保存的独立完整 INI。该 INI 可设置每机 `model.name`、`aircraft_id`、目标名称、UDP/RTSP端点，并保留源性能值。组件插件与网关必须使用同一 INI，使 `model_name` 与 `config_hash` 一致。
+中科性能从 `component.parameters_file` 指向的源 INI 读取，使用基础配置与模型生成 API。动态生成器和网关接收相同运行 CLI，在源性能配置上覆盖实体、飞机 ID、世界、目标和 UDP/RTSP 端点，经校验后重新计算 `config_hash`；不生成逐机 INI。独立调用仍支持 `--config` 指定另一份完整源性能 INI。
 
 ## 生成
 
@@ -38,12 +38,16 @@ python3 tools/generate_dynamic_model.py
 
 ```bash
 python3 tools/generate_dynamic_model.py \
-  --config /绝对路径/vehicle_0.ini \
   --output-dir /绝对路径/runtime/rocket_zhongke_d80 \
-  --topic-prefix /uav_0/pod
+  --model rocket_zhongke_d80_1 --aircraft-id 1 \
+  --world geo_32_217857_119_105878 \
+  --target-name xiaomotuo --target-name xiaobianfu \
+  --udp-bind 0.0.0.0 --udp-port 8880 \
+  --rtsp-bind 0.0.0.0 --rtsp-port 8566 --rtsp-mount /zhongke_d80_1 \
+  --topic-prefix /uav_1/pod
 ```
 
-动态输出包含 `model.sdf`、`model.config`、自有 `meshes/`、`px4/4025_gz_rocket_zhongke_d80`、`manifest.json`、`parameters.json` 和 `tests/world.sdf`。`parameters.json` 是生成的质量、动力与 PX4 运行快照，不是配置入口；`manifest.json` 记录输入 hash、组件身份、名义重心、质量和话题。外层模型资源名固定为 `rocket_zhongke_d80`，场景可在载入时赋每机实体名；插件元数据采用对应中科 INI 的 `model.name`。
+动态输出包含 `model.sdf`、`model.config`、自有 `meshes/`、`px4/4025_gz_rocket_zhongke_d80`、`manifest.json`、`parameters.json` 和 `tests/world.sdf`。`parameters.json` 是生成的质量、动力与 PX4 运行快照，不是配置入口；`manifest.json` 记录输入 hash、组件身份、名义重心、质量和话题。外层模型资源名固定为 `rocket_zhongke_d80`，场景可在载入时赋每机实体名；插件元数据采用 CLI 覆盖后的 `model.name`。
 
 默认 airframe 为 `4025`，可用 `--airframe-id` 显式指定。生成器只输出 airframe 文件，不修改 PX4 的 ROMFS/CMake 注册。动态生成拒绝覆盖基础模型、静态装配及其他已有组合目录。
 
@@ -72,9 +76,9 @@ Gazebo 资源路径应包含动态输出目录的上一级；系统插件路径�
 | `/camera_info` | 实际相机内参 |
 | `/diagnostics` | 中科网关发布的只读诊断 |
 
-网关复用基础 `controller/service/gimbal_bridge.py`，传入同一 `--config`、`--topic-prefix`、`--image-topic <前缀>/image` 与 `--world`；场景设置独立 `GZ_PARTITION` 并维护自己的进程。UDP 使用中科 16 字节控制和 32 字节遥测，保持同一实际客户端端点。地面站使用已有独立 `--station-config`，连接该机 UDP/RTSP，收到二进制遥测后再转发 15 字段 JSON；不使用艾晟网关或艾晟报文格式。
+网关复用基础 `controller/service/gimbal_bridge.py`，传入与生成器相同的运行 CLI，以及 `--topic-prefix`、`--image-topic <前缀>/image`；使用自定义性能时两者还须传入相同的 `--config`。UDP 使用中科 16 字节控制和 32 字节遥测，保持同一实际客户端端点。地面站通过 `--udp-host`、`--udp-port`、`--rtsp-url`、`--window-title` 指定连接，不依赖场景会话清单，收到二进制遥测后再转发 15 字段 JSON。
 
-基础组件的 `--session` 清单限于其自身 `runs/`，场景独立地面站不传外部清单。独立地面站显示实际二进制的状态与测量；目标名称、候选和原因通过场景分区内 `/diagnostics` 验收，不注入地面站会话。
+基础组件独立运行的会话接口保持兼容。场景地面站显示实际二进制状态与测量；目标名称、候选和原因通过场景分区内 `/diagnostics` 验收。
 
 ## 预览与验证
 
@@ -97,20 +101,19 @@ bash /home/aeroarx/zsh/PX4-Autopilot/scenarios/02_rocket_two_axis_pod/start.sh \
   --aircraft-model rocket_zhongke_d80 --gui
 ```
 
-首机使用独立UDP8880和RTSP8566。默认中科运行目录为 `/tmp/px4-scenarios/02_rocket_zhongke_d80`，地面站读取该副本的配置：
+场景共用 `/tmp/px4-scenarios/02_rocket_two_axis_pod` 和分区 `px4_scenario_02_rocket_two_axis_pod`。首机 UDP 为 8880、RTSP 为 8566，第二机分别为 8881、8567；每机视频路径为 `/zhongke_d80_<id>`。启动器打印各机的完整地面站命令，首机示例：
 
 ```bash
-bash /home/aeroarx/zsh/px4-gazebo-assets/models/gimbals/zhongke-d80/ground_station/run.sh \
-  view /tmp/px4-scenarios/02_rocket_zhongke_d80/config/ground_station_1.ini
+/home/aeroarx/zsh/px4-gazebo-assets/models/gimbals/.venv-zhongke-d80/bin/python \
+  /home/aeroarx/zsh/px4-gazebo-assets/models/gimbals/zhongke-d80/ground_station/ground_station.py \
+  --udp-host 127.0.0.1 --udp-port 8880 \
+  --rtsp-url rtsp://127.0.0.1:8566/zhongke_d80_1 --window-title '中科D80 飞机1'
 ```
 
-停止此机的地面站与中科场景：
+场景不自动启动地面站。停止场景统一使用无参数命令：
 
 ```bash
-bash /home/aeroarx/zsh/px4-gazebo-assets/models/gimbals/zhongke-d80/ground_station/stop.sh \
-  --station-config /tmp/px4-scenarios/02_rocket_zhongke_d80/config/ground_station_1.ini
-bash /home/aeroarx/zsh/PX4-Autopilot/scenarios/02_rocket_two_axis_pod/stop.sh \
-  --aircraft-model rocket_zhongke_d80
+bash /home/aeroarx/zsh/PX4-Autopilot/scenarios/02_rocket_two_axis_pod/stop.sh
 ```
 
-`--runtime-dir` 选择另一份独立副本时，地面站配置和停止参数也必须指向该目录。中科场景使用显式中科停止入口；旧无参数停止脚本保留原有全局行为。
+停止脚本按现有全局进程搜索方式清理 Gazebo、PX4、网关与 RTSP 中继；运行模型、日志与 PID 文件由公共场景目录管理，不生成 `session.ini` 或地面站配置副本。

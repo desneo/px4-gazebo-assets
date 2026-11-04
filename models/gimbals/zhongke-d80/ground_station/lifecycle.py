@@ -98,6 +98,13 @@ def main(argv=None):
                  '--station-config',args.station_config]
         if args.session:command+=['--session',args.session]
         elif args.config:command+=['--config',args.config]
+        for name in ('udp_host','udp_port','rtsp_url','window_title'):
+            value=getattr(args,name,None)
+            if value is not None:command+=['--'+name.replace('_','-'),str(value)]
+        if not args.save_preferences:
+            # 保留CLI临时连接语义，避免子进程把默认路径误认作显式保存授权。
+            index=command.index('--station-config')
+            del command[index:index+2]
         if args.duration:command+=['--duration',str(args.duration)]
         if args.screenshot:command+=['--snapshot',args.screenshot]
         if args.selftest:command+=['--selftest']

@@ -632,7 +632,8 @@ class GroundStation:
             self.preferences.update(forward_ip=ip, forward_port=port)
             self.forward_note = "等待新遥测"
             try:
-                save_destination(self.args.station_config, ip, port)
+                if getattr(self.args,'save_preferences',True):
+                    save_destination(self.args.station_config, ip, port)
             except (OSError, ValueError) as exc:
                 self.forward_note = "已发送；地址保存失败"
                 print(f"[forward] 地址保存失败: {exc}", flush=True)
@@ -878,6 +879,8 @@ def main(argv=None):
         if session:
             os.environ['GZ_PARTITION']=session['gz_partition']
             _session_fault_log(session)
+        elif args.runtime_connection:
+            faulthandler.enable(file=sys.stderr,all_threads=True)
         else:
             client_manifest=client_manifest_path(args.station_config)
             client_manifest.parent.mkdir(parents=True,exist_ok=True)

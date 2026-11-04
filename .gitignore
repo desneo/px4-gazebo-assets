@@ -4,6 +4,7 @@ __pycache__/
 runs/
 assembledmodels/rocket_two_axis_pod/runtime/
 assembledmodels/rocket_aisheng_seeker/runtime/
+assembledmodels/rocket_zhongke_d80/runtime/
 
 # spec-kit 产物不入库
 .specify/

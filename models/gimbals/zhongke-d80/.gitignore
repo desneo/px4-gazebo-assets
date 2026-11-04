@@ -1,0 +1,24 @@
+# 本地规格、构建、环境与实际验收数据
+.specify/
+specs/
+build/
+controller/build/
+runs/
+/generated.json
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv*/
+venv/
+dist/
+*.o
+*.so
+*.a
+*.log
+*.tmp
+*.swp
+.env*
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

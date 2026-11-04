@@ -1,0 +1,5 @@
+# 独立Python环境中的运行和契约测试依赖；GI/Gazebo/GStreamer使用系统绑定。
+numpy>=1.26,<3
+opencv-python>=4.10,<6
+Pillow>=10
+jsonschema>=4.18

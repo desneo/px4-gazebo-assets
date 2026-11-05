@@ -85,3 +85,5 @@ px4-gazebo-assets/
 三轴吊舱的安装资料见[安装方式与对外角度约定](models/gimbals/three_axis_pod/docs/mounting.md)，其中附有可独立浏览的安装示意图。
 
 两轴吊舱当前机械速度上限为每轴 ±20°/s，动态装配继承基础参数；该限速配置已通过组件物理验证、装配继承检查、整机飞行及快速机载目标跟踪复验，详见组件验证说明。
+
+火箭基础模型另提供默认关闭的[实飞悬停振动实验配置](models/vehicles/rocket_racing_quad/docs/flight_vibration.md)，包含低频刚体外力/外力矩与旋翼转速相关的局部IMU谐波；仅显式启用时修改运行副本和采样链路，不改变原生资产入口。

@@ -750,6 +750,8 @@ class GroundStation:
         lines += [f'标定 {optics["reference_focal_length_mm"]:g} mm：{optics["reference_hfov_deg"]:g}°×{optics["reference_vfov_deg"]:g}°']
         if fields:
             lines += [f'框架角 yaw {fields["frame_yaw"]:.2f}° / pitch {fields["frame_pitch"]:.2f}°',
+                      f'角速度 横滚 {fields["roll_rate"]:+.2f}°/s / 俯仰 {fields["pitch_rate"]:+.2f}°/s',
+                      f'角速度 方位 {fields["yaw_rate"]:+.2f}°/s',
                       f'目标偏差 X {fields["offset_x"]:.2f}° / Y {fields["offset_y"]:.2f}°',
                       f'有效跟踪标志：{"是" if fields["status1"] & 4 else "否"} | 自检 0x{fields["self_check"]:02X}']
         if diag:

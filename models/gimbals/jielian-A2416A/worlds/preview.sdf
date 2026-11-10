@@ -1,0 +1,269 @@
+<?xml version='1.0' encoding='utf-8'?>
+<sdf version="1.9">
+  <world name="jielian_a2416a_preview">
+    <gravity>0 0 -9.8</gravity>
+    <spherical_coordinates>
+      <surface_model>EARTH_WGS84</surface_model>
+      <world_frame_orientation>ENU</world_frame_orientation>
+      <latitude_deg>47.397971057728974</latitude_deg>
+      <longitude_deg>8.546163739800146</longitude_deg>
+      <elevation>0</elevation>
+    </spherical_coordinates>
+    <physics name="1ms" type="ode">
+      <max_step_size>.001</max_step_size>
+      <real_time_factor>1</real_time_factor>
+    </physics>
+    <plugin filename="gz-sim-physics-system" name="gz::sim::systems::Physics" />
+    <plugin filename="gz-sim-user-commands-system" name="gz::sim::systems::UserCommands" />
+    <plugin filename="gz-sim-scene-broadcaster-system" name="gz::sim::systems::SceneBroadcaster" />
+    <plugin filename="gz-sim-sensors-system" name="gz::sim::systems::Sensors">
+      <render_engine>ogre2</render_engine>
+    </plugin>
+    <scene>
+      <ambient>.65 .65 .65 1</ambient>
+      <background>.72 .80 .90 1</background>
+      <shadows>true</shadows>
+    </scene>
+    <gui fullscreen="false">
+      <plugin filename="MinimalScene" name="3D View">
+        <engine>ogre2</engine>
+        <scene>scene</scene>
+        <camera_pose>.40 -.48 .32 0 .20 2.30</camera_pose>
+        <camera_clip>
+          <near>0.005</near>
+          <far>30000</far>
+        </camera_clip>
+      </plugin>
+      <plugin filename="GzSceneManager" name="Scene Manager" />
+      <plugin filename="InteractiveViewControl" name="Interactive view control" />
+      <plugin filename="CameraTracking" name="Camera Tracking" />
+      <plugin filename="EntityTree" name="Entity tree" />
+      <plugin filename="WorldControl" name="World control" />
+    </gui>
+    <light name="sun" type="directional">
+      <direction>-.4 .3 -1</direction>
+      <diffuse>.9 .9 .9 1</diffuse>
+    </light>
+    <include>
+      <uri>model://jielian-A2416A</uri>
+      <name>jielian_a2416a</name>
+      <pose>0 0 0 0 0 0</pose>
+      <static>true</static>
+    </include>
+    <model name="target_aircraft">
+      <static>true</static>
+      <pose>0 0 500 0 0 0</pose>
+      <link name="link">
+        <visual name="body">
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>6 1.1 1.1</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>.95 .30 .05 1</ambient>
+            <diffuse>.95 .30 .05 1</diffuse>
+            <specular>.35 .35 .35 1</specular>
+          </material>
+        </visual>
+        <visual name="wing">
+          <pose>-.3 0 0 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>2.4 12 .20</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>.80 .82 .85 1</ambient>
+            <diffuse>.80 .82 .85 1</diffuse>
+            <specular>.35 .35 .35 1</specular>
+          </material>
+        </visual>
+        <visual name="tail">
+          <pose>-3 0 .35 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>1.5 3.2 .18</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>.95 .30 .05 1</ambient>
+            <diffuse>.95 .30 .05 1</diffuse>
+            <specular>.35 .35 .35 1</specular>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <model name="target_aircraft_2">
+      <static>true</static>
+      <pose>45 15 620 0 0 0</pose>
+      <link name="link">
+        <visual name="body">
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>6 1.1 1.1</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>.10 .55 .95 1</ambient>
+            <diffuse>.10 .55 .95 1</diffuse>
+            <specular>.35 .35 .35 1</specular>
+          </material>
+        </visual>
+        <visual name="wing">
+          <pose>-.3 0 0 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>2.4 12 .20</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>.80 .82 .85 1</ambient>
+            <diffuse>.80 .82 .85 1</diffuse>
+            <specular>.35 .35 .35 1</specular>
+          </material>
+        </visual>
+        <visual name="tail">
+          <pose>-3 0 .35 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>1.5 3.2 .18</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>.10 .55 .95 1</ambient>
+            <diffuse>.10 .55 .95 1</diffuse>
+            <specular>.35 .35 .35 1</specular>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <model name="target_aircraft_3">
+      <static>true</static>
+      <pose>-60 -10 700 0 0 0</pose>
+      <link name="link">
+        <visual name="body">
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>6 1.1 1.1</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>.20 .75 .35 1</ambient>
+            <diffuse>.20 .75 .35 1</diffuse>
+            <specular>.35 .35 .35 1</specular>
+          </material>
+        </visual>
+        <visual name="wing">
+          <pose>-.3 0 0 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>2.4 12 .20</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>.80 .82 .85 1</ambient>
+            <diffuse>.80 .82 .85 1</diffuse>
+            <specular>.35 .35 .35 1</specular>
+          </material>
+        </visual>
+        <visual name="tail">
+          <pose>-3 0 .35 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>1.5 3.2 .18</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>.20 .75 .35 1</ambient>
+            <diffuse>.20 .75 .35 1</diffuse>
+            <specular>.35 .35 .35 1</specular>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <model name="target_aircraft_4">
+      <static>true</static>
+      <pose>75 -25 760 0 0 0</pose>
+      <link name="link">
+        <visual name="body">
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>6 1.1 1.1</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>.80 .35 .85 1</ambient>
+            <diffuse>.80 .35 .85 1</diffuse>
+            <specular>.35 .35 .35 1</specular>
+          </material>
+        </visual>
+        <visual name="wing">
+          <pose>-.3 0 0 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>2.4 12 .20</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>.80 .82 .85 1</ambient>
+            <diffuse>.80 .82 .85 1</diffuse>
+            <specular>.35 .35 .35 1</specular>
+          </material>
+        </visual>
+        <visual name="tail">
+          <pose>-3 0 .35 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>1.5 3.2 .18</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>.80 .35 .85 1</ambient>
+            <diffuse>.80 .35 .85 1</diffuse>
+            <specular>.35 .35 .35 1</specular>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <model name="JIELIAN_A2416A_LOCATION_MARKER">
+      <static>true</static>
+      <pose>.16 -.15 .11 0 0 0</pose>
+      <link name="link">
+        <visual name="shaft">
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>.02 .24 .02</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>1 .20 .02 1</ambient>
+            <diffuse>1 .20 .02 1</diffuse>
+            <specular>.35 .35 .35 1</specular>
+            <emissive>1 .05 0 1</emissive>
+          </material>
+        </visual>
+        <visual name="arrowhead_visual">
+          <pose>0 .16 0 -1.5707963267948966 0 0</pose>
+          <geometry>
+            <cone>
+              <radius>.055</radius>
+              <length>.12</length>
+            </cone>
+          </geometry>
+          <material>
+            <ambient>1 .20 .02 1</ambient>
+            <diffuse>1 .20 .02 1</diffuse>
+            <specular>.35 .35 .35 1</specular>
+            <emissive>1 .05 0 1</emissive>
+          </material>
+        </visual>
+      </link>
+    </model>
+  </world>
+</sdf>

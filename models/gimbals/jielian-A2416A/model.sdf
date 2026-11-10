@@ -1,0 +1,122 @@
+<?xml version='1.0' encoding='utf-8'?>
+<sdf version="1.9">
+  <model name="jielian_a2416a" canonical_link="seeker_link">
+    <self_collide>false</self_collide>
+    <link name="seeker_link">
+      <inertial>
+        <pose>0 0 0.03 0 0 0</pose>
+        <mass>0.05</mass>
+        <inertia>
+          <ixx>2.625e-05</ixx>
+          <iyy>2.625e-05</iyy>
+          <izz>2.25e-05</izz>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyz>0</iyz>
+        </inertia>
+      </inertial>
+      <visual name="housing_visual">
+        <pose>0 0 0.03 0 0 0</pose>
+        <geometry>
+          <cylinder>
+            <radius>0.03</radius>
+            <length>0.06</length>
+          </cylinder>
+        </geometry>
+        <material>
+          <ambient>.055 .060 .065 1</ambient>
+          <diffuse>.055 .060 .065 1</diffuse>
+          <specular>.35 .35 .35 1</specular>
+        </material>
+      </visual>
+      <collision name="housing_collision">
+        <pose>0 0 0.03 0 0 0</pose>
+        <geometry>
+          <cylinder>
+            <radius>0.03</radius>
+            <length>0.06</length>
+          </cylinder>
+        </geometry>
+      </collision>
+      <visual name="lens_rim_visual">
+        <pose>0 0 0.0605 0 0 0</pose>
+        <geometry>
+          <cylinder>
+            <radius>.012</radius>
+            <length>.001</length>
+          </cylinder>
+        </geometry>
+        <material>
+          <ambient>.08 .09 .10 1</ambient>
+          <diffuse>.08 .09 .10 1</diffuse>
+          <specular>.35 .35 .35 1</specular>
+        </material>
+      </visual>
+      <visual name="lens_window_visual">
+        <pose>0 0 0.0611 0 0 0</pose>
+        <geometry>
+          <cylinder>
+            <radius>.009</radius>
+            <length>.0005</length>
+          </cylinder>
+        </geometry>
+        <material>
+          <ambient>.05 .20 .28 1</ambient>
+          <diffuse>.05 .20 .28 1</diffuse>
+          <specular>.35 .35 .35 1</specular>
+          <emissive>.01 .04 .06 1</emissive>
+        </material>
+      </visual>
+      <sensor name="camera" type="camera">
+        <pose>0 0 0.0615 0 -1.5707963267948966 0</pose>
+        <always_on>true</always_on>
+        <update_rate>25</update_rate>
+        <topic>/jielian_a2416a/camera</topic>
+        <camera>
+          <horizontal_fov>0.645771823237902</horizontal_fov>
+          <image>
+            <width>1920</width>
+            <height>1080</height>
+            <format>R8G8B8</format>
+          </image>
+          <clip>
+            <near>0.005</near>
+            <far>30000</far>
+          </clip>
+          <lens>
+            <intrinsics>
+              <fx>2869.13756423318</fx>
+              <fy>2913.57927413233</fy>
+              <cx>960</cx>
+              <cy>540</cy>
+              <s>0</s>
+            </intrinsics>
+          </lens>
+          <camera_info_topic>/jielian_a2416a/camera_info</camera_info_topic>
+        </camera>
+      </sensor>
+    </link>
+    <plugin filename="gz-jielian-a2416a-controller" name="jielian_a2416a::StrapdownController">
+      <camera_link>seeker_link</camera_link>
+      <camera_sensor>camera</camera_sensor>
+      <image_topic>/jielian_a2416a/camera</image_topic>
+      <command_topic>/jielian_a2416a/command</command_topic>
+      <telemetry_topic>/jielian_a2416a/telemetry</telemetry_topic>
+      <command_result_topic>/jielian_a2416a/command_result</command_result_topic>
+      <measurement_hz>50</measurement_hz>
+      <auto_detection_range_m>780</auto_detection_range_m>
+      <manual_tracking_range_m>1200</manual_tracking_range_m>
+      <lost_timeout_s>2.5</lost_timeout_s>
+      <max_targets>4</max_targets>
+      <misalignment_limit_deg>20</misalignment_limit_deg>
+      <crosshair_max_speed_px_s>400</crosshair_max_speed_px_s>
+      <crosshair_timeout_s>0.5</crosshair_timeout_s>
+      <gate_scale_min>0.5</gate_scale_min>
+      <gate_scale_max>4</gate_scale_max>
+      <sim_truth_target_name>target_aircraft</sim_truth_target_name>
+      <sim_truth_target_name>target_aircraft_2</sim_truth_target_name>
+      <sim_truth_target_name>target_aircraft_3</sim_truth_target_name>
+      <sim_truth_target_name>target_aircraft_4</sim_truth_target_name>
+    </plugin>
+  </model>
+</sdf>

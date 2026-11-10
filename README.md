@@ -15,6 +15,7 @@ px4-gazebo-assets/
 │   │   └── xiaobianfu/        # 小蝙蝠：白绿飞翼、手抛起飞、机腹着陆固定翼
 │   ├── gimbals/               # 云台，包含相机、控制器及其参数
 │   │   ├── two_axis_pod/      # 两轴立装吊舱，含飞机检测、自动锁定、控制、网关和地面站
+│   │   ├── jielian-A2416A/    # A2416A固定光轴捷联导引头、协议网关、硬件视频和地面站
 │   │   ├── zhongke-d80/       # 中科D80独立两轴云台，含二进制UDP网关、地面站与INI参数
 │   │   └── three_axis_pod/
 │   │       ├── controller/    # 专用 C++ 控制插件、网关、工具和单元测试
@@ -28,6 +29,7 @@ px4-gazebo-assets/
 ├── assembledmodels/           # 由基础 model 组合的复杂模型
 │   ├── rocket_two_axis_pod/   # 590 mm 火箭机与顶部两轴吊舱的造型与动态装配
 │   ├── rocket_aisheng_seeker/ # 590 mm 火箭机与顶部艾晟导引头的静态与动态装配
+│   ├── rocket_jielian_a2416a/ # 590 mm 火箭机与固定A2416A捷联导引头装配
 │   └── rocket_zhongke_d80/    # 590 mm 火箭机与顶部水平中科D80的独立装配
 ├── assemblies/                # 已有固定支架三轴吊舱装配
 ├── worlds/                    # 静态环境定义、专用资源和说明
@@ -68,9 +70,11 @@ px4-gazebo-assets/
 - 火箭机速度对照：`scenarios/rocket_speed_comparison/`保留80 m高度、连续10 s最高稳定速度比较入口。当前单机4.76 kg、组合5.00 kg，组件自验证参考点已统一为各自固定零关节名义重心；该速度场景尚未复测，不沿用不同配置的归档结论，见[场景说明](scenarios/rocket_speed_comparison/README.md)与[验证状态](scenarios/rocket_speed_comparison/docs/validation.md)。
 - 两轴立装吊舱：见[组件说明](models/gimbals/two_axis_pod/README.md)、[安装与运动学](models/gimbals/two_axis_pod/docs/mounting.md)和[验证说明](models/gimbals/two_axis_pod/docs/validation.md)。Ø84 mm 底部圆环与地面平行，导引头整体向上高 91 mm。外轴绕水平 +X 转动，范围 ±60°；内轴绕随动 −Y 转动，范围 −80°～+30°。原始零位光轴朝安装 +Z，负内轴角转向安装 +X，运动链为 `Rx(yaw) Ry(-pitch)`，控制协议为 v8 / `motion_head_joint_right_positive`。圆环、外罩和轴承座固定，两轴相交于球心；精确几何源及关节定义随组件保存在 `cad/`。组件使用单类 YOLO11 飞机模型和多目标轨迹确认；自动锁定选择画面中心最近的已确认飞机，手动框选绑定框内飞机。默认 `sim_truth` 后端在锁定后持续投影同一实体，目标在视野内即保持有效，并显示四边各扩展5 px的绿色跟踪框；显式配置 `tracking_backend=csrt` 才使用CSRT。关闭视觉、检测、自动锁定和手动框选互斥。视频强制硬件编解码，Linux 地面站使用 NVDEC，Windows 地面站显式请求并校验 D3D11 硬件解码，不可用时均直接报错。网关支持多机共用 RTSP 8555，按 `/two_axis_pod_<aircraft_id>` 路径末尾的飞机 ID 区分；网关与地面站配置相同 ID，默认 1。地面站提供仅含19个字段的艾晟 JSON 发送，其中`gate_x/gate_y`为原图左上原点、右/下为正的跟踪框中心整数像素坐标，`tracking_gate_w/tracking_gate_h`为最终跟踪框像素宽高，`gyro_*_rate` 为机械关节相对转速，`*_los_rate` 为目标相对载机固定名义重心的 NED 方位角/仰角变化率（右正/上正），角度导数无效时外发0/0；`los_omega_n/e/d` 为原始NED三维视线角速度向量，单位°/s、不限幅，向量无效时外发0/0/0。Windows 专用入口使用隔离 Python 虚拟环境，安装与启动见[地面站说明](models/gimbals/two_axis_pod/ground_station/README.md#windows-专用版本)。
 - 中科D80云台：独立前视两轴仿真、手动/回零、真值指点与自动锁定，控制和遥测使用中科16/32字节二进制UDP；参数、启动入口及当前验收状态见[组件说明](models/gimbals/zhongke-d80/README.md)。
+- A2416A捷联导引头：固定光轴单可见光组件，无机械框架与活动关节；提供50 Hz飞机真值检测/跟踪、45/104字节二进制UDP协议、100 Hz遥测、NVIDIA H.264 RTSP和无云台角控件的配套地面站。规格、入口和硬件前置条件见[组件说明](models/gimbals/jielian-A2416A/README.md)与[开发规格](models/gimbals/jielian-A2416A/docs/development-spec.md)。
 - 火箭穿越机：见[模型说明](models/vehicles/rocket_racing_quad/README.md)与[测试说明](models/vehicles/rocket_racing_quad/tests/README.md)。当前平底、四主翼与四小尾翼外形高0.590 m，整机质量4.76 kg、固定名义重心z=+0.030 m，外形已获人工确认。PX4限制为水平加速度15 m/s²、向上12 m/s²、向下6 m/s²，自动/最大jerk为30/40 m/s³；飞行验收采用8 s速度设定爬升。当前配置已通过30 s悬停、200 km/h连续30.000 s巡航、300 km/h连续10.000 s冲刺及落地停机，采用固定名义重心Gazebo真值；质量/惯性几何核验表明数学可行，未作实物标定。原始记录和15项源指纹见[验证结果](models/vehicles/rocket_racing_quad/docs/validation.md)。
 - 火箭机与顶部两轴吊舱：`assembledmodels/rocket_two_axis_pod/`静态装配高590 mm，吊舱安装面z=0.289 m、肩部起点z=0.277 m、最高点z=+0.380 m，静态SDF含24个visual、无碰撞体，组合外形待人工确认。动态组合质量5.00 kg，固定零关节名义重心 `(-0.000176261396,-3.426e-9,0.044398504845) m` FLU，CA/EKF派生与真值测量支持已实现，继承相同加速度、jerk和8 s速度设定爬升配置；归档中49项源指纹的5.00 kg组合已通过30 s悬停、200 km/h连续30.000 s巡航、300 km/h连续10.016 s冲刺及落地停机；入口与结果见[装配说明](assembledmodels/rocket_two_axis_pod/README.md)。
 - 火箭机与顶部艾晟导引头装配：`assembledmodels/rocket_aisheng_seeker/`为独立装配，590 mm火箭机顶部以底座平面安装ASD-2-075-DD0导引头，安装面z=0.289 m、最高点z=0.380 m。静态模型含26个visual、无碰撞体、无关节/插件；动态装配质量5.00 kg、PX4 airframe 4024、双相机、真实两轴关节和`mount_dynamic=true`，默认话题`/rocket_aisheng_seeker/*`，02场景可生成`/uav_<id>/pod/*`。原火箭机、两轴吊舱和导引头基础模型均未修改。入口与评审图见[装配说明](assembledmodels/rocket_aisheng_seeker/README.md)。
+- 火箭机与A2416A捷联导引头装配：独立模型 `assembledmodels/rocket_jielian_a2416a/` 以固定关节把Ø60×60 mm占位导引头安装到机头，光轴和火箭轴线均为+Z，总长590 mm、总质量4.81 kg、PX4 airframe 4026；动态世界包含真实飞机目标夹具和完整飞行/跟踪联合验收入口。安装、生成和验收见[装配说明](assembledmodels/rocket_jielian_a2416a/README.md)。
 
 - 火箭机与中科D80装配：独立模型 `assembledmodels/rocket_zhongke_d80/` 沿用两轴顶部安装面 z=0.289 m，底环水平、机械零位朝机体+Z；总质量按基础资产继承为4.955 kg，PX4 airframe 4025。中科控制/遥测使用独立16/32字节二进制UDP，02场景通过显式 `--aircraft-model rocket_zhongke_d80` 入口选择，原默认机型及两种旧入口保留。安装、运行和验收见[装配说明](assembledmodels/rocket_zhongke_d80/README.md)。
 

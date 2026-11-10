@@ -1,0 +1,68 @@
+{
+  "validated_at": "2026-11-10T10:32:40.788525+08:00",
+  "passed": true,
+  "px4_instance": 1,
+  "flight": {
+    "hover": {
+      "required_s": 30.0,
+      "max_drift_m": 0.08940738248864302,
+      "max_altitude_error_m": 0.27970602424932167,
+      "passed": true
+    },
+    "cruise": {
+      "required_speed_kmh": 200.0,
+      "required_continuous_s": 30.0,
+      "continuous_s": 30.00399999999999,
+      "peak_speed_kmh": 224.27075231469013,
+      "max_altitude_error_m": 0.5441173569091013,
+      "passed": true
+    },
+    "sprint": {
+      "required_speed_kmh": 300.0,
+      "required_continuous_s": 10.0,
+      "continuous_s": 10.0,
+      "peak_speed_kmh": 319.19889936517933,
+      "max_altitude_error_m": 0.22210111434441515,
+      "passed": true
+    },
+    "landing_and_disarm": true
+  },
+  "tracking": {
+    "telemetry_frames": 8530,
+    "tracking_frames": 2783,
+    "observed_hz": 50.000124683739905,
+    "measurement_seq_first": 11,
+    "measurement_seq_last": 8540,
+    "platform_fields_zero": true,
+    "passed": true
+  },
+  "binary_udp": {
+    "target_hz": 100,
+    "loopback_integration_passed": true,
+    "independent_frame_timestamp_and_sequence": true
+  },
+  "video": {
+    "validated_at": "2026-11-10T12:22:52+08:00",
+    "passed": true,
+    "status": "passed",
+    "codec": "H.264/AVC",
+    "profile": "High",
+    "resolution": [1920, 1080],
+    "target_fps": 25,
+    "default_bitrate_mbps": 2,
+    "encoder": "nvcudah264enc",
+    "decoder": "nvh264dec",
+    "software_fallback": false,
+    "rtsp_url": "rtsp://127.0.0.1:8554/jielian_a2416a",
+    "receiver_test": {
+      "duration_s": 25,
+      "received_frames": 601,
+      "steady_fps": 25,
+      "display_shape": [540, 960, 3]
+    },
+    "reconnect_test": {
+      "first_second_frames": 23,
+      "steady_fps": 25
+    }
+  }
+}

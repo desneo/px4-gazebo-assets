@@ -8,4 +8,4 @@ if [[ ! -x "$python_bin" ]]; then
   exit 2
 fi
 cd "$model_dir"
-exec "$python_bin" -m ground_station.main "$@"
+exec "$python_bin" "$station_dir/lifecycle.py" run "$@"

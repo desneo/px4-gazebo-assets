@@ -49,6 +49,21 @@ bash scripts/run_services.sh
 bash ground_station/run.sh
 ```
 
+地面站支持多实例，并按配置绝对路径登记独立进程。点击窗口右上角关闭按钮、按 `Q` 或按 `Esc` 都会退出当前实例并释放视频、遥测和 JSON 转发资源。也可使用专用停止入口；停止地面站不影响 Gazebo、PX4、导引头网关或 RTSP 服务：
+
+```bash
+# 停止当前用户的全部A2416A地面站
+bash ground_station/stop.sh
+
+# 只停止使用指定配置的实例；配置必须是绝对路径
+bash ground_station/stop.sh --config /绝对路径/aircraft_1.ini
+
+# 仅预览匹配的进程
+bash ground_station/stop.sh --dry-run
+```
+
+停止前会核对当前用户、PID启动时间、Python解释器、程序模块、工作目录和配置路径；不会使用全局 `pkill`，也不会向整个进程组发送信号。
+
 默认控制与遥测端口为 `127.0.0.1:8001`，RTSP 地址为 `rtsp://127.0.0.1:8554/jielian_a2416a`。网关和地面站启动前都会验证 NVIDIA H.264 编解码能力；没有可加载的 NVENC/`nvh264dec` 时会给出诊断并退出，不使用软件回退。编码输入强制为 NV12，输出为 H.264 High profile、byte-stream、无 B 帧的低延迟流。RTSP 服务通过常驻 RTP 接收和共享内存媒体源支持首次连接及断线重连，运行环境还需提供 GStreamer `shmsink/shmsrc`。
 
 地面站以 10 Hz 保持控制会话，离散命令连续发送三次。点击“发送艾晟报文”后，每个有效 100 Hz 二进制遥测帧都会转换为 `aisheng_udp_bridge` 可直接接收的顶层 37 字段 JSON，并发送到面板中可编辑的 IP 和 Port；再次点击“停止发送”结束转发。默认目的地址为 `127.0.0.1:9000`，启动时可用 `--forward-host`、`--forward-port` 覆盖 INI 默认值。

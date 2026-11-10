@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import math
 from pathlib import Path
+import signal
 import sys
 import time
 
@@ -62,6 +63,14 @@ def button_layout(width: int, video_height: int):
 def _inside(x, y, rect):
     rx, ry, width, height = rect
     return rx <= x < rx + width and ry <= y < ry + height
+
+
+def window_is_visible(window: str) -> bool:
+    """返回OpenCV窗口是否仍存在；用户点击关闭时Qt后端可能直接抛错。"""
+    try:
+        return cv2.getWindowProperty(window, cv2.WND_PROP_VISIBLE) >= 1
+    except cv2.error:
+        return False
 
 
 class GroundStation:
@@ -322,20 +331,24 @@ class GroundStation:
 
     def run(self):
         cv2.namedWindow(self.window, cv2.WINDOW_AUTOSIZE)
-        # OpenCV 5 的 Qt 后端在首次显示图像时才创建原生窗口句柄。
-        cv2.imshow(self.window, self._frame())
-        cv2.waitKey(1)
-        cv2.setMouseCallback(self.window, self._mouse)
-        cv2.setWindowTitle(self.window, self.window_title)
         try:
+            # OpenCV 5 的 Qt 后端在首次显示图像时才创建原生窗口句柄。
+            cv2.imshow(self.window, self._frame())
+            cv2.waitKey(1)
+            if not window_is_visible(self.window):
+                return
+            cv2.setMouseCallback(self.window, self._mouse)
+            cv2.setWindowTitle(self.window, self.window_title)
             while self.running:
                 self._update_rates()
                 cv2.imshow(self.window, self._frame())
                 key = cv2.waitKey(1) & 0xFF
-                if self._handle_forward_key(key):
-                    continue
+                if not window_is_visible(self.window):
+                    break
                 if key in (ord("q"), 27):
                     break
+                if self._handle_forward_key(key):
+                    continue
                 movement = key_movement(key)
                 if movement:
                     self.client.send(0xB1, p1=movement[0], p2=movement[1])
@@ -372,7 +385,13 @@ def main(argv=None) -> int:
             return 0
         if cv2 is None or np is None:
             raise RuntimeError(f"地面站图形依赖不可用：{CV_IMPORT_ERROR}")
-        GroundStation(config).run()
+        station = GroundStation(config)
+        previous_sigterm = signal.signal(
+            signal.SIGTERM, lambda _signum, _frame: setattr(station, "running", False))
+        try:
+            station.run()
+        finally:
+            signal.signal(signal.SIGTERM, previous_sigterm)
     except (ValueError, RuntimeError, HardwareVideoError) as exc:
         print(f"A2416A地面站启动失败：{exc}", file=sys.stderr)
         return 2

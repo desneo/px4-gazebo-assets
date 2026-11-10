@@ -3,11 +3,15 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 import socket
+import subprocess
 import sys
+import tempfile
 import time
 import unittest
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -21,6 +25,7 @@ from ground_station.forward import (
     aisheng_telemetry_message,
 )
 from ground_station.main import FORWARD_START_LABEL, GroundStation, parse_args
+from ground_station import lifecycle
 
 
 class FakeSocket:
@@ -202,6 +207,162 @@ class GroundStationTest(unittest.TestCase):
             endpoint("not-an-ip", 9000)
         with self.assertRaises(ValueError):
             endpoint("127.0.0.1", 0)
+
+
+class LifecycleTest(unittest.TestCase):
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory()
+        self.root = Path(self.temporary.name) / "jielian-A2416A"
+        self.runtime = Path(self.temporary.name) / "runtime"
+        (self.root / "ground_station").mkdir(parents=True)
+        self.runtime.mkdir(mode=0o700)
+        (self.root / "ground_station/__init__.py").write_text("", encoding="utf-8")
+        (self.root / "ground_station/main.py").write_text(
+            "import time\ntime.sleep(60)\n", encoding="utf-8")
+        self.configs = [self.root / "one.ini", self.root / "two.ini"]
+        for config in self.configs:
+            config.write_text("[test]\n", encoding="utf-8")
+        self.children = []
+        self.patches = [
+            patch.object(lifecycle, "ROOT", self.root),
+            patch.object(lifecycle, "runtime_dir", return_value=self.runtime),
+        ]
+        for item in self.patches:
+            item.start()
+
+    def tearDown(self):
+        for child in self.children:
+            if child.poll() is None:
+                child.terminate()
+            child.wait(timeout=3)
+        for item in reversed(self.patches):
+            item.stop()
+        self.temporary.cleanup()
+
+    def managed_child(self, config: Path, token: str):
+        environment = os.environ.copy()
+        environment[lifecycle.TOKEN_ENV] = token
+        child = subprocess.Popen(
+            [sys.executable, "-m", lifecycle.MAIN_MODULE, "--config", str(config)],
+            cwd=self.root, env=environment, start_new_session=True,
+        )
+        self.children.append(child)
+        deadline = time.monotonic() + 2
+        while time.monotonic() < deadline:
+            try:
+                ticks = lifecycle.process_start_ticks(child.pid)
+                break
+            except OSError:
+                time.sleep(0.01)
+        else:
+            self.fail("测试地面站进程未启动")
+        record = {
+            "pid": child.pid,
+            "start_ticks": ticks,
+            "uid": os.getuid(),
+            "executable": Path(sys.executable).resolve(),
+            "module": lifecycle.MAIN_MODULE,
+            "root": self.root,
+            "config": config,
+            "token": token,
+            "started_unix_ns": time.time_ns(),
+        }
+        lifecycle.write_state(lifecycle.state_path(config), record)
+        return child, record
+
+    def test_selective_stop_only_signals_exact_config_instance(self):
+        first, _ = self.managed_child(self.configs[0], "first-token")
+        second, _ = self.managed_child(self.configs[1], "second-token")
+        self.assertEqual(lifecycle.stop(self.configs[0], dry_run=False), 0)
+        first.wait(timeout=3)
+        self.assertIsNone(second.poll())
+
+    def test_same_config_lock_rejects_duplicate_instance(self):
+        first = lifecycle._open_lock(self.configs[0])
+        self.addCleanup(first.close)
+        with self.assertRaises(BlockingIOError):
+            lifecycle._open_lock(self.configs[0])
+
+    def test_run_rejects_matching_unregistered_legacy_instance(self):
+        environment = os.environ.copy()
+        environment.pop(lifecycle.TOKEN_ENV, None)
+        child = subprocess.Popen(
+            [sys.executable, "-m", lifecycle.MAIN_MODULE,
+             "--config", str(self.configs[0])],
+            cwd=self.root, env=environment, start_new_session=True,
+        )
+        self.children.append(child)
+        self.assertEqual(lifecycle.run(["--config", str(self.configs[0])]), 2)
+        self.assertIsNone(child.poll())
+
+    def test_dry_run_and_all_instances_are_multi_instance_safe(self):
+        first, _ = self.managed_child(self.configs[0], "first-token")
+        second, _ = self.managed_child(self.configs[1], "second-token")
+        self.assertEqual(lifecycle.stop(None, dry_run=True), 0)
+        self.assertIsNone(first.poll())
+        self.assertIsNone(second.poll())
+        self.assertEqual(lifecycle.stop(None, dry_run=False), 0)
+        first.wait(timeout=3)
+        second.wait(timeout=3)
+
+    def test_signal_failure_returns_nonzero_without_killing_process(self):
+        child, _ = self.managed_child(self.configs[0], "first-token")
+        with patch.object(lifecycle.signal, "pidfd_send_signal",
+                          side_effect=PermissionError("denied")):
+            self.assertEqual(lifecycle.stop(self.configs[0], dry_run=False), 2)
+        self.assertIsNone(child.poll())
+
+    def test_reused_pid_and_wrong_token_are_not_stopped(self):
+        child, record = self.managed_child(self.configs[0], "real-token")
+        record["start_ticks"] = int(record["start_ticks"]) + 1
+        lifecycle.write_state(lifecycle.state_path(self.configs[0]), record)
+        self.assertFalse(lifecycle.is_managed_process(record))
+        self.assertFalse(lifecycle.signal_verified_process(record, lifecycle.signal.SIGTERM))
+        self.assertIsNone(child.poll())
+        record["start_ticks"] = lifecycle.process_start_ticks(child.pid)
+        record["token"] = "wrong-token"
+        lifecycle.write_state(lifecycle.state_path(self.configs[0]), record)
+        self.assertFalse(lifecycle.is_managed_process(record))
+        self.assertIsNone(child.poll())
+
+    def test_upgrade_compatibility_stops_exact_unregistered_gcs(self):
+        environment = os.environ.copy()
+        environment.pop(lifecycle.TOKEN_ENV, None)
+        child = subprocess.Popen(
+            [sys.executable, "-m", lifecycle.MAIN_MODULE,
+             "--config", str(self.configs[0])],
+            cwd=self.root, env=environment, start_new_session=True,
+        )
+        self.children.append(child)
+        self.assertEqual(lifecycle.stop(self.configs[0], dry_run=False), 0)
+        child.wait(timeout=3)
+
+    def test_upgrade_compatibility_stops_legacy_default_config(self):
+        default_config = self.root / "ground_station/config.ini"
+        default_config.write_text("[test]\n", encoding="utf-8")
+        environment = os.environ.copy()
+        environment.pop(lifecycle.TOKEN_ENV, None)
+        child = subprocess.Popen(
+            [sys.executable, "-m", lifecycle.MAIN_MODULE],
+            cwd=self.root, env=environment, start_new_session=True,
+        )
+        self.children.append(child)
+        self.assertEqual(lifecycle.stop(default_config, dry_run=False), 0)
+        child.wait(timeout=3)
+
+    def test_stop_rejects_relative_config_and_non_gcs_command(self):
+        self.assertEqual(lifecycle.main(["stop", "--config", "relative.ini"]), 2)
+        child = subprocess.Popen([sys.executable, "-c", "import time;time.sleep(60)"],
+                                 cwd=self.root, start_new_session=True)
+        self.children.append(child)
+        fake = {
+            "pid": str(child.pid),
+            "start_ticks": str(lifecycle.process_start_ticks(child.pid)),
+            "executable": str(Path(sys.executable).resolve()),
+            "config": str(self.configs[0]),
+            "token": "anything",
+        }
+        self.assertFalse(lifecycle.is_managed_process(fake))
 
 
 if __name__ == "__main__":

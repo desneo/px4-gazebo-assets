@@ -39,8 +39,6 @@ BUTTONS = (
     ("开启识别", "recognition_on"), ("关闭识别", "recognition_off"),
     ("自动锁定", "auto_lock_on"), ("关闭自动", "auto_lock_off"),
     ("取消跟踪", "cancel"), ("变倍+", "zoom_in"), ("变倍-", "zoom_out"),
-    ("增强开", "enhance_on"), ("增强关", "enhance_off"),
-    ("完整OSD", "osd_full"), ("精简OSD", "osd_half"), ("关闭OSD", "osd_off"),
 )
 FORWARD_START_LABEL = "发送艾晟报文"
 FORWARD_STOP_LABEL = "停止发送"
@@ -48,7 +46,7 @@ PANEL_HEIGHT = 160
 
 
 def button_layout(width: int, video_height: int):
-    columns = 6
+    columns = 7
     gap, height = 7, 34
     item_width = max(70, (width - gap * (columns + 1)) // columns)
     result = []
@@ -102,8 +100,8 @@ class GroundStation:
                                    display_width=self.width, display_height=self.height)
         self.running = True
         self.zoom = 1
-        self.enhance = False
-        self.osd = "full"
+        self.recognition_enabled = False
+        self.auto_lock_enabled = False
         self.drag_start = None
         self.drag_end = None
         self.last_action = ""
@@ -124,18 +122,25 @@ class GroundStation:
                     continue
 
     def _send_action(self, action: str):
+        # 自动锁定依赖检测候选；按钮作为完整操作，先确保识别已开启。
+        if action == "auto_lock_on":
+            self.client.send(COMMANDS["recognition_on"])
         command = COMMANDS[action]
         self.client.send(command)
-        if action == "zoom_in":
+        if action == "recognition_on":
+            self.recognition_enabled = True
+        elif action == "recognition_off":
+            self.recognition_enabled = False
+            self.auto_lock_enabled = False
+        elif action == "auto_lock_on":
+            self.recognition_enabled = True
+            self.auto_lock_enabled = True
+        elif action in ("auto_lock_off", "cancel"):
+            self.auto_lock_enabled = False
+        elif action == "zoom_in":
             self.zoom = {1: 2, 2: 4, 4: 4}[self.zoom]
         elif action == "zoom_out":
             self.zoom = {1: 1, 2: 1, 4: 2}[self.zoom]
-        elif action == "enhance_on":
-            self.enhance = True
-        elif action == "enhance_off":
-            self.enhance = False
-        elif action.startswith("osd_"):
-            self.osd = action.removeprefix("osd_")
         self.last_action = f"已发送：{next(label for label, name in BUTTONS if name == action)}"
 
     def _toggle_forward(self):
@@ -226,10 +231,12 @@ class GroundStation:
             if distance < 6:
                 u, v = view_to_source(*end, self.width, self.height, self.zoom)
                 self.client.send(0xB7, p1=u, p2=v)
+                self.auto_lock_enabled = False
                 self.last_action = f"点选锁定：({u},{v})"
             else:
                 box = box_to_source(self.drag_start, end, self.width, self.height, self.zoom)
                 self.client.send(0xB8, p1=box.x, p2=box.y, p3=box.width, p4=box.height)
+                self.auto_lock_enabled = False
                 self.last_action = f"框选锁定：({box.x},{box.y}) {box.width}x{box.height}"
             self.drag_start = self.drag_end = None
 
@@ -265,9 +272,12 @@ class GroundStation:
         labels = []
         for label, action, rect in self.buttons:
             x, y, width, height = rect
-            active = ((action == "enhance_on" and self.enhance)
-                      or (action == "enhance_off" and not self.enhance)
-                      or (action == f"osd_{self.osd}"))
+            active = (
+                (action == "recognition_on" and self.recognition_enabled)
+                or (action == "recognition_off" and not self.recognition_enabled)
+                or (action == "auto_lock_on" and self.auto_lock_enabled)
+                or (action == "auto_lock_off" and not self.auto_lock_enabled)
+            )
             cv2.rectangle(canvas, (x, y), (x + width, y + height),
                           (0, 110, 0) if active else (58, 58, 58), -1)
             cv2.rectangle(canvas, (x, y), (x + width, y + height), (180, 180, 180), 1)

@@ -24,7 +24,13 @@ from ground_station.forward import (
     AISHENG_TELEMETRY_FIELDS,
     aisheng_telemetry_message,
 )
-from ground_station.main import FORWARD_START_LABEL, GroundStation, parse_args
+from ground_station.main import (
+    BUTTONS,
+    FORWARD_START_LABEL,
+    GroundStation,
+    button_layout,
+    parse_args,
+)
 from ground_station import lifecycle
 
 
@@ -84,6 +90,42 @@ class GroundStationTest(unittest.TestCase):
         station.forward_inputs = {"ip": "127.0.0.1", "port": "9000"}
         self.assertTrue(station._handle_forward_key(ord("9")))
         self.assertEqual(station.forward_inputs["port"], "9")
+
+    def test_visible_buttons_exclude_enhancement_and_osd(self):
+        expected_actions = {
+            "recognition_on", "recognition_off", "auto_lock_on", "auto_lock_off",
+            "cancel", "zoom_in", "zoom_out",
+        }
+        self.assertEqual({action for _label, action in BUTTONS}, expected_actions)
+        self.assertFalse(any("增强" in label or "OSD" in label for label, _action in BUTTONS))
+        layout = button_layout(960, 540)
+        self.assertEqual(len(layout), 7)
+        self.assertEqual(len({rect[1] for _label, _action, rect in layout}), 1)
+
+    def test_auto_lock_button_enables_recognition_before_auto_lock(self):
+        made = []
+
+        def factory(*args):
+            sock = FakeSocket(*args)
+            made.append(sock)
+            return sock
+
+        station = object.__new__(GroundStation)
+        station.client = TelemetryClient(
+            "127.0.0.1", 8001, socket_factory=factory, start=False)
+        station.zoom = 1
+        station.recognition_enabled = False
+        station.auto_lock_enabled = False
+        station.last_action = ""
+        try:
+            station._send_action("auto_lock_on")
+        finally:
+            station.client.close()
+        commands = [raw[3] for raw in made[0].sent]
+        self.assertEqual(commands, [0x3F] * 3 + [0x5F] * 3)
+        self.assertTrue(station.recognition_enabled)
+        self.assertTrue(station.auto_lock_enabled)
+        self.assertEqual(station.last_action, "已发送：自动锁定")
 
     def test_discrete_commands_repeat_three_times_but_heartbeat_and_move_do_not(self):
         made = []
